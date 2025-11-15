@@ -1,0 +1,135 @@
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import useToggle from '@/hooks/useToggle'
+import { type NavLink, NAV_LINKS } from '@/utils/navigation'
+
+const DEFAULT_ANCHOR = '/#overview'
+
+const Header = () => {
+  const [isOpen, toggleOpen] = useToggle(false)
+  const [activeAnchor, setActiveAnchor] = useState(DEFAULT_ANCHOR)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (location.pathname === '/' && typeof window !== 'undefined') {
+      const hash = window.location.hash
+      if (hash) {
+        setActiveAnchor(`/${hash}`)
+      } else {
+        setActiveAnchor(DEFAULT_ANCHOR)
+      }
+    }
+  }, [location])
+
+  const scrollToAnchor = (href: string) => {
+    if (typeof document === 'undefined') return
+    const targetId = href.split('#')[1]
+    if (!targetId) return
+    const target = document.getElementById(targetId)
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const handleAnchorClick = (href: string) => {
+    setActiveAnchor(href)
+    if (location.pathname !== '/') {
+      navigate('/')
+      setTimeout(() => scrollToAnchor(href), 150)
+    } else {
+      scrollToAnchor(href)
+    }
+    if (isOpen) toggleOpen()
+  }
+
+  const handleRouteClick = () => {
+    if (isOpen) toggleOpen()
+  }
+
+  const isActive = (link: NavLink) => {
+    if (link.type === 'route') {
+      return location.pathname.startsWith(link.href)
+    }
+    return location.pathname === '/' && activeAnchor === link.href
+  }
+
+  return (
+    <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <span className="text-lg font-semibold tracking-tight text-brand">
+          Co-Hire Share EV
+        </span>
+        <button
+          type="button"
+          className="md:hidden rounded-md border border-slate-700 px-3 py-2 text-sm font-medium transition-colors hover:border-brand hover:text-brand"
+          onClick={toggleOpen}
+        >
+          Menu
+        </button>
+        <ul className="hidden gap-6 text-sm font-medium text-slate-300 md:flex">
+          {NAV_LINKS.map((link) => (
+            <li key={link.href}>
+              {link.type === 'route' ? (
+                <Link
+                  to={link.href}
+                  className={`transition-colors hover:text-brand ${
+                    isActive(link) ? 'text-brand' : ''
+                  }`}
+                  onClick={handleRouteClick}
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className={`transition-colors hover:text-brand ${
+                    isActive(link) ? 'text-brand' : ''
+                  }`}
+                  onClick={() => handleAnchorClick(link.href)}
+                >
+                  {link.label}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {isOpen && (
+        <div className="border-t border-slate-800 bg-slate-900 px-6 py-4 md:hidden">
+          <ul className="space-y-2 text-sm font-medium text-slate-200">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                {link.type === 'route' ? (
+                  <Link
+                    to={link.href}
+                    className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-slate-800 hover:text-brand ${
+                      isActive(link) ? 'bg-slate-800 text-brand' : ''
+                    }`}
+                    onClick={handleRouteClick}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-slate-800 hover:text-brand ${
+                      isActive(link) ? 'bg-slate-800 text-brand' : ''
+                    }`}
+                    onClick={() => handleAnchorClick(link.href)}
+                  >
+                    {link.label}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </header>
+  )
+}
+
+export default Header
+
+
