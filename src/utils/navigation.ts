@@ -10,5 +10,6 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Pricing', href: '/#pricing', type: 'anchor' },
   { label: 'Contact', href: '/#contact', type: 'anchor' },
   { label: 'Booking Suite', href: '/booking', type: 'route' },
+  { label: 'Group Suite', href: '/groups', type: 'route' },
 ]
 

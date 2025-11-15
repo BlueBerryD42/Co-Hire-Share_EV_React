@@ -13,6 +13,13 @@ import TripHistory from "@/pages/booking/TripHistory";
 import ReportIssue from "@/pages/booking/ReportIssue";
 import AiRecommendations from "@/pages/booking/AiRecommendations";
 import SuccessFeedback from "@/pages/booking/SuccessFeedback";
+import GroupHub from "@/pages/group/GroupHub";
+import GroupOverview from "@/pages/group/GroupOverview";
+import MemberDetails from "@/pages/group/MemberDetails";
+import SharedFund from "@/pages/group/SharedFund";
+import Proposals from "@/pages/group/Proposals";
+import ProposalDetails from "@/pages/group/ProposalDetails";
+import CreateProposal from "@/pages/group/CreateProposal";
 
 const App = () => {
   return (
@@ -40,6 +47,22 @@ const App = () => {
           <Route
             path="booking/success-feedback"
             element={<SuccessFeedback />}
+          />
+          <Route path="groups" element={<GroupHub />} />
+          <Route path="groups/:groupId" element={<GroupOverview />} />
+          <Route
+            path="groups/:groupId/members/:memberId"
+            element={<MemberDetails />}
+          />
+          <Route path="groups/:groupId/fund" element={<SharedFund />} />
+          <Route path="groups/:groupId/proposals" element={<Proposals />} />
+          <Route
+            path="groups/:groupId/proposals/create"
+            element={<CreateProposal />}
+          />
+          <Route
+            path="groups/:groupId/proposals/:proposalId"
+            element={<ProposalDetails />}
           />
         </Route>
       </Routes>
