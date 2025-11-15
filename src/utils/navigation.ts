@@ -1,9 +1,3 @@
-export const NAV_LINKS = [
-  { label: 'Overview', href: '/' },
-  { label: 'Vehicles', href: '/vehicles' },
-  { label: 'Benefits', href: '#benefits' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Contact', href: '#contact' },
 export type NavLink = {
   label: string
   href: string
@@ -15,7 +9,7 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Benefits', href: '/#benefits', type: 'anchor' },
   { label: 'Pricing', href: '/#pricing', type: 'anchor' },
   { label: 'Contact', href: '/#contact', type: 'anchor' },
+  { label: 'Vehicles', href: '/vehicles', type: 'route' },
   { label: 'Booking Suite', href: '/booking', type: 'route' },
   { label: 'Group Suite', href: '/groups', type: 'route' },
 ]
-
