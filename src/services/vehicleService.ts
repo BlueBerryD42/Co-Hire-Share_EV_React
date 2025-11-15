@@ -74,98 +74,98 @@ const vehicleService = {
   // ============ VEHICLE MANAGEMENT ============
 
   /**
-   * GET /api/vehicles
+   * GET /api/vehicle
    * Lấy danh sách tất cả xe (filtered theo group membership)
    */
   getAllVehicles: async (): Promise<Vehicle[]> => {
-    const response = await apiClient.get<Vehicle[]>('/vehicles')
+    const response = await apiClient.get<Vehicle[]>('/vehicle')
     return response.data
   },
 
   /**
-   * GET /api/vehicles/{id}
+   * GET /api/vehicle/{id}
    * Lấy chi tiết một xe
    */
   getVehicleById: async (id: string): Promise<Vehicle> => {
-    const response = await apiClient.get<Vehicle>(`/vehicles/${id}`)
+    const response = await apiClient.get<Vehicle>(`/vehicle/${id}`)
     return response.data
   },
 
   /**
-   * POST /api/vehicles
+   * POST /api/vehicle
    * Tạo xe mới (Admin only)
    */
   createVehicle: async (vehicleData: CreateVehicleDto): Promise<Vehicle> => {
-    const response = await apiClient.post<Vehicle>('/vehicles', vehicleData)
+    const response = await apiClient.post<Vehicle>('/vehicle', vehicleData)
     return response.data
   },
 
   /**
-   * PUT /api/vehicles/{id}/status
+   * PUT /api/vehicle/{id}/status
    * Cập nhật trạng thái xe
    */
   updateVehicleStatus: async (id: string, statusData: UpdateVehicleStatusDto): Promise<Vehicle> => {
-    const response = await apiClient.put<Vehicle>(`/vehicles/${id}/status`, statusData)
+    const response = await apiClient.put<Vehicle>(`/vehicle/${id}/status`, statusData)
     return response.data
   },
 
   /**
-   * PUT /api/vehicles/{id}/odometer
+   * PUT /api/vehicle/{id}/odometer
    * Cập nhật số km đã đi
    */
   updateOdometer: async (id: string, odometerData: UpdateOdometerDto): Promise<Vehicle> => {
-    const response = await apiClient.put<Vehicle>(`/vehicles/${id}/odometer`, odometerData)
+    const response = await apiClient.put<Vehicle>(`/vehicle/${id}/odometer`, odometerData)
     return response.data
   },
 
   /**
-   * GET /api/vehicles/{id}/availability
+   * GET /api/vehicle/{id}/availability
    * Kiểm tra xe có sẵn trong khoảng thời gian không
    */
   checkAvailability: async (id: string, params: AvailabilityParams): Promise<boolean> => {
-    const response = await apiClient.get<boolean>(`/vehicles/${id}/availability`, { params })
+    const response = await apiClient.get<boolean>(`/vehicle/${id}/availability`, { params })
     return response.data
   },
 
   // ============ ANALYTICS & STATISTICS ============
 
   /**
-   * GET /api/vehicles/{id}/statistics
+   * GET /api/vehicle/{id}/statistics
    * Lấy thống kê sử dụng xe chi tiết
    * Query params: startDate, endDate, groupBy, includeBenchmarks
    */
   getVehicleStatistics: async (id: string, params: StatisticsParams = {}): Promise<VehicleStatistics> => {
-    const response = await apiClient.get<VehicleStatistics>(`/vehicles/${id}/statistics`, { params })
+    const response = await apiClient.get<VehicleStatistics>(`/vehicle/${id}/statistics`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicles/{id}/cost-analysis
+   * GET /api/vehicle/{id}/cost-analysis
    * Phân tích chi phí xe
    * Query params: startDate, endDate, groupBy
    */
   getCostAnalysis: async (id: string, params: CostAnalysisParams = {}): Promise<any> => {
-    const response = await apiClient.get(`/vehicles/${id}/cost-analysis`, { params })
+    const response = await apiClient.get(`/vehicle/${id}/cost-analysis`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicles/{id}/member-usage
+   * GET /api/vehicle/{id}/member-usage
    * Phân tích sử dụng theo từng thành viên
    * Query params: startDate, endDate
    */
   getMemberUsage: async (id: string, params: MemberUsageParams = {}): Promise<any> => {
-    const response = await apiClient.get(`/vehicles/${id}/member-usage`, { params })
+    const response = await apiClient.get(`/vehicle/${id}/member-usage`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicles/{id}/health-score
+   * GET /api/vehicle/{id}/health-score
    * Lấy điểm sức khỏe xe (0-100)
    * Query params: includeHistory, includeBenchmark, historyMonths
    */
   getHealthScore: async (id: string, params: HealthScoreParams = {}): Promise<HealthScoreResponse> => {
-    const response = await apiClient.get<HealthScoreResponse>(`/vehicles/${id}/health-score`, { params })
+    const response = await apiClient.get<HealthScoreResponse>(`/vehicle/${id}/health-score`, { params })
     return response.data
   },
 
