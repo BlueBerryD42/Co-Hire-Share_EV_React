@@ -93,6 +93,7 @@ const ProposalDetails = () => {
   return (
     <section className="mx-auto max-w-5xl space-y-8 p-6">
       <header className="space-y-4">
+        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 28 · Proposal Details</p>
         <Link to={`/groups/${groupId}/proposals`} className="text-sm font-semibold text-accent-blue">
           ← Quay về danh sách đề xuất
         </Link>
