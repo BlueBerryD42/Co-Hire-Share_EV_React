@@ -69,6 +69,7 @@ const Header = () => {
         <Link to="/" className="text-lg font-semibold tracking-tight text-neutral-800 hover:text-primary transition-colors">
           Co-Hire Share EV
         </Link>
+
         <button
           type="button"
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-900 md:hidden"
@@ -76,26 +77,7 @@ const Header = () => {
         >
           Menu
         </button>
-        <ul className="hidden gap-6 text-sm font-medium text-neutral-600 md:flex">
-          {NAV_LINKS.map((link) => (
-            <li key={link.href}>
-              {link.type === 'route' ? (
-                <Link
-                  to={link.href}
-                  className={`transition-colors hover:text-neutral-900 ${
-                    isActive(link) ? 'text-neutral-900 font-semibold' : ''
-                  }`}
-                  onClick={handleRouteClick}
-                >
-                  {link.label}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  className={`transition-colors hover:text-neutral-900 ${
-                    isActive(link) ? 'text-neutral-900 font-semibold' : ''
-                  }`}
-                  onClick={() => handleAnchorClick(link.href)}
+
         <div className="hidden items-center gap-6 md:flex">
           <ul className="flex gap-6 text-sm font-medium text-neutral-600">
             {NAV_LINKS.map((link) => (
@@ -104,7 +86,7 @@ const Header = () => {
                   <Link
                     to={link.href}
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900' : ''
+                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={handleRouteClick}
                   >
@@ -114,7 +96,7 @@ const Header = () => {
                   <button
                     type="button"
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900' : ''
+                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={() => handleAnchorClick(link.href)}
                   >
@@ -171,6 +153,7 @@ const Header = () => {
           </div>
         </div>
       </nav>
+
       {isOpen && (
         <div className="border-t border-neutral-200 bg-neutral-100 px-6 py-4 md:hidden">
           <ul className="space-y-2 text-sm font-medium text-neutral-700">

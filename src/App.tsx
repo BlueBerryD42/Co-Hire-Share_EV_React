@@ -1,35 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout'
 import Home from '@/pages/Home'
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import MainLayout from "@/layouts/MainLayout";
-import Home from "@/pages/Home";
-import Login from "@/pages/auth/Login";
-import Register from "@/pages/auth/Register";
-import EmailVerification from "@/pages/auth/EmailVerification";
-import BookingHub from "@/pages/booking/BookingHub";
-import BookingCalendar from "@/pages/booking/BookingCalendar";
-import CreateBooking from "@/pages/booking/CreateBooking";
-import BookingDetails from "@/pages/booking/BookingDetails";
-import CheckIn from "@/pages/booking/CheckIn";
-import CheckOut from "@/pages/booking/CheckOut";
-import ActiveTrip from "@/pages/booking/ActiveTrip";
-import ExpensesPayments from "@/pages/booking/ExpensesPayments";
-import TripHistory from "@/pages/booking/TripHistory";
-import ReportIssue from "@/pages/booking/ReportIssue";
-import AiRecommendations from "@/pages/booking/AiRecommendations";
-import SuccessFeedback from "@/pages/booking/SuccessFeedback";
-import GroupHub from "@/pages/group/GroupHub";
-import GroupOverview from "@/pages/group/GroupOverview";
-import MemberDetails from "@/pages/group/MemberDetails";
-import SharedFund from "@/pages/group/SharedFund";
-import Proposals from "@/pages/group/Proposals";
-import ProposalDetails from "@/pages/group/ProposalDetails";
-import CreateProposal from "@/pages/group/CreateProposal";
-import GroupMarketplace from "@/pages/group/GroupMarketplace";
-import JoinGroupApplication from "@/pages/group/JoinGroupApplication";
-import CreateGroup from "@/pages/group/CreateGroup";
-import MessageCenter from "@/pages/group/MessageCenter";
+
+// Auth Pages
+import { Login, Register, EmailVerification } from '@/pages/auth'
 
 // Vehicle Pages
 import {
@@ -44,26 +18,34 @@ import {
 } from '@/pages/vehicle'
 
 // Booking Pages
-import BookingHub from '@/pages/booking/BookingHub'
-import BookingCalendar from '@/pages/booking/BookingCalendar'
-import CreateBooking from '@/pages/booking/CreateBooking'
-import BookingDetails from '@/pages/booking/BookingDetails'
-import CheckIn from '@/pages/booking/CheckIn'
-import CheckOut from '@/pages/booking/CheckOut'
-import ActiveTrip from '@/pages/booking/ActiveTrip'
-import TripHistory from '@/pages/booking/TripHistory'
-import ReportIssue from '@/pages/booking/ReportIssue'
-import AiRecommendations from '@/pages/booking/AiRecommendations'
-import SuccessFeedback from '@/pages/booking/SuccessFeedback'
+import {
+  BookingHub,
+  BookingCalendar,
+  CreateBooking,
+  BookingDetails,
+  CheckIn,
+  CheckOut,
+  ActiveTrip,
+  TripHistory,
+  ReportIssue,
+  AiRecommendations,
+  SuccessFeedback,
+} from '@/pages/booking'
 
 // Group Pages
-import GroupHub from '@/pages/group/GroupHub'
-import GroupOverview from '@/pages/group/GroupOverview'
-import MemberDetails from '@/pages/group/MemberDetails'
-import SharedFund from '@/pages/group/SharedFund'
-import Proposals from '@/pages/group/Proposals'
-import ProposalDetails from '@/pages/group/ProposalDetails'
-import CreateProposal from '@/pages/group/CreateProposal'
+import {
+  GroupHub,
+  GroupOverview,
+  MemberDetails,
+  SharedFund,
+  Proposals,
+  ProposalDetails,
+  CreateProposal,
+  GroupMarketplace,
+  JoinGroupApplication,
+  CreateGroup,
+  MessageCenter,
+} from '@/pages/group'
 
 /**
  * Main App Component với React Router
@@ -72,7 +54,6 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Main Layout Routes */}
         {/* Public Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -128,25 +109,11 @@ const App = () => {
           <Route path="groups/:groupId/proposals" element={<Proposals />} />
           <Route path="groups/:groupId/proposals/create" element={<CreateProposal />} />
           <Route path="groups/:groupId/proposals/:proposalId" element={<ProposalDetails />} />
+          <Route path="groups/:groupId/apply" element={<JoinGroupApplication />} />
+          <Route path="groups/:groupId/messages" element={<MessageCenter />} />
 
           {/* Catch all - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
-          <Route
-            path="groups/:groupId/proposals/create"
-            element={<CreateProposal />}
-          />
-          <Route
-            path="groups/:groupId/proposals/:proposalId"
-            element={<ProposalDetails />}
-          />
-          <Route
-            path="groups/:groupId/apply"
-            element={<JoinGroupApplication />}
-          />
-          <Route
-            path="groups/:groupId/messages"
-            element={<MessageCenter />}
-          />
         </Route>
       </Routes>
     </BrowserRouter>
