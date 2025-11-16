@@ -66,9 +66,10 @@ const Header = () => {
   return (
     <header className="border-b border-neutral-200 bg-neutral-50/80 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <span className="text-lg font-semibold tracking-tight text-neutral-800">
+        <Link to="/" className="text-lg font-semibold tracking-tight text-neutral-800 hover:text-primary transition-colors">
           Co-Hire Share EV
-        </span>
+        </Link>
+
         <button
           type="button"
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-900 md:hidden"
@@ -76,6 +77,7 @@ const Header = () => {
         >
           Menu
         </button>
+
         <div className="hidden items-center gap-6 md:flex">
           <ul className="flex gap-6 text-sm font-medium text-neutral-600">
             {NAV_LINKS.map((link) => (
@@ -84,7 +86,7 @@ const Header = () => {
                   <Link
                     to={link.href}
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900' : ''
+                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={handleRouteClick}
                   >
@@ -94,7 +96,7 @@ const Header = () => {
                   <button
                     type="button"
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900' : ''
+                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={() => handleAnchorClick(link.href)}
                   >
@@ -151,6 +153,7 @@ const Header = () => {
           </div>
         </div>
       </nav>
+
       {isOpen && (
         <div className="border-t border-neutral-200 bg-neutral-100 px-6 py-4 md:hidden">
           <ul className="space-y-2 text-sm font-medium text-neutral-700">
@@ -160,7 +163,7 @@ const Header = () => {
                   <Link
                     to={link.href}
                     className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-neutral-200 hover:text-neutral-900 ${
-                      isActive(link) ? 'bg-neutral-200 text-neutral-900' : ''
+                      isActive(link) ? 'bg-neutral-200 text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={handleRouteClick}
                   >
@@ -170,7 +173,7 @@ const Header = () => {
                   <button
                     type="button"
                     className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-neutral-200 hover:text-neutral-900 ${
-                      isActive(link) ? 'bg-neutral-200 text-neutral-900' : ''
+                      isActive(link) ? 'bg-neutral-200 text-neutral-900 font-semibold' : ''
                     }`}
                     onClick={() => handleAnchorClick(link.href)}
                   >
@@ -226,5 +229,3 @@ const Header = () => {
 }
 
 export default Header
-
-

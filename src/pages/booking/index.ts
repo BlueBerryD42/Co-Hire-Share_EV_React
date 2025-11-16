@@ -1,0 +1,12 @@
+// Export tất cả booking pages
+export { default as BookingHub } from './BookingHub'
+export { default as BookingCalendar } from './BookingCalendar'
+export { default as CreateBooking } from './CreateBooking'
+export { default as BookingDetails } from './BookingDetails'
+export { default as CheckIn } from './CheckIn'
+export { default as CheckOut } from './CheckOut'
+export { default as ActiveTrip } from './ActiveTrip'
+export { default as TripHistory } from './TripHistory'
+export { default as ReportIssue } from './ReportIssue'
+export { default as AiRecommendations } from './AiRecommendations'
+export { default as SuccessFeedback } from './SuccessFeedback'
