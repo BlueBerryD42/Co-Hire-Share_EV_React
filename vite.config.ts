@@ -16,20 +16,33 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/api': {
-          target: env.VITE_API_BASE_URL || 'https://localhost:61601',
+        // Auth service
+        '/api/Auth': {
+          target: env.VITE_AUTH_API_URL || 'https://localhost:61601',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, _req, _res) => {
-              console.log('❌ Proxy error:', err.message);
-              console.log('💡 Make sure backend is running on:', env.VITE_API_BASE_URL || 'https://localhost:61601');
-            });
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log('➡️  Proxying:', req.method, req.url, '→', env.VITE_API_BASE_URL || 'https://localhost:61601');
-            });
-          },
+        },
+        // Group service
+        '/api/group': {
+          target: env.VITE_GROUP_API_URL || 'https://localhost:61600',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/document': {
+          target: env.VITE_GROUP_API_URL || 'https://localhost:61600',
+          changeOrigin: true,
+          secure: false,
+        },
+          '/api/fund': {
+          target: env.VITE_GROUP_API_URL || 'https://localhost:61600',
+          changeOrigin: true,
+          secure: false,
+        },
+        // Proposal service
+        '/api/proposal': {
+          target: env.VITE_PROPOSAL_API_URL || 'https://localhost:61600',
+          changeOrigin: true,
+          secure: false,
         },
       },
     },

@@ -4,7 +4,6 @@ import Home from "@/pages/Home";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import EmailVerification from "@/pages/auth/EmailVerification";
-import TestApi from "@/pages/auth/TestApi";
 import BookingHub from "@/pages/booking/BookingHub";
 import BookingCalendar from "@/pages/booking/BookingCalendar";
 import CreateBooking from "@/pages/booking/CreateBooking";
@@ -33,7 +32,6 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/confirm-email" element={<EmailVerification />} />
-        <Route path="/test-api" element={<TestApi />} />
 
         {/* Protected Routes */}
         <Route path="/" element={<MainLayout />}>
