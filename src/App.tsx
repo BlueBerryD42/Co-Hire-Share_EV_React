@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import Home from "@/pages/Home";
+import Login from "@/pages/auth/Login";
+import Register from "@/pages/auth/Register";
+import EmailVerification from "@/pages/auth/EmailVerification";
 import BookingHub from "@/pages/booking/BookingHub";
 import BookingCalendar from "@/pages/booking/BookingCalendar";
 import CreateBooking from "@/pages/booking/CreateBooking";
@@ -25,6 +28,12 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public Auth Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/confirm-email" element={<EmailVerification />} />
+
+        {/* Protected Routes */}
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
           <Route path="booking" element={<BookingHub />} />

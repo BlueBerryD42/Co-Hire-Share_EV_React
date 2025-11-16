@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useToggle from '@/hooks/useToggle'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { logout } from '@/store/slices/authSlice'
 import { type NavLink, NAV_LINKS } from '@/utils/navigation'
 
 const DEFAULT_ANCHOR = '/#overview'
@@ -10,6 +12,8 @@ const Header = () => {
   const [activeAnchor, setActiveAnchor] = useState(DEFAULT_ANCHOR)
   const location = useLocation()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     if (location.pathname === '/' && typeof window !== 'undefined') {
@@ -54,6 +58,11 @@ const Header = () => {
     return location.pathname === '/' && activeAnchor === link.href
   }
 
+  const handleLogout = async () => {
+    await dispatch(logout())
+    navigate('/')
+  }
+
   return (
     <header className="border-b border-neutral-200 bg-neutral-50/80 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -67,33 +76,80 @@ const Header = () => {
         >
           Menu
         </button>
-        <ul className="hidden gap-6 text-sm font-medium text-neutral-600 md:flex">
-          {NAV_LINKS.map((link) => (
-            <li key={link.href}>
-              {link.type === 'route' ? (
-                <Link
-                  to={link.href}
-                  className={`transition-colors hover:text-neutral-900 ${
-                    isActive(link) ? 'text-neutral-900' : ''
-                  }`}
-                  onClick={handleRouteClick}
-                >
-                  {link.label}
-                </Link>
-              ) : (
+        <div className="hidden items-center gap-6 md:flex">
+          <ul className="flex gap-6 text-sm font-medium text-neutral-600">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                {link.type === 'route' ? (
+                  <Link
+                    to={link.href}
+                    className={`transition-colors hover:text-neutral-900 ${
+                      isActive(link) ? 'text-neutral-900' : ''
+                    }`}
+                    onClick={handleRouteClick}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={`transition-colors hover:text-neutral-900 ${
+                      isActive(link) ? 'text-neutral-900' : ''
+                    }`}
+                    onClick={() => handleAnchorClick(link.href)}
+                  >
+                    {link.label}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm text-neutral-700">
+                  {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
+                </span>
                 <button
                   type="button"
-                  className={`transition-colors hover:text-neutral-900 ${
-                    isActive(link) ? 'text-neutral-900' : ''
-                  }`}
-                  onClick={() => handleAnchorClick(link.href)}
+                  onClick={handleLogout}
+                  className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-100"
                 >
-                  {link.label}
+                  Logout
                 </button>
-              )}
-            </li>
-          ))}
-        </ul>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-neutral-50 transition-all"
+                  style={{
+                    backgroundColor: 'var(--accent-blue)',
+                    boxShadow: '0 2px 8px rgba(122, 154, 175, 0.25)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#6a8a9f'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--accent-blue)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
       </nav>
       {isOpen && (
         <div className="border-t border-neutral-200 bg-neutral-100 px-6 py-4 md:hidden">
@@ -124,6 +180,45 @@ const Header = () => {
               </li>
             ))}
           </ul>
+
+          {/* Mobile Auth Buttons */}
+          <div className="mt-4 space-y-2 border-t border-neutral-200 pt-4">
+            {isAuthenticated ? (
+              <>
+                <div className="px-3 py-2 text-sm text-neutral-700">
+                  {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="block w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-200"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="block w-full rounded-lg border border-neutral-300 px-4 py-2 text-center text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-200"
+                  onClick={handleRouteClick}
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="block w-full rounded-lg px-4 py-2 text-center text-sm font-semibold text-neutral-50 transition-all"
+                  style={{
+                    backgroundColor: 'var(--accent-blue)',
+                    boxShadow: '0 2px 8px rgba(122, 154, 175, 0.25)',
+                  }}
+                  onClick={handleRouteClick}
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       )}
     </header>
