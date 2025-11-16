@@ -11,5 +11,7 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Contact', href: '/#contact', type: 'anchor' },
   { label: 'Booking Suite', href: '/booking', type: 'route' },
   { label: 'Group Suite', href: '/groups', type: 'route' },
+  { label: 'Marketplace', href: '/groups/marketplace', type: 'route' },
+  { label: 'Create Group', href: '/groups/create', type: 'route' },
 ]
 

@@ -23,6 +23,10 @@ import SharedFund from "@/pages/group/SharedFund";
 import Proposals from "@/pages/group/Proposals";
 import ProposalDetails from "@/pages/group/ProposalDetails";
 import CreateProposal from "@/pages/group/CreateProposal";
+import GroupMarketplace from "@/pages/group/GroupMarketplace";
+import JoinGroupApplication from "@/pages/group/JoinGroupApplication";
+import CreateGroup from "@/pages/group/CreateGroup";
+import MessageCenter from "@/pages/group/MessageCenter";
 
 const App = () => {
   return (
@@ -58,6 +62,8 @@ const App = () => {
             element={<SuccessFeedback />}
           />
           <Route path="groups" element={<GroupHub />} />
+          <Route path="groups/marketplace" element={<GroupMarketplace />} />
+          <Route path="groups/create" element={<CreateGroup />} />
           <Route path="groups/:groupId" element={<GroupOverview />} />
           <Route
             path="groups/:groupId/members/:memberId"
@@ -72,6 +78,14 @@ const App = () => {
           <Route
             path="groups/:groupId/proposals/:proposalId"
             element={<ProposalDetails />}
+          />
+          <Route
+            path="groups/:groupId/apply"
+            element={<JoinGroupApplication />}
+          />
+          <Route
+            path="groups/:groupId/messages"
+            element={<MessageCenter />}
           />
         </Route>
       </Routes>
