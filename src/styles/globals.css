@@ -89,5 +89,78 @@
     border-radius: var(--radius-lg);
     border: 1px solid var(--neutral-200);
   }
+
+  /* === AUTH STYLES === */
+  .auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--neutral-50);
+    padding: 2rem 1rem;
+  }
+
+  .auth-card {
+    background-color: var(--neutral-100);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    box-shadow: var(--shadow-soft);
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .auth-input .MuiOutlinedInput-root {
+    background-color: var(--neutral-50);
+    border-radius: var(--radius-md);
+  }
+
+  .auth-input .MuiOutlinedInput-root fieldset {
+    border-color: var(--neutral-200);
+    border-width: 1.5px;
+  }
+
+  .auth-input .MuiOutlinedInput-root:hover fieldset {
+    border-color: var(--neutral-400);
+  }
+
+  .auth-input .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(122, 154, 175, 0.15);
+  }
+
+  .auth-input .MuiOutlinedInput-root.Mui-error fieldset {
+    border-color: var(--accent-terracotta);
+  }
+
+  .auth-input .MuiInputLabel-root {
+    color: var(--neutral-600);
+  }
+
+  .auth-input .MuiInputLabel-root.Mui-focused {
+    color: var(--accent-blue);
+  }
+
+  .auth-input .MuiInputLabel-root.Mui-error {
+    color: var(--accent-terracotta);
+  }
+
+  .auth-input .MuiFormHelperText-root {
+    margin-left: 0;
+    margin-top: 0.375rem;
+  }
+
+  .auth-input .MuiFormHelperText-root.Mui-error {
+    color: var(--accent-terracotta);
+  }
+
+  .auth-input .MuiInputBase-input {
+    color: var(--neutral-700);
+  }
+
+  .auth-input .MuiInputBase-input::placeholder {
+    color: var(--neutral-400);
+    opacity: 1;
+  }
 }
 
