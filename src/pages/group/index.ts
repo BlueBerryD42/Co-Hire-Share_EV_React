@@ -1,0 +1,12 @@
+// Export tất cả group pages
+export { default as GroupHub } from './GroupHub'
+export { default as GroupOverview } from './GroupOverview'
+export { default as MemberDetails } from './MemberDetails'
+export { default as SharedFund } from './SharedFund'
+export { default as Proposals } from './Proposals'
+export { default as ProposalDetails } from './ProposalDetails'
+export { default as CreateProposal } from './CreateProposal'
+export { default as GroupMarketplace } from './GroupMarketplace'
+export { default as JoinGroupApplication } from './JoinGroupApplication'
+export { default as CreateGroup } from './CreateGroup'
+export { default as MessageCenter } from './MessageCenter'
