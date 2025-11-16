@@ -13,7 +13,7 @@ import type {
 
 // Create axios instance with auth configuration
 const http = axios.create({
-  baseURL: '/api/Auth',
+  baseURL: '/api/auth',
   headers: {
     'Content-Type': 'application/json',
   },
