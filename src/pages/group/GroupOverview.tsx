@@ -12,6 +12,7 @@ import type { UUID } from '@/models/booking'
 import { useGroups } from '@/hooks/useGroups'
 import { useFundBalance } from '@/hooks/useFund'
 import { useProposals } from '@/hooks/useProposals'
+import { EmptyState } from '@/components/shared'
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -118,13 +119,12 @@ const GroupOverview = () => {
 
   if (!groups?.length || !selectedGroup) {
     return (
-      <section className="mx-auto max-w-4xl space-y-6 p-6 text-center">
-        <div className="rounded-3xl border border-dashed border-neutral-300 bg-neutral-100 p-12">
-          <p className="text-lg font-semibold text-neutral-800">Chưa có nhóm nào</p>
-          <p className="text-neutral-600">
-            Khi bạn tham gia một nhóm đồng sở hữu, toàn bộ dữ liệu sẽ xuất hiện ở đây.
-          </p>
-        </div>
+      <section className="mx-auto max-w-4xl space-y-6 p-6">
+        <EmptyState
+          type="groupMembers"
+          headline="Chưa có nhóm nào"
+          description="Khi bạn tham gia một nhóm đồng sở hữu, toàn bộ dữ liệu sẽ xuất hiện ở đây."
+        />
       </section>
     )
   }
