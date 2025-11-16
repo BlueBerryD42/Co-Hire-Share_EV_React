@@ -1,138 +1,99 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import {
+  Dashboard,
+  Groups,
+  DirectionsCar,
+  Build,
+  CheckCircle,
+  Warning,
+  Assessment,
+  People,
+  Description,
+  Article,
+  Analytics,
+  History,
+  Settings,
+  SmartToy,
+  Psychology,
+  Lightbulb,
+  Gavel,
+  Search as SearchIcon,
+} from "@mui/icons-material";
+import GlobalSearch from "@/components/shared/GlobalSearch";
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const searchRef = useRef(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const ACTIVE_CLASSES = "bg-neutral-900 text-neutral-50 shadow-sm";
   const INACTIVE_CLASSES = "text-neutral-700 hover:bg-neutral-200";
 
   const menuItems = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: "📊" },
-    { path: "/admin/groups", label: "Manage Groups", icon: "👥" },
-    { path: "/admin/vehicles", label: "Manage Vehicles", icon: "🚗" },
-    { path: "/admin/maintenance", label: "Maintenance", icon: "🔧" },
-    { path: "/admin/checkins", label: "Check-In/Out", icon: "✅" },
-    { path: "/admin/disputes", label: "Disputes", icon: "⚠️" },
+    { path: "/admin/dashboard", label: "Dashboard", icon: Dashboard },
+    { path: "/admin/groups", label: "Manage Groups", icon: Groups },
+    { path: "/admin/vehicles", label: "Manage Vehicles", icon: DirectionsCar },
+    { path: "/admin/maintenance", label: "Maintenance", icon: Build },
+    { path: "/admin/checkins", label: "Check-In/Out", icon: CheckCircle },
+    { path: "/admin/disputes", label: "Disputes", icon: Gavel },
     {
       path: "/admin/financial-reports",
       label: "Financial Reports",
-      icon: "💰",
+      icon: Assessment,
     },
-    { path: "/admin/users", label: "User Management", icon: "👤" },
-    { path: "/admin/kyc", label: "KYC Review", icon: "📄" },
-    { path: "/admin/contracts", label: "E-Contracts", icon: "📝" },
-    { path: "/admin/analytics", label: "Analytics", icon: "📈" },
-    { path: "/admin/audit", label: "Audit Log", icon: "📋" },
-    { path: "/admin/settings", label: "Settings", icon: "⚙️" },
+    { path: "/admin/users", label: "User Management", icon: People },
+    { path: "/admin/kyc", label: "KYC Review", icon: Description },
+    { path: "/admin/contracts", label: "E-Contracts", icon: Article },
+    { path: "/admin/analytics", label: "Analytics", icon: Analytics },
+    { path: "/admin/audit", label: "Audit Log", icon: History },
+    { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
   const aiMenuItems = [
     {
       path: "/admin/ai/booking-recommendations",
       label: "Booking Recommendations",
-      icon: "🤖",
+      icon: SmartToy,
     },
     {
       path: "/admin/ai/fairness-score",
       label: "Fairness Score",
-      icon: "⚖️",
+      icon: Psychology,
       requiresParam: true,
     },
     {
       path: "/admin/ai/predictive-maintenance",
       label: "Predictive Maintenance",
-      icon: "🔮",
+      icon: Psychology,
       requiresParam: true,
     },
     {
       path: "/admin/ai/cost-optimization",
       label: "Cost Optimization",
-      icon: "💡",
+      icon: Lightbulb,
       requiresParam: true,
     },
   ];
 
-  const isActive = (path) => {
-    // Check if the current path matches or starts with the menu item path
-    // Handle routes with parameters (e.g., /admin/ai/fairness-score/123 should match /admin/ai/fairness-score)
-    if (location.pathname === path) return true;
-    if (location.pathname.startsWith(path + "/")) return true;
-    // Also check if it's an exact match for routes without trailing slashes
-    return false;
-  };
-
-  // Handle search
-  const handleSearch = async (query) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // TODO: Call search API when available
-      // const response = await searchApi.search(query);
-      // setSearchResults(response.data);
-
-      // Temporary: Search through menu items
-      const menuItemsWithType = menuItems.map((item) => ({
-        ...item,
-        type: "Menu",
-      }));
-      const aiItemsWithType = aiMenuItems.map((item) => ({
-        ...item,
-        type: "AI Feature",
-      }));
-      const allItems = [...menuItemsWithType, ...aiItemsWithType];
-      const filtered = allItems.filter(
-        (item) =>
-          item.label.toLowerCase().includes(query.toLowerCase()) ||
-          item.path.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(filtered);
-      setShowSearchResults(true);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error searching:", err);
-      setLoading(false);
-    }
-  };
-
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    handleSearch(value);
-  };
-
-  const handleSearchResultClick = (path) => {
-    setSearchQuery("");
-    setSearchResults([]);
-    setShowSearchResults(false);
-    navigate(path);
-  };
-
-  // Close search results when clicking outside
+  // Keyboard shortcut for search
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowSearchResults(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
       }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const isActive = (path: string) => {
+    if (location.pathname === path) return true;
+    if (location.pathname.startsWith(path + "/")) return true;
+    return false;
+  };
 
   return (
     <div className="h-screen bg-neutral-50 flex overflow-hidden">
@@ -195,13 +156,15 @@ const AdminLayout = () => {
                     title={!sidebarOpen ? item.label : ""}
                   >
                     <span
-                      className={`${
-                        sidebarOpen ? "text-xl" : "text-2xl"
-                      } flex-shrink-0 flex items-center justify-center ${
+                      className={`flex-shrink-0 flex items-center justify-center ${
                         !sidebarOpen ? "w-8 h-8" : ""
                       }`}
                     >
-                      {item.icon}
+                      {sidebarOpen ? (
+                        <item.icon sx={{ fontSize: 20, color: "inherit" }} />
+                      ) : (
+                        <item.icon sx={{ fontSize: 24, color: "inherit" }} />
+                      )}
                     </span>
                     {sidebarOpen && (
                       <span className="font-medium text-sm leading-tight">
@@ -237,13 +200,15 @@ const AdminLayout = () => {
                     title={!sidebarOpen ? item.label : ""}
                   >
                     <span
-                      className={`${
-                        sidebarOpen ? "text-xl" : "text-2xl"
-                      } flex-shrink-0 flex items-center justify-center ${
+                      className={`flex-shrink-0 flex items-center justify-center ${
                         !sidebarOpen ? "w-8 h-8" : ""
                       }`}
                     >
-                      {item.icon}
+                      {sidebarOpen ? (
+                        <item.icon sx={{ fontSize: 20, color: "inherit" }} />
+                      ) : (
+                        <item.icon sx={{ fontSize: 24, color: "inherit" }} />
+                      )}
                     </span>
                     {sidebarOpen && (
                       <span className="font-medium text-sm leading-tight">
@@ -270,70 +235,19 @@ const AdminLayout = () => {
             </h2>
 
             {/* Search Bar */}
-            <div className="flex-1 min-w-0 max-w-md relative" ref={searchRef}>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onFocus={() => searchQuery && setShowSearchResults(true)}
-                  placeholder="Search..."
-                  className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-2 pl-10 pr-4 text-sm md:text-base text-neutral-700 placeholder-neutral-400 transition-all duration-200 focus:outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20"
+            <div className="flex-1 min-w-0 max-w-md relative">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-2 pl-10 pr-4 text-sm md:text-base text-neutral-700 placeholder-neutral-400 transition-all duration-200 hover:border-neutral-300 focus:outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20 flex items-center gap-2"
+              >
+                <SearchIcon
+                  sx={{ fontSize: 20, color: "var(--neutral-400)" }}
                 />
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                  🔍
+                <span className="flex-1 text-left">Search...</span>
+                <span className="text-xs text-neutral-500 hidden md:inline">
+                  Ctrl+K
                 </span>
-                {loading && (
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-4 h-4 border-2 border-neutral-300 border-t-accent-blue rounded-full animate-spin" />
-                  </span>
-                )}
-              </div>
-
-              {/* Search Results Dropdown */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-neutral-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto scrollbar-hide">
-                  {searchResults.map((result, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSearchResultClick(result.path)}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-100 transition-colors border-b border-neutral-100 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xl">{result.icon}</span>
-                          <div>
-                            <p className="font-medium text-neutral-800">
-                              {result.label}
-                            </p>
-                            <p className="text-xs text-neutral-500 mt-1">
-                              {result.path}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs px-2 py-1 bg-neutral-200 text-neutral-700 rounded-full">
-                          {result.type}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* No Results */}
-              {showSearchResults &&
-                searchQuery &&
-                !loading &&
-                searchResults.length === 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-neutral-200 rounded-md shadow-lg z-50 p-4">
-                    <p className="text-sm text-neutral-600 text-center">
-                      No results found
-                    </p>
-                    <p className="text-xs text-neutral-500 text-center mt-1">
-                      Try different keywords
-                    </p>
-                  </div>
-                )}
+              </button>
             </div>
 
             <div className="flex items-center gap-4 flex-shrink-0">
@@ -355,6 +269,13 @@ const AdminLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Global Search */}
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onNavigate={(path) => navigate(path)}
+      />
     </div>
   );
 };

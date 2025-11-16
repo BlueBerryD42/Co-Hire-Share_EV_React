@@ -1,13 +1,33 @@
 import { useState } from "react";
+import { aiApi } from "@/utils/api";
+import type {
+  SuggestBookingRequest,
+  SuggestBookingResponse,
+  BookingSuggestionItem,
+  BookingRecommendationDisplay,
+} from "@/models/ai";
+import type { UUID, ISODate } from "@/models/booking";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import LoadingSpinner from "@/components/ui/Loading";
+
+interface BookingRecommendationFormData {
+  groupId: string;
+  preferredDate: string;
+  preferredTime: string;
+  duration: string;
+  priority: "flexibility" | "prime-time";
+}
 
 const AiBookingRecommendations = () => {
-  const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [recommendations, setRecommendations] = useState<
+    BookingRecommendationDisplay[]
+  >([]);
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<BookingRecommendationFormData>({
     groupId: "",
     preferredDate: "",
     preferredTime: "",
@@ -15,35 +35,81 @@ const AiBookingRecommendations = () => {
     priority: "flexibility",
   });
 
+  const transformSuggestionsToDisplay = (
+    response: SuggestBookingResponse
+  ): BookingRecommendationDisplay[] => {
+    return response.suggestions.map((suggestion: BookingSuggestionItem) => {
+      const startDate = new Date(suggestion.start);
+      const endDate = new Date(suggestion.end);
+      const durationHours =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+
+      // Combine all reasons into a single reasoning string
+      const reasoning =
+        suggestion.reasons.length > 0
+          ? suggestion.reasons.join(". ")
+          : "Recommended time slot based on availability and fairness metrics.";
+
+      return {
+        dateTime: suggestion.start,
+        duration: durationHours,
+        confidence: suggestion.confidence,
+        reasoning,
+      };
+    });
+  };
+
   const handleGetRecommendations = async () => {
+    if (!formData.groupId) {
+      setError("Please enter a group ID");
+      return;
+    }
+
+    if (!formData.preferredDate || !formData.duration) {
+      setError("Please enter preferred date and duration");
+      return;
+    }
+
     try {
-      setLoading(true);
-      // Call AI API to get booking recommendations
-      // const response = await aiApi.suggestBookingTime(formData)
-      // setRecommendations(response.data.recommendations || [])
-      const sampleRecommendations = [
-        {
-          dateTime: new Date().toISOString(),
-          duration: 2,
-          confidence: 0.82,
-          fairUsageImpact: 6,
-          reasoning:
-            "Optimal time slot based on historic utilization and minimal conflicts.",
-        },
-        {
-          dateTime: new Date(Date.now() + 1000 * 60 * 60 * 3).toISOString(),
-          duration: 1.5,
-          confidence: 0.67,
-          fairUsageImpact: -2,
-          reasoning:
-            "Slight overlap with another booking but still within acceptable limits.",
-        },
-      ];
-      setRecommendations(sampleRecommendations);
-      setLoading(false);
-    } catch (err) {
+      setInitialLoading(true);
+      setError(null);
+
+      // Combine date and time into ISO string
+      let preferredDateTime: ISODate | undefined;
+      if (formData.preferredDate) {
+        const dateTime = formData.preferredTime
+          ? `${formData.preferredDate}T${formData.preferredTime}:00`
+          : `${formData.preferredDate}T12:00:00`;
+        preferredDateTime = new Date(dateTime).toISOString();
+      }
+
+      // Convert duration from hours to minutes
+      const durationMinutes = parseFloat(formData.duration) * 60;
+
+      const request: SuggestBookingRequest = {
+        userId: "", // Will be set by backend from token
+        groupId: formData.groupId as UUID,
+        preferredDate: preferredDateTime,
+        durationMinutes: durationMinutes,
+      };
+
+      const response = await aiApi.suggestBookingTime(request as any);
+      const bookingResponse = response.data as SuggestBookingResponse;
+
+      // Transform API response to display format
+      const displayRecommendations =
+        transformSuggestionsToDisplay(bookingResponse);
+      setRecommendations(displayRecommendations);
+    } catch (err: unknown) {
       console.error("Error fetching recommendations:", err);
-      setLoading(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch booking recommendations"
+      );
+      setRecommendations([]);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -52,6 +118,14 @@ const AiBookingRecommendations = () => {
       <h1 className="text-2xl font-bold text-neutral-800">
         AI Booking Recommendations
       </h1>
+
+      {error && (
+        <Card>
+          <div className="p-4 bg-accent-terracotta/10 border border-accent-terracotta rounded-md">
+            <p className="text-sm text-accent-terracotta">{error}</p>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h3 className="text-lg font-bold text-neutral-800 mb-4">
@@ -62,35 +136,41 @@ const AiBookingRecommendations = () => {
             label="Group ID"
             type="text"
             value={formData.groupId}
-            onChange={(e) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setFormData({ ...formData, groupId: e.target.value })
             }
             placeholder="Enter group ID"
+            error=""
           />
           <Input
             label="Preferred Date"
             type="date"
             value={formData.preferredDate}
-            onChange={(e) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setFormData({ ...formData, preferredDate: e.target.value })
             }
+            placeholder=""
+            error=""
           />
           <Input
             label="Preferred Time"
             type="time"
             value={formData.preferredTime}
-            onChange={(e) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setFormData({ ...formData, preferredTime: e.target.value })
             }
+            placeholder=""
+            error=""
           />
           <Input
             label="Duration (hours)"
             type="number"
             value={formData.duration}
-            onChange={(e) =>
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setFormData({ ...formData, duration: e.target.value })
             }
             placeholder="Enter duration in hours"
+            error=""
           />
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -99,7 +179,10 @@ const AiBookingRecommendations = () => {
             <select
               value={formData.priority}
               onChange={(e) =>
-                setFormData({ ...formData, priority: e.target.value })
+                setFormData({
+                  ...formData,
+                  priority: e.target.value as "flexibility" | "prime-time",
+                })
               }
               className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-3 text-neutral-700 focus:outline-none focus:border-accent-blue"
             >
@@ -110,14 +193,22 @@ const AiBookingRecommendations = () => {
           <Button
             variant="accent"
             onClick={handleGetRecommendations}
-            disabled={loading}
+            disabled={initialLoading}
           >
-            Get Recommendations
+            {initialLoading ? "Loading..." : "Get Recommendations"}
           </Button>
         </div>
       </Card>
 
-      {recommendations.length > 0 && (
+      {initialLoading && (
+        <Card>
+          <div className="text-center py-12">
+            <LoadingSpinner />
+          </div>
+        </Card>
+      )}
+
+      {!initialLoading && recommendations.length > 0 && (
         <Card>
           <h3 className="text-lg font-bold text-neutral-800 mb-4">
             Recommended Time Slots
@@ -134,7 +225,14 @@ const AiBookingRecommendations = () => {
                       {new Date(rec.dateTime).toLocaleString()}
                     </h4>
                     <p className="text-sm text-neutral-600">
-                      Duration: {rec.duration} hours
+                      Duration: {rec.duration.toFixed(1)} hours
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {new Date(rec.dateTime).toLocaleDateString()} at{" "}
+                      {new Date(rec.dateTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                   <Badge
@@ -150,18 +248,24 @@ const AiBookingRecommendations = () => {
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-neutral-600">
-                      Fair usage impact:
-                    </span>
-                    <Badge
-                      variant={rec.fairUsageImpact >= 0 ? "success" : "warning"}
-                    >
-                      {rec.fairUsageImpact >= 0 ? "+" : ""}
-                      {rec.fairUsageImpact}%
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-neutral-600">{rec.reasoning}</p>
+                  {rec.fairUsageImpact !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-neutral-600">
+                        Fair usage impact:
+                      </span>
+                      <Badge
+                        variant={
+                          rec.fairUsageImpact >= 0 ? "success" : "warning"
+                        }
+                      >
+                        {rec.fairUsageImpact >= 0 ? "+" : ""}
+                        {rec.fairUsageImpact}%
+                      </Badge>
+                    </div>
+                  )}
+                  {rec.reasoning && (
+                    <p className="text-sm text-neutral-600">{rec.reasoning}</p>
+                  )}
                   <Button
                     variant="accent"
                     size="sm"
@@ -178,7 +282,7 @@ const AiBookingRecommendations = () => {
         </Card>
       )}
 
-      {recommendations.length === 0 && !loading && (
+      {recommendations.length === 0 && !initialLoading && (
         <Card>
           <div className="text-center py-12">
             <p className="text-neutral-600">

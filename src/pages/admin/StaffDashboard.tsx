@@ -4,11 +4,70 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/Loading";
 import { Link } from "react-router-dom";
+import {
+  CalendarToday,
+  Description,
+  Warning,
+  Build,
+  Groups,
+  DirectionsCar,
+  Assessment,
+  CheckCircle,
+} from "@mui/icons-material";
+import { Alert, AlertTitle } from "@mui/material";
+
+interface DashboardData {
+  users?: {
+    totalUsers?: number;
+    activeUsers?: number;
+    pendingKyc?: number;
+    userGrowthPercentage?: number;
+  };
+  groups?: {
+    totalGroups?: number;
+    activeGroups?: number;
+    inactiveGroups?: number;
+    groupGrowthPercentage?: number;
+  };
+  vehicles?: {
+    totalVehicles?: number;
+    availableVehicles?: number;
+    inUseVehicles?: number;
+    maintenanceVehicles?: number;
+  };
+  bookings?: {
+    totalBookings?: number;
+    activeBookings?: number;
+    completedBookings?: number;
+    cancelledBookings?: number;
+  };
+  revenue?: {
+    totalRevenue?: number;
+    monthlyRevenue?: number;
+    revenueGrowthPercentage?: number;
+  };
+  systemHealth?: {
+    overallStatus?: string;
+    databaseStatus?: string;
+    apiGatewayStatus?: string;
+  };
+  recentActivity?: Array<{
+    title: string;
+    timestamp: string;
+    icon?: string;
+  }>;
+  alerts?: Array<{
+    message: string;
+  }>;
+  disputes?: {
+    openDisputes?: number;
+  };
+}
 
 const StaffDashboard = () => {
-  const [dashboard, setDashboard] = useState(null);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard();
@@ -69,17 +128,28 @@ const StaffDashboard = () => {
     <div className="space-y-6">
       {/* Alerts Banner */}
       {alerts && alerts.length > 0 && (
-        <div className="bg-accent-gold/20 border border-accent-gold rounded-md p-4">
-          <h3 className="font-semibold text-neutral-800 mb-2">Alerts</h3>
-          <ul className="space-y-2">
-            {alerts.map((alert, index) => (
-              <li key={index} className="flex items-center gap-2">
-                <span className="text-accent-gold">⚠️</span>
-                <span className="text-neutral-700">{alert.message}</span>
+        <Alert
+          severity="warning"
+          sx={{
+            bgcolor: "var(--accent-gold)",
+            color: "var(--neutral-800)",
+            border: "1px solid var(--accent-gold)",
+            "& .MuiAlert-icon": {
+              color: "var(--neutral-800)",
+            },
+          }}
+        >
+          <AlertTitle sx={{ fontWeight: 600, color: "var(--neutral-800)" }}>
+            Alerts
+          </AlertTitle>
+          <ul style={{ margin: 0, paddingLeft: "20px" }}>
+            {alerts.map((alert, index: number) => (
+              <li key={index} style={{ marginBottom: "8px" }}>
+                {alert.message}
               </li>
             ))}
           </ul>
-        </div>
+        </Alert>
       )}
 
       {/* Quick Stats */}
@@ -92,7 +162,7 @@ const StaffDashboard = () => {
                 {bookings?.activeBookings || 0}
               </p>
             </div>
-            <div className="text-3xl">📅</div>
+            <CalendarToday sx={{ fontSize: 32, color: "var(--accent-blue)" }} />
           </div>
           <Link
             to="/admin/checkins"
@@ -110,7 +180,7 @@ const StaffDashboard = () => {
                 {users?.pendingKyc || 0}
               </p>
             </div>
-            <div className="text-3xl">📄</div>
+            <Description sx={{ fontSize: 32, color: "var(--accent-blue)" }} />
           </div>
           <Link
             to="/admin/kyc"
@@ -128,7 +198,7 @@ const StaffDashboard = () => {
                 {dashboard.disputes?.openDisputes || 0}
               </p>
             </div>
-            <div className="text-3xl">⚠️</div>
+            <Warning sx={{ fontSize: 32, color: "var(--accent-gold)" }} />
           </div>
           <Link
             to="/admin/disputes"
@@ -148,7 +218,7 @@ const StaffDashboard = () => {
                 {vehicles?.maintenanceVehicles || 0}
               </p>
             </div>
-            <div className="text-3xl">🔧</div>
+            <Build sx={{ fontSize: 32, color: "var(--accent-blue)" }} />
           </div>
           <Link
             to="/admin/maintenance"
@@ -395,22 +465,29 @@ const StaffDashboard = () => {
             Recent Activity
           </h3>
           <div className="space-y-2">
-            {recentActivity.map((activity, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3 p-3 bg-neutral-50 rounded-md"
-              >
-                <span className="text-xl">{activity.icon || "📋"}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-800">
-                    {activity.title}
-                  </p>
-                  <p className="text-xs text-neutral-600">
-                    {activity.timestamp}
-                  </p>
+            {recentActivity.map(
+              (
+                activity: { title: string; timestamp: string; icon?: string },
+                index: number
+              ) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-3 bg-neutral-50 rounded-md"
+                >
+                  <Assessment
+                    sx={{ fontSize: 24, color: "var(--neutral-600)" }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-neutral-800">
+                      {activity.title}
+                    </p>
+                    <p className="text-xs text-neutral-600">
+                      {activity.timestamp}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </Card>
       )}
@@ -425,7 +502,7 @@ const StaffDashboard = () => {
             to="/admin/groups"
             className="p-4 bg-neutral-100 hover:bg-neutral-200 rounded-md text-center transition-colors"
           >
-            <div className="text-2xl mb-2">👥</div>
+            <Groups sx={{ fontSize: 32, color: "var(--accent-blue)", mb: 1 }} />
             <p className="text-sm font-medium text-neutral-700">
               Manage Groups
             </p>
@@ -434,7 +511,9 @@ const StaffDashboard = () => {
             to="/admin/vehicles"
             className="p-4 bg-neutral-100 hover:bg-neutral-200 rounded-md text-center transition-colors"
           >
-            <div className="text-2xl mb-2">🚗</div>
+            <DirectionsCar
+              sx={{ fontSize: 32, color: "var(--accent-blue)", mb: 1 }}
+            />
             <p className="text-sm font-medium text-neutral-700">
               Manage Vehicles
             </p>
@@ -443,7 +522,9 @@ const StaffDashboard = () => {
             to="/admin/checkins"
             className="p-4 bg-neutral-100 hover:bg-neutral-200 rounded-md text-center transition-colors"
           >
-            <div className="text-2xl mb-2">✅</div>
+            <CheckCircle
+              sx={{ fontSize: 32, color: "var(--accent-green)", mb: 1 }}
+            />
             <p className="text-sm font-medium text-neutral-700">
               Review Check-ins
             </p>
@@ -452,7 +533,9 @@ const StaffDashboard = () => {
             to="/admin/kyc"
             className="p-4 bg-neutral-100 hover:bg-neutral-200 rounded-md text-center transition-colors"
           >
-            <div className="text-2xl mb-2">📄</div>
+            <Description
+              sx={{ fontSize: 32, color: "var(--accent-blue)", mb: 1 }}
+            />
             <p className="text-sm font-medium text-neutral-700">Review KYC</p>
           </Link>
         </div>

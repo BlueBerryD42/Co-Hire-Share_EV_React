@@ -1,10 +1,18 @@
+import React from "react";
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  className?: string;
+  hover?: boolean;
+}
+
 const Card = ({
   children,
   className = "",
   hover = true,
   onClick,
   ...props
-}) => {
+}: CardProps) => {
   const baseClasses =
     "bg-neutral-100 border border-neutral-200 rounded-md p-6 transition-all duration-300";
   const hoverClasses = hover
@@ -22,5 +30,3 @@ const Card = ({
 };
 
 export default Card;
-
-

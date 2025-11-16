@@ -4,6 +4,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/Loading";
+import { Tabs, Tab, Box } from "@mui/material";
 
 const CheckInOutManagement = () => {
   const [checkIns, setCheckIns] = useState([]);
@@ -68,38 +69,33 @@ const CheckInOutManagement = () => {
         Check-In/Out Management
       </h1>
 
-      <div className="flex gap-2 border-b border-neutral-200">
-        <button
-          onClick={() => setTab("pending")}
-          className={`px-4 py-2 font-medium ${
-            tab === "pending"
-              ? "text-accent-blue border-b-2 border-accent-blue"
-              : "text-neutral-600 hover:text-neutral-800"
-          }`}
+      <Box sx={{ borderBottom: 1, borderColor: "var(--neutral-200)" }}>
+        <Tabs
+          value={tab}
+          onChange={(_, newValue) => setTab(newValue)}
+          sx={{
+            "& .MuiTab-root": {
+              color: "var(--neutral-600)",
+              fontWeight: 500,
+              "&.Mui-selected": {
+                color: "var(--accent-blue)",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              bgcolor: "var(--accent-blue)",
+            },
+          }}
         >
-          Pending ({checkIns.filter((c) => c.status === "Pending").length})
-        </button>
-        <button
-          onClick={() => setTab("approved")}
-          className={`px-4 py-2 font-medium ${
-            tab === "approved"
-              ? "text-accent-blue border-b-2 border-accent-blue"
-              : "text-neutral-600 hover:text-neutral-800"
-          }`}
-        >
-          Approved
-        </button>
-        <button
-          onClick={() => setTab("rejected")}
-          className={`px-4 py-2 font-medium ${
-            tab === "rejected"
-              ? "text-accent-blue border-b-2 border-accent-blue"
-              : "text-neutral-600 hover:text-neutral-800"
-          }`}
-        >
-          Rejected
-        </button>
-      </div>
+          <Tab
+            label={`Pending (${
+              checkIns.filter((c) => c.status === "Pending").length
+            })`}
+            value="pending"
+          />
+          <Tab label="Approved" value="approved" />
+          <Tab label="Rejected" value="rejected" />
+        </Tabs>
+      </Box>
 
       {error && (
         <div className="bg-accent-terracotta/20 border border-accent-terracotta rounded-md p-4">

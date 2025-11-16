@@ -4,6 +4,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/Loading";
+import { Tabs, Tab, Box } from "@mui/material";
 
 const FinancialReports = () => {
   const [financialOverview, setFinancialOverview] = useState(null);
@@ -85,21 +86,29 @@ const FinancialReports = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-neutral-200">
-        {["overview", "groups", "payments", "expenses"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setReportType(type)}
-            className={`px-4 py-2 font-medium capitalize ${
-              reportType === type
-                ? "text-accent-blue border-b-2 border-accent-blue"
-                : "text-neutral-600 hover:text-neutral-800"
-            }`}
-          >
-            {type}
-          </button>
-        ))}
-      </div>
+      <Box sx={{ borderBottom: 1, borderColor: "var(--neutral-200)" }}>
+        <Tabs
+          value={reportType}
+          onChange={(_, newValue) => setReportType(newValue)}
+          sx={{
+            "& .MuiTab-root": {
+              color: "var(--neutral-600)",
+              fontWeight: 500,
+              textTransform: "capitalize",
+              "&.Mui-selected": {
+                color: "var(--accent-blue)",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              bgcolor: "var(--accent-blue)",
+            },
+          }}
+        >
+          {["overview", "groups", "payments", "expenses"].map((type) => (
+            <Tab key={type} label={type} value={type} />
+          ))}
+        </Tabs>
+      </Box>
 
       {error && (
         <div className="bg-accent-terracotta/20 border border-accent-terracotta rounded-md p-4">

@@ -1,32 +1,34 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { aiApi, adminApi } from "@/utils/api";
+import type { FairnessAnalysisResponse } from "@/models/ai";
+import type { GroupDto } from "@/models/group";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/ui/Loading";
 
 const AiFairnessScore = () => {
   const params = useParams();
   const groupId = params?.groupId;
   const navigate = useNavigate();
-  const [fairnessData, setFairnessData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [groups, setGroups] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState(groupId || "");
+  const [fairnessData, setFairnessData] =
+    useState<FairnessAnalysisResponse | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<GroupDto[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(groupId || "");
   const [loadingGroups, setLoadingGroups] = useState(false);
 
   useEffect(() => {
     // Reset state when groupId changes
     if (groupId) {
       setSelectedGroupId(groupId);
-      setLoading(true);
+      setInitialLoading(true);
       setError(null);
       fetchFairnessScore();
     } else {
-      setLoading(false);
+      setInitialLoading(false);
       setLoadingGroups(true);
       fetchGroups();
     }
@@ -37,7 +39,8 @@ const AiFairnessScore = () => {
     try {
       setLoadingGroups(true);
       const response = await adminApi.getGroups({ page: 1, pageSize: 100 });
-      setGroups(response.data?.groups || response.data || []);
+      const groupsData = response.data?.groups || response.data || [];
+      setGroups(Array.isArray(groupsData) ? groupsData : []);
     } catch (err) {
       console.error("Error fetching groups:", err);
       setGroups([]);
@@ -49,16 +52,16 @@ const AiFairnessScore = () => {
   const fetchFairnessScore = async () => {
     if (!groupId) return;
     try {
-      setLoading(true);
+      setInitialLoading(true);
       setError(null);
       const response = await aiApi.getFairnessScore(groupId);
-      setFairnessData(response.data);
+      setFairnessData(response.data as FairnessAnalysisResponse);
     } catch (err) {
       console.error("Error fetching fairness score:", err);
       setError("Failed to load fairness score");
       setFairnessData(null);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -75,7 +78,7 @@ const AiFairnessScore = () => {
         <h1 className="text-2xl font-bold text-neutral-800">
           AI Fairness Score
         </h1>
-        <Card>
+        <Card hover={false}>
           <h3 className="text-lg font-bold text-neutral-800 mb-4">
             Select Group
           </h3>
@@ -99,7 +102,7 @@ const AiFairnessScore = () => {
                   {groups.length > 0 ? (
                     groups.map((group) => (
                       <option key={group.id} value={group.id}>
-                        {group.name} ({group.memberCount || 0} members)
+                        {group.name} ({group.members?.length || 0} members)
                       </option>
                     ))
                   ) : (
@@ -128,157 +131,290 @@ const AiFairnessScore = () => {
     );
   }
 
-  if (loading && !fairnessData) {
+  // Show loading spinner only on initial load
+  if (initialLoading && !fairnessData) {
     return <LoadingSpinner />;
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-accent-terracotta">{error}</p>
-        <Button variant="accent" onClick={fetchFairnessScore} className="mt-4">
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
   if (!fairnessData) {
-    return <div className="text-center py-12">No fairness data available</div>;
+    return null;
   }
 
-  const score = fairnessData.score || 0;
-  const getScoreColor = (score) => {
+  const score = fairnessData.groupFairnessScore || 0;
+  const getScoreColor = (score: number) => {
     if (score >= 80) return "text-accent-green";
     if (score >= 50) return "text-accent-gold";
     return "text-accent-terracotta";
   };
 
-  const getScoreLabel = (score) => {
+  const getScoreLabel = (score: number) => {
     if (score >= 80) return "Fair";
     if (score >= 50) return "Moderate";
     return "Unfair";
   };
 
+  // Transform recommendations to display format
+  const displaySuggestions =
+    fairnessData.recommendations?.groupRecommendations?.map((rec, index) => ({
+      title: `Recommendation ${index + 1}`,
+      description: rec,
+    })) || [];
+
+  // Create factors display from members data
+  const fairnessFactors = [
+    {
+      name: "Distribution Balance",
+      score: 100 - fairnessData.giniCoefficient * 100,
+      description: `Gini Coefficient: ${(
+        fairnessData.giniCoefficient * 100
+      ).toFixed(2)}% (lower is better)`,
+    },
+    {
+      name: "Usage vs Ownership Alignment",
+      score: fairnessData.groupFairnessScore,
+      description: `Standard deviation: ${fairnessData.standardDeviationFromOwnership.toFixed(
+        2
+      )}%`,
+    },
+    {
+      name: "Member Participation",
+      score: Math.max(
+        0,
+        100 -
+          (fairnessData.alerts?.hasSevereOverUtilizers ? 20 : 0) -
+          (fairnessData.alerts?.hasSevereUnderUtilizers ? 20 : 0)
+      ),
+      description: `${fairnessData.members?.length || 0} members analyzed`,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-neutral-800">AI Fairness Score</h1>
 
-      {/* Score Display */}
-      <Card>
-        <div className="text-center py-8">
-          <div className="relative inline-block">
-            <div className="w-48 h-48 rounded-full border-8 border-neutral-200 flex items-center justify-center">
-              <div className="text-center">
-                <p className={`text-5xl font-bold ${getScoreColor(score)}`}>
-                  {score}
-                </p>
-                <p className="text-lg text-neutral-600 mt-2">
-                  {getScoreLabel(score)}
-                </p>
-              </div>
-            </div>
-            {/* Circular progress indicator */}
-            <svg className="absolute top-0 left-0 w-48 h-48 -rotate-90">
-              <circle
-                cx="96"
-                cy="96"
-                r="88"
-                fill="none"
-                stroke={
-                  score >= 80 ? "#7a9b76" : score >= 50 ? "#d4a574" : "#b87d6f"
-                }
-                strokeWidth="8"
-                strokeDasharray={`${(score / 100) * 552.92} 552.92`}
-              />
-            </svg>
-          </div>
-        </div>
-      </Card>
-
-      {/* Breakdown */}
-      <Card>
-        <h3 className="text-lg font-bold text-neutral-800 mb-4">
-          Fairness Breakdown
-        </h3>
-        <div className="space-y-4">
-          {fairnessData.factors?.map((factor, index) => (
-            <div
-              key={index}
-              className="border border-neutral-200 rounded-md p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-neutral-800">{factor.name}</h4>
-                <Badge
-                  variant={
-                    factor.score >= 80
-                      ? "success"
-                      : factor.score >= 50
-                      ? "warning"
-                      : "error"
-                  }
-                >
-                  {factor.score}/100
-                </Badge>
-              </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2 mb-2">
-                <div
-                  className={`h-2 rounded-full ${
-                    factor.score >= 80
-                      ? "bg-accent-green"
-                      : factor.score >= 50
-                      ? "bg-accent-gold"
-                      : "bg-accent-terracotta"
-                  }`}
-                  style={{ width: `${factor.score}%` }}
-                />
-              </div>
-              <p className="text-sm text-neutral-600">{factor.description}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Suggestions */}
-      {fairnessData.suggestions && fairnessData.suggestions.length > 0 && (
-        <Card>
-          <h3 className="text-lg font-bold text-neutral-800 mb-4">
-            Suggestions for Improvement
-          </h3>
-          <div className="space-y-3">
-            {fairnessData.suggestions.map((suggestion, index) => (
-              <div
-                key={index}
-                className="border border-neutral-200 rounded-md p-4 bg-neutral-50"
-              >
-                <p className="text-sm font-medium text-neutral-800">
-                  {suggestion.title}
-                </p>
-                <p className="text-sm text-neutral-600 mt-1">
-                  {suggestion.description}
-                </p>
-              </div>
-            ))}
+      {error && (
+        <Card hover={false}>
+          <div className="bg-accent-terracotta/20 border border-accent-terracotta rounded-md p-4">
+            <p className="text-accent-terracotta mb-3">{error}</p>
+            <Button variant="secondary" size="sm" onClick={fetchFairnessScore}>
+              Retry
+            </Button>
           </div>
         </Card>
       )}
 
-      {/* Historical Trend */}
-      {fairnessData.historicalTrend && (
-        <Card>
-          <h3 className="text-lg font-bold text-neutral-800 mb-4">
-            Historical Trend
-          </h3>
-          <div className="space-y-4">
-            <p className="text-neutral-600">Score over the last 6 months</p>
-            {/* Chart would go here */}
-            <div className="h-48 bg-neutral-100 rounded-md flex items-center justify-center">
-              <p className="text-neutral-600">
-                Chart visualization would go here
-              </p>
-            </div>
+      {!fairnessData && !initialLoading && !error && (
+        <Card hover={false}>
+          <div className="text-center py-12">
+            <p className="text-neutral-600">No fairness data available</p>
           </div>
         </Card>
+      )}
+
+      {fairnessData && (
+        <>
+          {/* Score Display */}
+          <Card hover={false}>
+            <div className="text-center py-8">
+              <div className="relative inline-block">
+                <div className="w-48 h-48 rounded-full border-8 border-neutral-200 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className={`text-5xl font-bold ${getScoreColor(score)}`}>
+                      {score}
+                    </p>
+                    <p className="text-lg text-neutral-600 mt-2">
+                      {getScoreLabel(score)}
+                    </p>
+                  </div>
+                </div>
+                {/* Circular progress indicator */}
+                <svg className="absolute top-0 left-0 w-48 h-48 -rotate-90">
+                  <circle
+                    cx="96"
+                    cy="96"
+                    r="88"
+                    fill="none"
+                    stroke={
+                      score >= 80
+                        ? "#7a9b76"
+                        : score >= 50
+                        ? "#d4a574"
+                        : "#b87d6f"
+                    }
+                    strokeWidth="8"
+                    strokeDasharray={`${(score / 100) * 552.92} 552.92`}
+                  />
+                </svg>
+              </div>
+            </div>
+          </Card>
+
+          {/* Breakdown */}
+          <Card hover={false}>
+            <h3 className="text-lg font-bold text-neutral-800 mb-4">
+              Fairness Breakdown
+            </h3>
+            <div className="space-y-4">
+              {fairnessFactors.map((factor, index) => (
+                <div
+                  key={index}
+                  className="border border-neutral-200 rounded-md p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-neutral-800">
+                      {factor.name}
+                    </h4>
+                    <Badge
+                      variant={
+                        factor.score >= 80
+                          ? "success"
+                          : factor.score >= 50
+                          ? "warning"
+                          : "error"
+                      }
+                    >
+                      {factor.score}/100
+                    </Badge>
+                  </div>
+                  <div className="w-full bg-neutral-200 rounded-full h-2 mb-2">
+                    <div
+                      className={`h-2 rounded-full ${
+                        factor.score >= 80
+                          ? "bg-accent-green"
+                          : factor.score >= 50
+                          ? "bg-accent-gold"
+                          : "bg-accent-terracotta"
+                      }`}
+                      style={{ width: `${factor.score}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-neutral-600">
+                    {factor.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Member Details */}
+          {fairnessData.members && fairnessData.members.length > 0 && (
+            <Card hover={false}>
+              <h3 className="text-lg font-bold text-neutral-800 mb-4">
+                Member Fairness Scores
+              </h3>
+              <div className="space-y-3">
+                {fairnessData.members.map((member) => (
+                  <div
+                    key={member.userId}
+                    className="border border-neutral-200 rounded-md p-4"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-neutral-800">
+                        {member.userFirstName} {member.userLastName}
+                      </h4>
+                      <div className="flex gap-2">
+                        <Badge
+                          variant={
+                            member.fairnessScore >= 80
+                              ? "success"
+                              : member.fairnessScore >= 50
+                              ? "warning"
+                              : "error"
+                          }
+                        >
+                          {member.fairnessScore.toFixed(1)}
+                        </Badge>
+                        {member.isOverUtilizer && (
+                          <Badge variant="error">Over-utilizing</Badge>
+                        )}
+                        {member.isUnderUtilizer && (
+                          <Badge variant="warning">Under-utilizing</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-neutral-600">Ownership: </span>
+                        <span className="font-medium">
+                          {member.ownershipPercentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-600">Usage: </span>
+                        <span className="font-medium">
+                          {member.usagePercentage.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Suggestions */}
+          {displaySuggestions.length > 0 && (
+            <Card hover={false}>
+              <h3 className="text-lg font-bold text-neutral-800 mb-4">
+                Suggestions for Improvement
+              </h3>
+              <div className="space-y-3">
+                {displaySuggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="border border-neutral-200 rounded-md p-4 bg-neutral-50"
+                  >
+                    <p className="text-sm font-medium text-neutral-800">
+                      {suggestion.title}
+                    </p>
+                    <p className="text-sm text-neutral-600 mt-1">
+                      {suggestion.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Historical Trend */}
+          {fairnessData.trend && fairnessData.trend.length > 0 && (
+            <Card hover={false}>
+              <h3 className="text-lg font-bold text-neutral-800 mb-4">
+                Historical Trend
+              </h3>
+              <div className="space-y-4">
+                <p className="text-neutral-600">Score over time</p>
+                {/* Chart would go here */}
+                <div className="space-y-2">
+                  {fairnessData.trend.slice(-6).map((point, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between border border-neutral-200 rounded-md p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-neutral-800">
+                          {new Date(point.periodStart).toLocaleDateString()} -{" "}
+                          {new Date(point.periodEnd).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          point.groupFairnessScore >= 80
+                            ? "success"
+                            : point.groupFairnessScore >= 50
+                            ? "warning"
+                            : "error"
+                        }
+                      >
+                        {point.groupFairnessScore.toFixed(1)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

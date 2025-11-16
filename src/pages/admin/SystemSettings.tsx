@@ -2,6 +2,7 @@ import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { Tabs, Tab, Box } from "@mui/material";
 
 const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState("general");
@@ -29,21 +30,28 @@ const SystemSettings = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-neutral-800">System Settings</h1>
 
-      <div className="flex gap-2 border-b border-neutral-200">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 font-medium ${
-              activeTab === tab.id
-                ? "text-accent-blue border-b-2 border-accent-blue"
-                : "text-neutral-600 hover:text-neutral-800"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Box sx={{ borderBottom: 1, borderColor: "var(--neutral-200)" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{
+            "& .MuiTab-root": {
+              color: "var(--neutral-600)",
+              fontWeight: 500,
+              "&.Mui-selected": {
+                color: "var(--accent-blue)",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              bgcolor: "var(--accent-blue)",
+            },
+          }}
+        >
+          {tabs.map((tab) => (
+            <Tab key={tab.id} label={tab.label} value={tab.id} />
+          ))}
+        </Tabs>
+      </Box>
 
       <Card>
         {activeTab === "general" && (
