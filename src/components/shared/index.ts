@@ -6,3 +6,5 @@ export { default as Input } from "./Input";
 export { default as GlobalSearch } from "./GlobalSearch";
 export { default as ErrorStates } from "./ErrorStates";
 export { default as ErrorBoundary } from "./ErrorBoundary";
+export { default as EmptyState } from "./EmptyState";
+export type { EmptyStateType } from "./EmptyState";
