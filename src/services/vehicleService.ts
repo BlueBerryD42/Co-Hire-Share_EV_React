@@ -10,7 +10,7 @@ import type {
   UpdateOdometerDto,
   ScheduleMaintenanceRequest,
   CompleteMaintenanceRequest,
-} from '@/types'
+} from '@/models/vehicle'
 
 /**
  * Vehicle Service - Tất cả API calls liên quan đến Vehicle

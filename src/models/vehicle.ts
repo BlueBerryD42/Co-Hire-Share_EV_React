@@ -1,6 +1,6 @@
 /**
- * Vehicle Types & Interfaces
- * Dựa trên backend API DTOs
+ * Vehicle Models & DTOs
+ * Dựa trên backend Vehicle Service API
  */
 
 // Vehicle Status Enum
@@ -129,6 +129,8 @@ export interface VehicleStatistics {
   costs?: {
     thisMonth: number
   }
+  startDate?: string
+  endDate?: string
 }
 
 // Health Score Response

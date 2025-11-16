@@ -7,7 +7,7 @@ import type {
   CreateExpenseDto,
   CreatePaymentDto,
   ConfirmPaymentDto,
-} from '@/types'
+} from '@/models/expense'
 
 /**
  * Expense Service - API calls cho expenses và payments
