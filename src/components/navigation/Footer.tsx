@@ -1,3 +1,5 @@
+import { NAV_LINKS } from "@/utils/navigation";
+
 const Footer = () => {
   return (
     <footer className="border-t border-neutral-200 bg-neutral-100">
@@ -21,8 +23,7 @@ const Footer = () => {
         </div>
       </div>
     </footer>
-  )
-}
+  );
+};
 
-export default Footer
-
+export default Footer;

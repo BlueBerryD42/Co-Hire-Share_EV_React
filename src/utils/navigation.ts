@@ -1,8 +1,8 @@
 export type NavLink = {
-  label: string
-  href: string
-  type: 'anchor' | 'route'
-}
+  label: string;
+  href: string;
+  type?: "anchor" | "route";
+};
 
 export const NAV_LINKS: NavLink[] = [
   { label: 'Overview', href: '/#overview', type: 'anchor' },

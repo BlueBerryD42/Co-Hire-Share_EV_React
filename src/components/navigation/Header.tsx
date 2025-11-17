@@ -5,7 +5,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import { type NavLink, NAV_LINKS } from '@/utils/navigation'
 
-const DEFAULT_ANCHOR = '/#overview'
+const DEFAULT_ANCHOR = "#overview";
 
 const Header = () => {
   const [isOpen, toggleOpen] = useToggle(false)
@@ -16,47 +16,93 @@ const Header = () => {
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    if (location.pathname === '/' && typeof window !== 'undefined') {
-      const hash = window.location.hash
-      if (hash) {
-        setActiveAnchor(`/${hash}`)
-      } else {
-        setActiveAnchor(DEFAULT_ANCHOR)
-      }
+    if (location.pathname === "/" && typeof window !== "undefined") {
+      const hash = window.location.hash || DEFAULT_ANCHOR;
+      setActiveAnchor(hash);
     }
-  }, [location])
+  }, [location]);
 
   const scrollToAnchor = (href: string) => {
-    if (typeof document === 'undefined') return
-    const targetId = href.split('#')[1]
-    if (!targetId) return
-    const target = document.getElementById(targetId)
+    if (typeof document === "undefined") return;
+    const targetId = href.replace("#", "");
+    const target = document.getElementById(targetId);
     if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }
+  };
 
   const handleAnchorClick = (href: string) => {
-    setActiveAnchor(href)
-    if (location.pathname !== '/') {
-      navigate('/')
-      setTimeout(() => scrollToAnchor(href), 150)
+    setActiveAnchor(href);
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => scrollToAnchor(href), 150);
     } else {
-      scrollToAnchor(href)
+      scrollToAnchor(href);
     }
-    if (isOpen) toggleOpen()
-  }
+    if (isOpen) toggleOpen();
+  };
 
   const handleRouteClick = () => {
-    if (isOpen) toggleOpen()
-  }
+    if (isOpen) toggleOpen();
+  };
 
   const isActive = (link: NavLink) => {
-    if (link.type === 'route') {
-      return location.pathname.startsWith(link.href)
+    if (link.type === "route") {
+      return location.pathname.startsWith(link.href);
     }
-    return location.pathname === '/' && activeAnchor === link.href
-  }
+    return location.pathname === "/" && activeAnchor === link.href;
+  };
+
+  const NavLinks = ({ variant }: { variant: "desktop" | "mobile" }) => (
+    <ul
+      className={
+        variant === "desktop"
+          ? "hidden items-center gap-6 text-sm font-medium text-neutral-600 md:flex"
+          : "space-y-2 text-sm font-medium text-neutral-700"
+      }
+    >
+      {NAV_LINKS.map((link) => {
+        const baseClass =
+          "transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/40 rounded-md";
+        if (link.type === "route") {
+          return (
+            <li key={link.href}>
+              <Link
+                to={link.href}
+                className={`${baseClass} ${
+                  isActive(link) ? "text-neutral-900" : ""
+                } ${
+                  variant === "mobile"
+                    ? "block px-3 py-2 hover:bg-neutral-200"
+                    : "px-1 py-0.5"
+                }`}
+                onClick={handleRouteClick}
+              >
+                {link.label}
+              </Link>
+            </li>
+          );
+        }
+        return (
+          <li key={link.href}>
+            <button
+              type="button"
+              className={`${baseClass} ${
+                isActive(link) ? "text-neutral-900" : ""
+              } ${
+                variant === "mobile"
+                  ? "block w-full px-3 py-2 text-left hover:bg-neutral-200"
+                  : "px-1 py-0.5"
+              }`}
+              onClick={() => handleAnchorClick(link.href)}
+            >
+              {link.label}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   const handleLogout = async () => {
     await dispatch(logout())
@@ -75,6 +121,7 @@ const Header = () => {
           type="button"
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-900 md:hidden flex-shrink-0"
           onClick={toggleOpen}
+          aria-label="Toggle navigation"
         >
           Menu
         </button>

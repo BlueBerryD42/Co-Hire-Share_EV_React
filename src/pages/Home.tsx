@@ -1,4 +1,4 @@
-import heroImage from '@/assets/react.svg'
+import heroImage from "@/assets/react.svg";
 
 const Home = () => {
   return (
@@ -11,9 +11,9 @@ const Home = () => {
           Seamless coordination for electric vehicle co-ownership.
         </h1>
         <p className="max-w-2xl text-lg text-neutral-600">
-          Manage schedules, optimize utilization, and keep every stakeholder in sync. Co-Hire
-          Share EV gives teams visibility into reservations, billing, maintenance, and usage
-          analytics from a single dashboard.
+          Manage schedules, optimize utilization, and keep every stakeholder in
+          sync. Co-Hire Share EV gives teams visibility into reservations,
+          billing, maintenance, and usage analytics from a single dashboard.
         </p>
         <div className="flex flex-wrap gap-4">
           <a
@@ -35,22 +35,36 @@ const Home = () => {
           id="benefits"
           className="rounded-2xl border border-neutral-200 bg-neutral-100 p-6 shadow-card"
         >
-          <h2 className="text-2xl font-semibold text-neutral-900">Why teams choose us</h2>
+          <h2 className="text-2xl font-semibold text-neutral-900">
+            Why teams choose us
+          </h2>
           <ul className="mt-4 space-y-3 text-sm text-neutral-600">
-            <li>Real-time vehicle availability with intelligent conflict detection.</li>
-            <li>Automated billing, reporting, and maintenance notifications.</li>
-            <li>Role-based access controls for owners, drivers, and partners.</li>
-            <li>API-ready foundation for integrating telematics and ERP tools.</li>
+            <li>
+              Real-time vehicle availability with intelligent conflict
+              detection.
+            </li>
+            <li>
+              Automated billing, reporting, and maintenance notifications.
+            </li>
+            <li>
+              Role-based access controls for owners, drivers, and partners.
+            </li>
+            <li>
+              API-ready foundation for integrating telematics and ERP tools.
+            </li>
           </ul>
         </article>
         <article
           id="pricing"
           className="rounded-2xl border border-neutral-200 bg-neutral-100 p-6 shadow-card"
         >
-          <h2 className="text-2xl font-semibold text-neutral-900">Transparent pricing</h2>
+          <h2 className="text-2xl font-semibold text-neutral-900">
+            Transparent pricing
+          </h2>
           <p className="mt-4 text-sm text-neutral-600">
-            Choose the plan that fits your fleet size. Start with essentials, expand to advanced
-            analytics and partner portals as you grow. Custom enterprise deployments available.
+            Choose the plan that fits your fleet size. Start with essentials,
+            expand to advanced analytics and partner portals as you grow. Custom
+            enterprise deployments available.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-xs uppercase text-neutral-500">
             <span className="rounded-full border border-neutral-200 px-3 py-1">
@@ -59,7 +73,9 @@ const Home = () => {
             <span className="rounded-full border border-neutral-200 px-3 py-1">
               Shared maintenance
             </span>
-            <span className="rounded-full border border-neutral-200 px-3 py-1">Dedicated support</span>
+            <span className="rounded-full border border-neutral-200 px-3 py-1">
+              Dedicated support
+            </span>
           </div>
         </article>
       </div>
@@ -73,10 +89,12 @@ const Home = () => {
           className="h-24 w-24 flex-shrink-0 rounded-full border border-neutral-200 bg-neutral-50 p-4"
         />
         <div className="flex-1 space-y-3">
-          <h3 className="text-xl font-semibold text-neutral-900">Let's build together</h3>
+          <h3 className="text-xl font-semibold text-neutral-900">
+            Let's build together
+          </h3>
           <p>
-            Share your goals and we'll co-design a solution tailored to your stakeholders and
-            fleet operations.
+            Share your goals and we'll co-design a solution tailored to your
+            stakeholders and fleet operations.
           </p>
         </div>
         <a
@@ -87,8 +105,7 @@ const Home = () => {
         </a>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default Home
-
+export default Home;
