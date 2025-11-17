@@ -9,6 +9,7 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "noEmit": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowSyntheticDefaultImports": true,
@@ -21,3 +22,4 @@
   },
   "include": ["vite.config.ts"]
 }
+

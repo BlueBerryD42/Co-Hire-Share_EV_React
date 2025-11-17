@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowBack, CreditCard, Security, Check } from '@mui/icons-material'
 import { Card, Button, Badge } from '@/components/shared'
-import { ArrowLeft, CreditCard, Shield, Check } from 'lucide-react'
 import expenseService from '@/services/expenseService'
 
 /**
@@ -125,7 +125,7 @@ const PaymentScreen = () => {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <CreditCard className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+          <CreditCard sx={{ fontSize: 64, color: '#d5bdaf', mb: 2 }} />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">
             Không có khoản thanh toán nào
           </h2>
@@ -145,7 +145,7 @@ const PaymentScreen = () => {
           onClick={() => navigate(`/vehicles/${vehicleId}/expenses`)}
           className="flex items-center gap-2 text-neutral-700 hover:text-primary mb-6 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowBack fontSize="small" />
           <span className="font-medium">Quay lại</span>
         </button>
 
@@ -191,7 +191,7 @@ const PaymentScreen = () => {
                           className="max-w-full max-h-full object-contain p-2"
                         />
                       ) : (
-                        <CreditCard className="w-8 h-8 text-neutral-600" />
+                        <CreditCard sx={{ fontSize: 32, color: '#8f7d70' }} />
                       )}
                     </div>
 
@@ -209,7 +209,7 @@ const PaymentScreen = () => {
                     {/* Selected Check */}
                     {selectedMethod === method.id && (
                       <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
+                        <Check sx={{ fontSize: 16, color: 'white' }} />
                       </div>
                     )}
                   </label>
@@ -218,7 +218,7 @@ const PaymentScreen = () => {
 
               {/* Security Notice */}
               <div className="mt-6 flex items-start gap-3 p-4 bg-neutral-50 rounded-lg">
-                <Shield className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                <Security sx={{ fontSize: 20, color: '#7a9b76', flexShrink: 0, mt: 0.5 }} />
                 <div>
                   <p className="text-sm font-medium text-neutral-800">Thanh toán an toàn</p>
                   <p className="text-xs text-neutral-600 mt-1">

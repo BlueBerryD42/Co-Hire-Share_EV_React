@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Alert, Button, Chip } from '@mui/material'
 import type { UUID } from '@/models/booking'
 import type { ProposalListDto, ProposalStatus } from '@/models/proposal'
 import { useGroup } from '@/hooks/useGroups'
 import { useProposals } from '@/hooks/useProposals'
+import { EmptyState } from '@/components/shared'
 
 type TabKey = 'active' | 'past' | 'mine'
 
@@ -38,6 +39,7 @@ const getFilteredProposals = (items: ProposalListDto[] | null | undefined, tab: 
 }
 
 const Proposals = () => {
+  const navigate = useNavigate()
   const { groupId } = useParams<{ groupId: UUID }>()
   const { data: group } = useGroup(groupId)
   const { data: proposals, loading, error, reload } = useProposals(groupId)
@@ -102,12 +104,11 @@ const Proposals = () => {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-neutral-300 bg-neutral-50 p-10 text-center">
-          <p className="text-lg font-semibold text-neutral-900">Chưa có đề xuất nào</p>
-          <p className="text-neutral-600">
-            Hãy bắt đầu bằng cách tạo một đề xuất mới để thành viên cùng bỏ phiếu.
-          </p>
-        </div>
+        <EmptyState
+          type="proposals"
+          actionLabel="Tạo đề xuất mới"
+          onAction={() => navigate(`/groups/${groupId}/proposals/create`)}
+        />
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
