@@ -6,6 +6,7 @@ import {
   Alert,
   CircularProgress,
   Button,
+  TextField,
 } from '@mui/material'
 import { CheckCircle, Email, Error as ErrorIcon } from '@mui/icons-material'
 import { authApi } from '@/services/auth/api'
@@ -17,38 +18,38 @@ const EmailVerification = () => {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [errorMessage, setErrorMessage] = useState('')
-  const hasVerifiedRef = useRef(false) // Use ref instead of state to prevent re-renders
+  const [timer, setTimer] = useState(60)
+  const [canResend, setCanResend] = useState(false)
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', ''])
+  const hasVerifiedRef = useRef(false)
+
   const token = searchParams.get('token')
   const userId = searchParams.get('userId')
   const email = searchParams.get('email')
 
-  // Debug: Log URL parameters
-  useEffect(() => {
-    console.log('Email Verification Page Loaded')
-    console.log('Current URL:', window.location.href)
-    console.log('User ID from URL:', userId)
-    console.log('Token from URL:', token)
-    console.log('Email from URL:', email)
-  }, [])
+  // Refs for code inputs
+  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
+  // Timer countdown
   useEffect(() => {
-    // Only verify once - prevent double API calls
-    if (hasVerifiedRef.current) {
-      console.log('Already verified, skipping...')
-      return
+    if (timer > 0 && status === 'pending') {
+      const interval = setInterval(() => {
+        setTimer((prev) => prev - 1)
+      }, 1000)
+      return () => clearInterval(interval)
+    } else if (timer === 0) {
+      setCanResend(true)
     }
+  }, [timer, status])
 
-    // If there's a token and userId in the URL, verify it automatically
+  // Auto-verify if token and userId are in URL
+  useEffect(() => {
+    if (hasVerifiedRef.current) return
+
     if (token && userId) {
       console.log('Token and userId found, starting verification...')
-      hasVerifiedRef.current = true // Mark as verified before making the call
+      hasVerifiedRef.current = true
       verifyEmail(userId, token)
-    } else if (token && !userId) {
-      console.log('Token found but userId missing. Attempting verification with just token...')
-      hasVerifiedRef.current = true // Mark as verified before making the call
-      verifyEmail('', token)
-    } else {
-      console.log('No token found in URL. Waiting for user to click resend.')
     }
   }, [token, userId])
 
@@ -57,51 +58,99 @@ const EmailVerification = () => {
     setErrorMessage('')
 
     try {
-      console.log('Calling verify email API')
-      console.log('User ID:', verificationUserId)
-      console.log('Token:', verificationToken.substring(0, 20) + '...')
-
       await authApi.verifyEmail(verificationUserId, verificationToken)
-      console.log('Email verified successfully!')
       setStatus('success')
 
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate('/login', {
-          state: { message: 'Email verified successfully! Please login to continue.' }
+          state: { message: 'Email verified successfully! Please login to continue.' },
         })
       }, 3000)
     } catch (error: any) {
       console.error('Email verification failed:', error)
-      console.error('Error response:', error.response?.data)
-      console.error('Error status:', error.response?.status)
-      console.error('Full error:', JSON.stringify(error.response, null, 2))
       setStatus('error')
 
-      const errorMsg = error.response?.data?.message ||
-                       error.response?.data?.title ||
-                       error.response?.data?.errors?.Token?.[0] ||
-                       error.response?.data?.errors?.UserId?.[0] ||
-                       'Failed to verify email. The link may be expired or invalid.'
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.title ||
+        error.response?.data?.errors?.Token?.[0] ||
+        error.response?.data?.errors?.UserId?.[0] ||
+        'Failed to verify email. The link may be expired or invalid.'
 
       setErrorMessage(errorMsg)
     }
   }
 
-  const handleResendEmail = async () => {
-    if (!email) {
-      setErrorMessage('Email address not found. Please register again.')
+  // Handle manual code input
+  const handleCodeChange = (index: number, value: string) => {
+    // Only allow digits
+    if (!/^\d*$/.test(value)) return
+
+    const newCode = [...verificationCode]
+    newCode[index] = value.slice(-1) // Only take last character
+
+    setVerificationCode(newCode)
+    setErrorMessage('')
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      codeInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleCodeKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
+      codeInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleCodePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').trim()
+    if (!/^\d{6}$/.test(pastedData)) return
+
+    const newCode = pastedData.split('')
+    setVerificationCode(newCode)
+    codeInputRefs.current[5]?.focus()
+  }
+
+  const handleManualVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const code = verificationCode.join('')
+
+    if (code.length !== 6) {
+      setErrorMessage('Please enter the complete 6-digit code')
       return
     }
+
+    if (!userId || !email) {
+      setErrorMessage('Missing user information. Please try registering again.')
+      return
+    }
+
+    await verifyEmail(userId, code)
+  }
+
+  const handleResendEmail = async () => {
+    if (!email || !canResend) return
 
     try {
       await authApi.resendVerificationEmail(email)
       setErrorMessage('')
-      alert('Verification email sent! Please check your inbox.')
+      setTimer(60)
+      setCanResend(false)
+      setVerificationCode(['', '', '', '', '', ''])
+
+      // Show success message
+      setStatus('pending')
     } catch (error: any) {
       setErrorMessage(
         error.response?.data?.message ||
-        'Failed to resend verification email. Please try again later.'
+          'Failed to resend verification email. Please try again later.'
       )
     }
   }
@@ -135,20 +184,36 @@ const EmailVerification = () => {
             mb: 2,
           }}
         >
-          {status === 'pending' && 'Check Your Email'}
+          {status === 'pending' && 'Verify Your Email'}
           {status === 'verifying' && 'Verifying Email...'}
           {status === 'success' && 'Email Verified!'}
           {status === 'error' && 'Verification Failed'}
         </Typography>
 
-        {/* Message based on status */}
+        {/* Error Alert */}
+        {errorMessage && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              textAlign: 'left',
+              backgroundColor: '#b87d6f20',
+              color: '#8a504a',
+              '& .MuiAlert-icon': {
+                color: '#b87d6f',
+              },
+            }}
+            onClose={() => setErrorMessage('')}
+          >
+            {errorMessage}
+          </Alert>
+        )}
+
+        {/* Pending State - Manual Code Entry */}
         {status === 'pending' && (
           <>
-            <Typography
-              variant="body1"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
-              We've sent a verification email to:
+            <Typography variant="body1" sx={{ color: 'var(--neutral-600)', mb: 1 }}>
+              We've sent a verification code to:
             </Typography>
             {email && (
               <Typography
@@ -164,121 +229,197 @@ const EmailVerification = () => {
             )}
             <Typography
               variant="body2"
-              sx={{ color: 'var(--neutral-600)', mb: 2 }}
+              sx={{ color: 'var(--neutral-600)', mb: 3 }}
             >
-              Please check your inbox and click the verification link to activate your
-              account.
+              Enter the 6-digit code below to verify your account
             </Typography>
 
-            {/* Important Note for Port Issue */}
+            <form onSubmit={handleManualVerification}>
+              {/* 6-Digit Code Input */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1.5,
+                  justifyContent: 'center',
+                  mb: 3,
+                }}
+              >
+                {verificationCode.map((digit, index) => (
+                  <TextField
+                    key={index}
+                    inputRef={(el) => (codeInputRefs.current[index] = el)}
+                    value={digit}
+                    onChange={(e) => handleCodeChange(index, e.target.value)}
+                    onKeyDown={(e) => handleCodeKeyDown(index, e)}
+                    onPaste={index === 0 ? handleCodePaste : undefined}
+                    inputProps={{
+                      maxLength: 1,
+                      style: {
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontWeight: 600,
+                        padding: '16px 0',
+                      },
+                    }}
+                    sx={{
+                      width: '56px',
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: 'var(--neutral-50)',
+                        borderRadius: 'var(--radius-md)',
+                      },
+                      '& .MuiOutlinedInput-root fieldset': {
+                        borderColor: digit
+                          ? 'var(--accent-blue)'
+                          : 'var(--neutral-200)',
+                        borderWidth: 2,
+                      },
+                      '& .MuiOutlinedInput-root:hover fieldset': {
+                        borderColor: 'var(--accent-blue)',
+                      },
+                      '& .MuiOutlinedInput-root.Mui-focused fieldset': {
+                        borderColor: 'var(--accent-blue)',
+                        boxShadow: '0 0 0 3px rgba(122, 154, 175, 0.15)',
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+
+              {/* Timer and Resend */}
+              <Box sx={{ mb: 3 }}>
+                {timer > 0 ? (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'var(--accent-gold)',
+                      fontWeight: 600,
+                      mb: 1,
+                    }}
+                  >
+                    Resend code in {timer}s
+                  </Typography>
+                ) : null}
+
+                <Typography variant="body2" sx={{ color: 'var(--neutral-600)' }}>
+                  Didn't receive the code?{' '}
+                  <Button
+                    onClick={handleResendEmail}
+                    disabled={!canResend || !email}
+                    sx={{
+                      color: canResend ? 'var(--accent-blue)' : 'var(--neutral-400)',
+                      textTransform: 'none',
+                      padding: 0,
+                      minWidth: 'auto',
+                      fontWeight: 600,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        textDecoration: canResend ? 'underline' : 'none',
+                      },
+                      '&:disabled': {
+                        color: 'var(--neutral-400)',
+                      },
+                    }}
+                  >
+                    {canResend ? 'Resend' : `Wait ${timer}s`}
+                  </Button>
+                </Typography>
+              </Box>
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                className="btn-primary"
+                sx={{
+                  height: '48px',
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  mb: 2,
+                }}
+              >
+                Verify Email
+              </Button>
+            </form>
+
+            {/* Important Note */}
             <Alert
-              severity="warning"
+              severity="info"
               sx={{
-                mb: 3,
+                mb: 2,
                 textAlign: 'left',
-                backgroundColor: 'rgba(237, 200, 134, 0.15)',
-                color: '#7a5c1a',
+                backgroundColor: 'rgba(122, 154, 175, 0.15)',
+                color: '#4a5d6a',
                 '& .MuiAlert-icon': {
-                  color: 'var(--accent-gold)',
+                  color: 'var(--accent-blue)',
                 },
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                Important: If the email link doesn't work
-              </Typography>
-              <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
-                1. Copy the link from your email
-              </Typography>
-              <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
-                2. Replace <strong>https://localhost:3000</strong> with <strong>http://localhost:5173</strong>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Tip: Check your spam folder
               </Typography>
               <Typography variant="caption" component="div">
-                3. Paste the corrected link in your browser
+                If you can't find the email, it might be in your spam or junk folder.
               </Typography>
             </Alert>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={handleResendEmail}
-                disabled={!email}
-                sx={{
-                  borderColor: 'var(--accent-blue)',
-                  color: 'var(--accent-blue)',
-                  '&:hover': {
-                    borderColor: '#6a8a9f',
-                    backgroundColor: 'rgba(122, 154, 175, 0.1)',
-                  },
-                }}
-              >
-                Resend Verification Email
-              </Button>
-              <Button
-                variant="text"
-                onClick={() => navigate('/login')}
-                sx={{ color: 'var(--neutral-600)' }}
-              >
-                Back to Login
-              </Button>
-            </Box>
+            <Button
+              variant="text"
+              onClick={() => navigate('/login')}
+              sx={{
+                color: 'var(--neutral-600)',
+                textTransform: 'none',
+              }}
+            >
+              Back to Login
+            </Button>
           </>
         )}
 
+        {/* Verifying State */}
         {status === 'verifying' && (
           <Typography variant="body1" sx={{ color: 'var(--neutral-600)' }}>
             Please wait while we verify your email address...
           </Typography>
         )}
 
+        {/* Success State */}
         {status === 'success' && (
           <>
-            <Typography
-              variant="body1"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
+            <Typography variant="body1" sx={{ color: 'var(--neutral-600)', mb: 3 }}>
               Your email has been successfully verified!
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
+            <Typography variant="body2" sx={{ color: 'var(--neutral-600)', mb: 3 }}>
               Redirecting to login page in 3 seconds...
             </Typography>
             <Button
               variant="contained"
               onClick={() => navigate('/login')}
               className="btn-primary"
-              sx={{ textTransform: 'none' }}
+              sx={{
+                height: '48px',
+                textTransform: 'none',
+                fontSize: '1rem',
+              }}
             >
               Go to Login Now
             </Button>
           </>
         )}
 
+        {/* Error State */}
         {status === 'error' && (
           <>
-            {errorMessage && (
-              <Alert
-                severity="error"
-                sx={{
-                  mb: 3,
-                  backgroundColor: '#b87d6f20',
-                  color: '#8a504a',
-                  '& .MuiAlert-icon': {
-                    color: '#b87d6f',
-                  },
-                }}
-              >
-                {errorMessage}
-              </Alert>
-            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {email && (
                 <Button
                   variant="contained"
                   onClick={handleResendEmail}
                   className="btn-primary"
-                  sx={{ textTransform: 'none' }}
+                  sx={{
+                    height: '48px',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                  }}
                 >
                   Resend Verification Email
                 </Button>
@@ -287,8 +428,11 @@ const EmailVerification = () => {
                 variant="outlined"
                 onClick={() => navigate('/register')}
                 sx={{
+                  height: '48px',
                   borderColor: 'var(--neutral-300)',
                   color: 'var(--neutral-700)',
+                  textTransform: 'none',
+                  fontSize: '1rem',
                   '&:hover': {
                     borderColor: 'var(--neutral-400)',
                     backgroundColor: 'var(--neutral-100)',
@@ -300,7 +444,10 @@ const EmailVerification = () => {
               <Button
                 variant="text"
                 onClick={() => navigate('/login')}
-                sx={{ color: 'var(--neutral-600)' }}
+                sx={{
+                  color: 'var(--neutral-600)',
+                  textTransform: 'none',
+                }}
               >
                 Back to Login
               </Button>

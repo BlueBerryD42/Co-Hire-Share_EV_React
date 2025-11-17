@@ -11,7 +11,7 @@ import type {
   RegisterResponse,
 } from "@/models/auth";
 
-const http = createApiClient("/api/Auth");
+const http = createApiClient("/api");
 
 // Handle 401 responses and log errors
 http.interceptors.response.use(
@@ -55,7 +55,7 @@ export const authApi = {
    */
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     console.log("Sending login request:", credentials);
-    const response = await http.post<AuthResponse>("/login", credentials);
+    const response = await http.post<AuthResponse>("/Auth/login", credentials);
     console.log("Raw response from backend:", response);
     console.log("Response data:", response.data);
     return response.data;
@@ -109,16 +109,16 @@ export const authApi = {
   requestPasswordReset: async (
     payload: PasswordResetRequest
   ): Promise<void> => {
-    await http.post("/forgot-password", payload);
+    await http.post("/Auth/forgot-password", payload);
   },
 
   /**
-   * Confirm password reset with token
+   * Confirm password reset with token (from email link)
    */
   confirmPasswordReset: async (
     payload: PasswordResetConfirm
   ): Promise<void> => {
-    await http.post("/reset-password", payload);
+    await http.post("/Auth/reset-password", payload);
   },
 
   /**

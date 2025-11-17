@@ -5,7 +5,7 @@ import AdminLayout from "@/layouts/AdminLayout";
 import Home from "@/pages/Home";
 
 // Auth Pages
-import { Login, Register, EmailVerification } from "@/pages/auth";
+import { Login, Register, EmailVerification, ForgotPassword, ResetPassword } from "@/pages/auth";
 
 // Vehicle Pages
 import {
@@ -81,6 +81,8 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/confirm-email" element={<EmailVerification />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<MainLayout />}>
