@@ -1,13 +1,11 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   CreateRecurringBookingDto,
   RecurringBookingDto,
   UpdateRecurringBookingDto,
 } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/booking/recurring',
-})
+const http = createApiClient('/api/booking/recurring')
 
 export const recurringBookingsApi = {
   create: async (payload: CreateRecurringBookingDto) => {

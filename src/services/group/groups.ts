@@ -1,10 +1,8 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type { CreateGroupDto, GroupDto, GroupRole } from '@/models/group'
 import type { UUID } from '@/models/booking'
 
-const http = axios.create({
-  baseURL: '/api/group',
-})
+const http = createApiClient('/api/group')
 
 export interface GroupDetailsLite {
   groupId: UUID

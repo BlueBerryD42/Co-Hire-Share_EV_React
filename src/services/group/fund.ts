@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   AllocateReserveDto,
   DepositFundDto,
@@ -12,9 +12,7 @@ import type {
 } from '@/models/fund'
 import type { ISODate, UUID } from '@/models/booking'
 
-const http = axios.create({
-  baseURL: '/api/fund',
-})
+const http = createApiClient('/api/fund')
 
 export const fundApi = {
   async getBalance(groupId: UUID) {

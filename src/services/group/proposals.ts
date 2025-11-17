@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   CastVoteDto,
   CreateProposalDto,
@@ -9,9 +9,7 @@ import type {
 } from '@/models/proposal'
 import type { UUID } from '@/models/booking'
 
-const http = axios.create({
-  baseURL: '/api/proposal',
-})
+const http = createApiClient('/api/proposal')
 
 export interface ProposalListFilters {
   status?: string
