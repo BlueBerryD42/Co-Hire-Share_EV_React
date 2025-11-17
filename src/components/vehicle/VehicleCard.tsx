@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types'
+import { useNavigate } from 'react-router-dom'
 import { Card, Badge } from '@/components/shared'
 import { Car, Battery, Gauge } from 'lucide-react'
 
@@ -7,6 +8,7 @@ import { Car, Battery, Gauge } from 'lucide-react'
  * Dùng trong màn hình 10. My Vehicles
  */
 const VehicleCard = ({ vehicle, onSelect }) => {
+  const navigate = useNavigate()
   // Xác định màu status badge
   const getStatusVariant = (status) => {
     const statusMap = {
@@ -136,7 +138,7 @@ const VehicleCard = ({ vehicle, onSelect }) => {
             className="flex-1 px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary hover:text-white transition-colors"
             onClick={(e) => {
               e.stopPropagation()
-              // Handle book action
+              navigate(`/booking/create?vehicleId=${vehicle.id}`)
             }}
           >
             Đặt lịch

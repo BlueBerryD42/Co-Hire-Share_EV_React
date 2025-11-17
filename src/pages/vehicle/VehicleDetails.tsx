@@ -210,9 +210,8 @@ const VehicleDetails = () => {
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      currentImageIndex === index ? 'bg-white w-8' : 'bg-white/60'
-                    }`}
+                    className={`w-2 h-2 rounded-full transition-all ${currentImageIndex === index ? 'bg-white w-8' : 'bg-white/60'
+                      }`}
                   />
                 ))}
               </div>
@@ -241,7 +240,10 @@ const VehicleDetails = () => {
                     )}
                   </div>
                 </div>
-                <Button variant="accent" onClick={() => navigate(`/bookings/create?vehicleId=${id}`)}>
+                <Button
+                  className="bg-black text-white hover:bg-neutral-800"
+                  onClick={() => navigate(`/booking/create?vehicleId=${id}`)}
+                >
                   Đặt lịch ngay
                 </Button>
               </div>
@@ -270,8 +272,8 @@ const VehicleDetails = () => {
             value={healthScore?.overallScore || 0}
             variant={
               healthScore?.overallScore >= 80 ? 'success' :
-              healthScore?.overallScore >= 60 ? 'primary' :
-              healthScore?.overallScore >= 40 ? 'warning' : 'error'
+                healthScore?.overallScore >= 60 ? 'primary' :
+                  healthScore?.overallScore >= 40 ? 'warning' : 'error'
             }
           />
           <StatCard
@@ -320,11 +322,10 @@ const VehicleDetails = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
+                    className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
                         ? 'text-primary border-b-2 border-primary'
                         : 'text-neutral-600 hover:text-neutral-800'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {tab.label}
