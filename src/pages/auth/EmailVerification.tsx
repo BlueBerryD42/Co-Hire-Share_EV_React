@@ -17,38 +17,34 @@ const EmailVerification = () => {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [errorMessage, setErrorMessage] = useState('')
-  const hasVerifiedRef = useRef(false) // Use ref instead of state to prevent re-renders
+  const [timer, setTimer] = useState(60)
+  const [canResend, setCanResend] = useState(false)
+  const hasVerifiedRef = useRef(false)
+
   const token = searchParams.get('token')
   const userId = searchParams.get('userId')
   const email = searchParams.get('email')
 
-  // Debug: Log URL parameters
+  // Timer countdown
   useEffect(() => {
-    console.log('Email Verification Page Loaded')
-    console.log('Current URL:', window.location.href)
-    console.log('User ID from URL:', userId)
-    console.log('Token from URL:', token)
-    console.log('Email from URL:', email)
-  }, [])
-
-  useEffect(() => {
-    // Only verify once - prevent double API calls
-    if (hasVerifiedRef.current) {
-      console.log('Already verified, skipping...')
-      return
+    if (timer > 0 && status === 'pending') {
+      const interval = setInterval(() => {
+        setTimer((prev) => prev - 1)
+      }, 1000)
+      return () => clearInterval(interval)
+    } else if (timer === 0) {
+      setCanResend(true)
     }
+  }, [timer, status])
 
-    // If there's a token and userId in the URL, verify it automatically
+  // Auto-verify if token and userId are in URL
+  useEffect(() => {
+    if (hasVerifiedRef.current) return
+
     if (token && userId) {
       console.log('Token and userId found, starting verification...')
-      hasVerifiedRef.current = true // Mark as verified before making the call
+      hasVerifiedRef.current = true
       verifyEmail(userId, token)
-    } else if (token && !userId) {
-      console.log('Token found but userId missing. Attempting verification with just token...')
-      hasVerifiedRef.current = true // Mark as verified before making the call
-      verifyEmail('', token)
-    } else {
-      console.log('No token found in URL. Waiting for user to click resend.')
     }
   }, [token, userId])
 
@@ -57,51 +53,45 @@ const EmailVerification = () => {
     setErrorMessage('')
 
     try {
-      console.log('Calling verify email API')
-      console.log('User ID:', verificationUserId)
-      console.log('Token:', verificationToken.substring(0, 20) + '...')
-
       await authApi.verifyEmail(verificationUserId, verificationToken)
-      console.log('Email verified successfully!')
       setStatus('success')
 
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate('/login', {
-          state: { message: 'Email verified successfully! Please login to continue.' }
+          state: { message: 'Email verified successfully! Please login to continue.' },
         })
       }, 3000)
     } catch (error: any) {
       console.error('Email verification failed:', error)
-      console.error('Error response:', error.response?.data)
-      console.error('Error status:', error.response?.status)
-      console.error('Full error:', JSON.stringify(error.response, null, 2))
       setStatus('error')
 
-      const errorMsg = error.response?.data?.message ||
-                       error.response?.data?.title ||
-                       error.response?.data?.errors?.Token?.[0] ||
-                       error.response?.data?.errors?.UserId?.[0] ||
-                       'Failed to verify email. The link may be expired or invalid.'
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.title ||
+        error.response?.data?.errors?.Token?.[0] ||
+        error.response?.data?.errors?.UserId?.[0] ||
+        'Failed to verify email. The link may be expired or invalid.'
 
       setErrorMessage(errorMsg)
     }
   }
 
   const handleResendEmail = async () => {
-    if (!email) {
-      setErrorMessage('Email address not found. Please register again.')
-      return
-    }
+    if (!email || !canResend) return
 
     try {
       await authApi.resendVerificationEmail(email)
       setErrorMessage('')
-      alert('Verification email sent! Please check your inbox.')
+      setTimer(60)
+      setCanResend(false)
+
+      // Show success message
+      setStatus('pending')
     } catch (error: any) {
       setErrorMessage(
         error.response?.data?.message ||
-        'Failed to resend verification email. Please try again later.'
+          'Failed to resend verification email. Please try again later.'
       )
     }
   }
@@ -135,20 +125,36 @@ const EmailVerification = () => {
             mb: 2,
           }}
         >
-          {status === 'pending' && 'Check Your Email'}
+          {status === 'pending' && 'Verify Your Email'}
           {status === 'verifying' && 'Verifying Email...'}
           {status === 'success' && 'Email Verified!'}
           {status === 'error' && 'Verification Failed'}
         </Typography>
 
-        {/* Message based on status */}
+        {/* Error Alert */}
+        {errorMessage && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              textAlign: 'left',
+              backgroundColor: '#b87d6f20',
+              color: '#8a504a',
+              '& .MuiAlert-icon': {
+                color: '#b87d6f',
+              },
+            }}
+            onClose={() => setErrorMessage('')}
+          >
+            {errorMessage}
+          </Alert>
+        )}
+
+        {/* Pending State - Check Your Email */}
         {status === 'pending' && (
           <>
-            <Typography
-              variant="body1"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
-              We've sent a verification email to:
+            <Typography variant="body1" sx={{ color: 'var(--neutral-600)', mb: 1 }}>
+              We've sent a verification link to:
             </Typography>
             {email && (
               <Typography
@@ -164,121 +170,120 @@ const EmailVerification = () => {
             )}
             <Typography
               variant="body2"
-              sx={{ color: 'var(--neutral-600)', mb: 2 }}
+              sx={{ color: 'var(--neutral-600)', mb: 4 }}
             >
-              Please check your inbox and click the verification link to activate your
-              account.
+              Please check your email and click the verification link to activate your account.
             </Typography>
 
-            {/* Important Note for Port Issue */}
+            {/* Important Note */}
             <Alert
-              severity="warning"
+              severity="info"
               sx={{
                 mb: 3,
                 textAlign: 'left',
-                backgroundColor: 'rgba(237, 200, 134, 0.15)',
-                color: '#7a5c1a',
+                backgroundColor: 'rgba(122, 154, 175, 0.15)',
+                color: '#4a5d6a',
                 '& .MuiAlert-icon': {
-                  color: 'var(--accent-gold)',
+                  color: 'var(--accent-blue)',
                 },
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                Important: If the email link doesn't work
-              </Typography>
-              <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
-                1. Copy the link from your email
-              </Typography>
-              <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
-                2. Replace <strong>https://localhost:3000</strong> with <strong>http://localhost:5173</strong>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Tip: Check your spam folder
               </Typography>
               <Typography variant="caption" component="div">
-                3. Paste the corrected link in your browser
+                If you can't find the email, it might be in your spam or junk folder.
               </Typography>
             </Alert>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Resend Email Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" sx={{ color: 'var(--neutral-600)', mb: 2 }}>
+                Didn't receive the email?
+              </Typography>
               <Button
-                variant="outlined"
                 onClick={handleResendEmail}
-                disabled={!email}
+                disabled={!canResend || !email}
+                variant="outlined"
+                fullWidth
                 sx={{
-                  borderColor: 'var(--accent-blue)',
-                  color: 'var(--accent-blue)',
+                  height: '48px',
+                  borderColor: canResend ? 'var(--accent-blue)' : 'var(--neutral-300)',
+                  color: canResend ? 'var(--accent-blue)' : 'var(--neutral-400)',
+                  textTransform: 'none',
+                  fontSize: '1rem',
                   '&:hover': {
-                    borderColor: '#6a8a9f',
-                    backgroundColor: 'rgba(122, 154, 175, 0.1)',
+                    borderColor: canResend ? 'var(--accent-blue)' : 'var(--neutral-300)',
+                    backgroundColor: canResend ? 'rgba(122, 154, 175, 0.05)' : 'transparent',
+                  },
+                  '&:disabled': {
+                    borderColor: 'var(--neutral-300)',
+                    color: 'var(--neutral-400)',
                   },
                 }}
               >
-                Resend Verification Email
-              </Button>
-              <Button
-                variant="text"
-                onClick={() => navigate('/login')}
-                sx={{ color: 'var(--neutral-600)' }}
-              >
-                Back to Login
+                {canResend ? 'Resend Verification Email' : `Resend in ${timer}s`}
               </Button>
             </Box>
+
+            <Button
+              variant="text"
+              onClick={() => navigate('/login')}
+              sx={{
+                color: 'var(--neutral-600)',
+                textTransform: 'none',
+              }}
+            >
+              Back to Login
+            </Button>
           </>
         )}
 
+        {/* Verifying State */}
         {status === 'verifying' && (
           <Typography variant="body1" sx={{ color: 'var(--neutral-600)' }}>
             Please wait while we verify your email address...
           </Typography>
         )}
 
+        {/* Success State */}
         {status === 'success' && (
           <>
-            <Typography
-              variant="body1"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
+            <Typography variant="body1" sx={{ color: 'var(--neutral-600)', mb: 3 }}>
               Your email has been successfully verified!
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
-            >
+            <Typography variant="body2" sx={{ color: 'var(--neutral-600)', mb: 3 }}>
               Redirecting to login page in 3 seconds...
             </Typography>
             <Button
               variant="contained"
               onClick={() => navigate('/login')}
               className="btn-primary"
-              sx={{ textTransform: 'none' }}
+              sx={{
+                height: '48px',
+                textTransform: 'none',
+                fontSize: '1rem',
+              }}
             >
               Go to Login Now
             </Button>
           </>
         )}
 
+        {/* Error State */}
         {status === 'error' && (
           <>
-            {errorMessage && (
-              <Alert
-                severity="error"
-                sx={{
-                  mb: 3,
-                  backgroundColor: '#b87d6f20',
-                  color: '#8a504a',
-                  '& .MuiAlert-icon': {
-                    color: '#b87d6f',
-                  },
-                }}
-              >
-                {errorMessage}
-              </Alert>
-            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {email && (
                 <Button
                   variant="contained"
                   onClick={handleResendEmail}
                   className="btn-primary"
-                  sx={{ textTransform: 'none' }}
+                  sx={{
+                    height: '48px',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                  }}
                 >
                   Resend Verification Email
                 </Button>
@@ -287,8 +292,11 @@ const EmailVerification = () => {
                 variant="outlined"
                 onClick={() => navigate('/register')}
                 sx={{
+                  height: '48px',
                   borderColor: 'var(--neutral-300)',
                   color: 'var(--neutral-700)',
+                  textTransform: 'none',
+                  fontSize: '1rem',
                   '&:hover': {
                     borderColor: 'var(--neutral-400)',
                     backgroundColor: 'var(--neutral-100)',
@@ -300,7 +308,10 @@ const EmailVerification = () => {
               <Button
                 variant="text"
                 onClick={() => navigate('/login')}
-                sx={{ color: 'var(--neutral-600)' }}
+                sx={{
+                  color: 'var(--neutral-600)',
+                  textTransform: 'none',
+                }}
               >
                 Back to Login
               </Button>
