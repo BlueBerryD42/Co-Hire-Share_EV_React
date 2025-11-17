@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import { createApiClient } from "@/services/api";
+import { userApi } from "@/services/user/api";
 import type {
   LoginRequest,
   RegisterRequest,
@@ -52,13 +53,47 @@ http.interceptors.response.use(
 export const authApi = {
   /**
    * Login user with email/phone and password
+   * Note: Auth service returns minimal user data. Profile data is fetched from User service.
    */
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     console.log("Sending login request:", credentials);
     const response = await http.post<AuthResponse>("/login", credentials);
     console.log("Raw response from backend:", response);
     console.log("Response data:", response.data);
-    return response.data;
+    
+    // Auth service no longer returns profile data - fetch from User service
+    // Note: Profile might not exist immediately after registration, so handle gracefully
+    try {
+      const profile = await userApi.getProfile();
+      // Merge profile data with auth response
+      return {
+        ...response.data,
+        user: {
+          ...response.data.user,
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          phone: profile.phone || "",
+          role: profile.role ?? 0,
+          kycStatus: profile.kycStatus ?? 0,
+          createdAt: profile.createdAt || response.data.user.createdAt || new Date().toISOString(),
+        },
+      };
+    } catch (error: any) {
+      console.warn("Failed to fetch user profile from User service:", error);
+      // If profile fetch fails (e.g., profile not created yet), return auth response with defaults
+      // Frontend should handle empty firstName/lastName gracefully
+      return {
+        ...response.data,
+        user: {
+          ...response.data.user,
+          firstName: response.data.user.firstName || "",
+          lastName: response.data.user.lastName || "",
+          phone: response.data.user.phone || "",
+          role: response.data.user.role ?? 0,
+          kycStatus: response.data.user.kycStatus ?? 0,
+        },
+      };
+    }
   },
 
   /**
@@ -71,11 +106,12 @@ export const authApi = {
     const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
 
     // Transform to backend format (PascalCase)
+    // Note: Backend expects "Phone" not "PhoneNumber" for registration
     const backendData = {
       FirstName: firstName,
       LastName: lastName,
       Email: userData.email,
-      PhoneNumber: userData.phoneNumber,
+      Phone: userData.phoneNumber, // Backend DTO expects "Phone"
       Password: userData.password,
       ConfirmPassword: userData.confirmPassword,
     };
@@ -97,10 +133,11 @@ export const authApi = {
 
   /**
    * Get current authenticated user
+   * Note: Auth service no longer returns profile data - fetch from User service instead
    */
   getCurrentUser: async (): Promise<User> => {
-    const { data } = await http.get<User>("/me");
-    return data;
+    // Fetch profile from User service (which has all profile data)
+    return await userApi.getProfile();
   },
 
   /**
@@ -123,12 +160,44 @@ export const authApi = {
 
   /**
    * Refresh authentication token
+   * Note: Auth service returns minimal user data. Profile data is fetched from User service.
    */
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
     const { data } = await http.post<AuthResponse>("/refresh", {
       refreshToken,
     });
-    return data;
+    
+    // Auth service no longer returns profile data - fetch from User service
+    try {
+      const profile = await userApi.getProfile();
+      // Merge profile data with auth response
+      return {
+        ...data,
+        user: {
+          ...data.user,
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          phone: profile.phone || "",
+          role: profile.role ?? 0,
+          kycStatus: profile.kycStatus ?? 0,
+          createdAt: profile.createdAt || data.user.createdAt || new Date().toISOString(),
+        },
+      };
+    } catch (error: any) {
+      console.warn("Failed to fetch user profile after token refresh:", error);
+      // Return auth response with defaults if profile fetch fails
+      return {
+        ...data,
+        user: {
+          ...data.user,
+          firstName: data.user.firstName || "",
+          lastName: data.user.lastName || "",
+          phone: data.user.phone || "",
+          role: data.user.role ?? 0,
+          kycStatus: data.user.kycStatus ?? 0,
+        },
+      };
+    }
   },
 
   /**
@@ -176,10 +245,11 @@ export const authApi = {
 
   /**
    * Get user by ID
+   * Note: Auth service no longer returns profile data - use User service instead
    */
   getUserById: async (userId: string): Promise<User> => {
-    const { data } = await http.get<User>(`/user/${userId}`);
-    return data;
+    // Fetch basic user info from User service
+    return await userApi.getBasicInfo(userId);
   },
 };
 
