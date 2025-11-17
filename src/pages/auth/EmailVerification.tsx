@@ -6,7 +6,6 @@ import {
   Alert,
   CircularProgress,
   Button,
-  TextField,
 } from '@mui/material'
 import { CheckCircle, Email, Error as ErrorIcon } from '@mui/icons-material'
 import { authApi } from '@/services/auth/api'
@@ -20,15 +19,11 @@ const EmailVerification = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [timer, setTimer] = useState(60)
   const [canResend, setCanResend] = useState(false)
-  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', ''])
   const hasVerifiedRef = useRef(false)
 
   const token = searchParams.get('token')
   const userId = searchParams.get('userId')
   const email = searchParams.get('email')
-
-  // Refs for code inputs
-  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // Timer countdown
   useEffect(() => {
@@ -82,59 +77,6 @@ const EmailVerification = () => {
     }
   }
 
-  // Handle manual code input
-  const handleCodeChange = (index: number, value: string) => {
-    // Only allow digits
-    if (!/^\d*$/.test(value)) return
-
-    const newCode = [...verificationCode]
-    newCode[index] = value.slice(-1) // Only take last character
-
-    setVerificationCode(newCode)
-    setErrorMessage('')
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      codeInputRefs.current[index + 1]?.focus()
-    }
-  }
-
-  const handleCodeKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement | HTMLDivElement>
-  ) => {
-    if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus()
-    }
-  }
-
-  const handleCodePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').trim()
-    if (!/^\d{6}$/.test(pastedData)) return
-
-    const newCode = pastedData.split('')
-    setVerificationCode(newCode)
-    codeInputRefs.current[5]?.focus()
-  }
-
-  const handleManualVerification = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const code = verificationCode.join('')
-
-    if (code.length !== 6) {
-      setErrorMessage('Please enter the complete 6-digit code')
-      return
-    }
-
-    if (!userId || !email) {
-      setErrorMessage('Missing user information. Please try registering again.')
-      return
-    }
-
-    await verifyEmail(userId, code)
-  }
-
   const handleResendEmail = async () => {
     if (!email || !canResend) return
 
@@ -143,7 +85,6 @@ const EmailVerification = () => {
       setErrorMessage('')
       setTimer(60)
       setCanResend(false)
-      setVerificationCode(['', '', '', '', '', ''])
 
       // Show success message
       setStatus('pending')
@@ -209,11 +150,11 @@ const EmailVerification = () => {
           </Alert>
         )}
 
-        {/* Pending State - Manual Code Entry */}
+        {/* Pending State - Check Your Email */}
         {status === 'pending' && (
           <>
             <Typography variant="body1" sx={{ color: 'var(--neutral-600)', mb: 1 }}>
-              We've sent a verification code to:
+              We've sent a verification link to:
             </Typography>
             {email && (
               <Typography
@@ -229,123 +170,16 @@ const EmailVerification = () => {
             )}
             <Typography
               variant="body2"
-              sx={{ color: 'var(--neutral-600)', mb: 3 }}
+              sx={{ color: 'var(--neutral-600)', mb: 4 }}
             >
-              Enter the 6-digit code below to verify your account
+              Please check your email and click the verification link to activate your account.
             </Typography>
-
-            <form onSubmit={handleManualVerification}>
-              {/* 6-Digit Code Input */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 1.5,
-                  justifyContent: 'center',
-                  mb: 3,
-                }}
-              >
-                {verificationCode.map((digit, index) => (
-                  <TextField
-                    key={index}
-                    inputRef={(el) => (codeInputRefs.current[index] = el)}
-                    value={digit}
-                    onChange={(e) => handleCodeChange(index, e.target.value)}
-                    onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                    onPaste={index === 0 ? handleCodePaste : undefined}
-                    inputProps={{
-                      maxLength: 1,
-                      style: {
-                        textAlign: 'center',
-                        fontSize: '1.5rem',
-                        fontWeight: 600,
-                        padding: '16px 0',
-                      },
-                    }}
-                    sx={{
-                      width: '56px',
-                      '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'var(--neutral-50)',
-                        borderRadius: 'var(--radius-md)',
-                      },
-                      '& .MuiOutlinedInput-root fieldset': {
-                        borderColor: digit
-                          ? 'var(--accent-blue)'
-                          : 'var(--neutral-200)',
-                        borderWidth: 2,
-                      },
-                      '& .MuiOutlinedInput-root:hover fieldset': {
-                        borderColor: 'var(--accent-blue)',
-                      },
-                      '& .MuiOutlinedInput-root.Mui-focused fieldset': {
-                        borderColor: 'var(--accent-blue)',
-                        boxShadow: '0 0 0 3px rgba(122, 154, 175, 0.15)',
-                      },
-                    }}
-                  />
-                ))}
-              </Box>
-
-              {/* Timer and Resend */}
-              <Box sx={{ mb: 3 }}>
-                {timer > 0 ? (
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: 'var(--accent-gold)',
-                      fontWeight: 600,
-                      mb: 1,
-                    }}
-                  >
-                    Resend code in {timer}s
-                  </Typography>
-                ) : null}
-
-                <Typography variant="body2" sx={{ color: 'var(--neutral-600)' }}>
-                  Didn't receive the code?{' '}
-                  <Button
-                    onClick={handleResendEmail}
-                    disabled={!canResend || !email}
-                    sx={{
-                      color: canResend ? 'var(--accent-blue)' : 'var(--neutral-400)',
-                      textTransform: 'none',
-                      padding: 0,
-                      minWidth: 'auto',
-                      fontWeight: 600,
-                      '&:hover': {
-                        backgroundColor: 'transparent',
-                        textDecoration: canResend ? 'underline' : 'none',
-                      },
-                      '&:disabled': {
-                        color: 'var(--neutral-400)',
-                      },
-                    }}
-                  >
-                    {canResend ? 'Resend' : `Wait ${timer}s`}
-                  </Button>
-                </Typography>
-              </Box>
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                className="btn-primary"
-                sx={{
-                  height: '48px',
-                  textTransform: 'none',
-                  fontSize: '1rem',
-                  mb: 2,
-                }}
-              >
-                Verify Email
-              </Button>
-            </form>
 
             {/* Important Note */}
             <Alert
               severity="info"
               sx={{
-                mb: 2,
+                mb: 3,
                 textAlign: 'left',
                 backgroundColor: 'rgba(122, 154, 175, 0.15)',
                 color: '#4a5d6a',
@@ -361,6 +195,36 @@ const EmailVerification = () => {
                 If you can't find the email, it might be in your spam or junk folder.
               </Typography>
             </Alert>
+
+            {/* Resend Email Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" sx={{ color: 'var(--neutral-600)', mb: 2 }}>
+                Didn't receive the email?
+              </Typography>
+              <Button
+                onClick={handleResendEmail}
+                disabled={!canResend || !email}
+                variant="outlined"
+                fullWidth
+                sx={{
+                  height: '48px',
+                  borderColor: canResend ? 'var(--accent-blue)' : 'var(--neutral-300)',
+                  color: canResend ? 'var(--accent-blue)' : 'var(--neutral-400)',
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  '&:hover': {
+                    borderColor: canResend ? 'var(--accent-blue)' : 'var(--neutral-300)',
+                    backgroundColor: canResend ? 'rgba(122, 154, 175, 0.05)' : 'transparent',
+                  },
+                  '&:disabled': {
+                    borderColor: 'var(--neutral-300)',
+                    color: 'var(--neutral-400)',
+                  },
+                }}
+              >
+                {canResend ? 'Resend Verification Email' : `Resend in ${timer}s`}
+              </Button>
+            </Box>
 
             <Button
               variant="text"

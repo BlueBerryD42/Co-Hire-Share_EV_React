@@ -3,6 +3,7 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import MainLayout from "@/layouts/MainLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import Home from "@/pages/Home";
+import Landing from "@/pages/Landing";
 
 // Auth Pages
 import { Login, Register, EmailVerification, ForgotPassword, ResetPassword } from "@/pages/auth";
@@ -77,6 +78,9 @@ const App = () => {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
+          {/* Public Landing Page */}
+          <Route path="/" element={<Landing />} />
+
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -85,8 +89,8 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes */}
-          <Route path="/" element={<MainLayout />}>
-            {/* Home */}
+          <Route path="/app" element={<MainLayout />}>
+            {/* Home/Dashboard */}
             <Route index element={<Home />} />
 
             {/* Vehicle Routes */}

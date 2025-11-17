@@ -81,7 +81,7 @@ export const authApi = {
     };
 
     const { data } = await http.post<RegisterResponse>(
-      "/register",
+      "Auth/register",
       backendData
     );
     return data;
@@ -92,7 +92,7 @@ export const authApi = {
    */
   logout: async (): Promise<void> => {
     const refreshToken = Cookies.get("refresh_token");
-    await http.post("/logout", { RefreshToken: refreshToken });
+    await http.post("/Auth/logout", { RefreshToken: refreshToken });
   },
 
   /**
@@ -125,7 +125,7 @@ export const authApi = {
    * Refresh authentication token
    */
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-    const { data } = await http.post<AuthResponse>("/refresh", {
+    const { data } = await http.post<AuthResponse>("Auth/refresh", {
       refreshToken,
     });
     return data;
@@ -143,7 +143,7 @@ export const authApi = {
     console.log("  UserId length:", userId.length);
     console.log("  Token length:", token.length);
 
-    const response = await http.post("/confirm-email", payload);
+    const response = await http.post("Auth/confirm-email", payload);
     console.log("Verify email response:", response);
     return response.data;
   },
@@ -152,14 +152,14 @@ export const authApi = {
    * Resend email confirmation
    */
   resendVerificationEmail: async (email: string): Promise<void> => {
-    await http.post("/resend-confirmation", { Email: email });
+    await http.post("Auth//resend-confirmation", { Email: email });
   },
 
   /**
    * Validate authentication token
    */
   validateToken: async (token: string): Promise<boolean> => {
-    const { data } = await http.post<boolean>("/validate", { Token: token });
+    const { data } = await http.post<boolean>("Auth//validate", { Token: token });
     return data;
   },
 
@@ -167,7 +167,7 @@ export const authApi = {
    * Change password (when user is logged in)
    */
   changePassword: async (payload: ChangePasswordRequest): Promise<void> => {
-    await http.post("/change-password", {
+    await http.post("Auth/change-password", {
       CurrentPassword: payload.currentPassword,
       NewPassword: payload.newPassword,
       ConfirmPassword: payload.confirmPassword,
