@@ -144,7 +144,7 @@ export const authApi = {
     console.log("  Token length:", token.length);
 
     const response = await http.post("/confirm-email", payload);
-    console.log(" Verify email response:", response);
+    console.log("Verify email response:", response);
     return response.data;
   },
 
