@@ -3,6 +3,9 @@ import { bookingApi } from '@/services/booking/api'
 import { bookingTemplatesApi } from '@/services/booking/templates'
 import type { CreateBookingDto } from '@/models/booking'
 import type { BookingTemplateResponse } from '@/models/bookingExtras'
+import { useAppSelector } from '@/store/hooks'
+import Cookies from 'js-cookie'
+import { useGroups } from '@/hooks/useGroups'
 
 const initialForm = {
   vehicle: 'Tesla Model 3 Performance',
@@ -28,6 +31,20 @@ const vehicleMap: Record<string, string> = {
 
 type FormState = typeof initialForm
 
+const decodeUserIdFromToken = (token?: string | null) => {
+  if (!token) return ''
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return ''
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const json = atob(normalized)
+    const payload = JSON.parse(json)
+    return payload?.sub || payload?.nameid || payload?.userId || ''
+  } catch {
+    return ''
+  }
+}
+
 const CreateBooking = () => {
   const [form, setForm] = useState(initialForm)
   const [purpose, setPurpose] = useState('Business')
@@ -36,13 +53,32 @@ const CreateBooking = () => {
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
   const [serverMessage, setServerMessage] = useState<string | null>(null)
   const [templateMessage, setTemplateMessage] = useState<string | null>(null)
+  const auth = useAppSelector((state) => state.auth)
+  const derivedUserId = useMemo(() => {
+    if (auth.user?.id) return auth.user.id
+    return decodeUserIdFromToken(auth.token || Cookies.get('auth_token'))
+  }, [auth.token, auth.user?.id])
+  const [userId, setUserId] = useState(derivedUserId)
+  const { data: groups, loading: groupsLoading, error: groupsError } = useGroups()
+  const [groupId, setGroupId] = useState('')
+  const [lastPayload, setLastPayload] = useState<CreateBookingDto | null>(null)
+
+  useEffect(() => {
+    setUserId(derivedUserId)
+  }, [derivedUserId])
+
+  useEffect(() => {
+    if (!groupId && groups && groups.length > 0) {
+      setGroupId(groups[0].id)
+    }
+  }, [groups, groupId])
 
   useEffect(() => {
     let mounted = true
     bookingTemplatesApi
       .getTemplates()
       .then((data) => {
-        if (mounted) setTemplates(data)
+        if (mounted) setTemplates(Array.isArray(data) ? data : [])
       })
       .catch((error) => {
         console.error('Failed to load booking templates', error)
@@ -90,6 +126,12 @@ const CreateBooking = () => {
     }
 
     const buildIso = (date: string, time: string) => new Date(`${date}T${time}:00`).toISOString()
+    if (!userId || !groupId) {
+      setServerMessage('UserId và GroupId là bắt buộc')
+      setSubmissionStatus('error')
+      return
+    }
+
     const payload: CreateBookingDto = {
       vehicleId,
       startAt: buildIso(form.date, form.start),
@@ -98,8 +140,11 @@ const CreateBooking = () => {
       purpose,
       isEmergency: false,
       priority: 'Normal',
+      userId,
+      groupId,
     }
 
+    setLastPayload(payload)
     setSubmissionStatus('submitting')
     setServerMessage('Sending to /api/booking …')
     try {
@@ -174,6 +219,36 @@ const CreateBooking = () => {
                 onChange={(e) => updateForm('end', e.target.value)}
                 className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
               />
+            </label>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="space-y-2 text-sm text-slate-300">
+              <span>User ID</span>
+              <input
+                type="text"
+                value={userId}
+                readOnly
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3 font-mono text-xs text-slate-400"
+              />
+            </label>
+            <label className="space-y-2 text-sm text-slate-300">
+              <span>Group</span>
+              <select
+                value={groupId}
+                disabled={groupsLoading || !groups?.length}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm"
+              >
+                {groupsLoading && <option value="">Loading groups...</option>}
+                {!groupsLoading && !groups?.length && <option value="">No groups available</option>}
+                {groups?.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+              {groupsError && <p className="text-xs text-rose-300">Không thể tải danh sách nhóm.</p>}
             </label>
           </div>
 
@@ -271,6 +346,14 @@ const CreateBooking = () => {
             </select>
             {templateMessage && <p className="mt-2">{templateMessage}</p>}
           </div>
+          {lastPayload && (
+            <div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 p-4 text-xs text-emerald-100">
+              <p className="text-emerald-300">Payload preview (gửi lên API)</p>
+              <pre className="mt-2 overflow-auto text-[11px] leading-4">
+                {JSON.stringify(lastPayload, null, 2)}
+              </pre>
+            </div>
+          )}
         </form>
 
         <aside className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">

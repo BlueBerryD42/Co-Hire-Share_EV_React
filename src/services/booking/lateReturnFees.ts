@@ -1,9 +1,7 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type { LateReturnFeeDto } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/late-return-fees',
-})
+const http = createApiClient('/api/late-return-fees')
 
 export const lateReturnFeesApi = {
   getByBooking: async (bookingId: string) => {

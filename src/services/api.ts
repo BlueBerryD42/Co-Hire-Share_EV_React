@@ -1,55 +1,76 @@
-import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios'
+import Cookies from 'js-cookie'
 
-// Base API URL - thay đổi theo môi trường của bạn
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const DEFAULT_GATEWAY_URL = 'http://localhost:61610'
+const rawGatewayUrl = import.meta.env.VITE_API_GATEWAY_URL || DEFAULT_GATEWAY_URL
+export const API_GATEWAY_URL = rawGatewayUrl.replace(/\/+$/, '')
 
-// Tạo axios instance với config mặc định
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 30000, // 30 seconds
-})
+const normalizePrefix = (prefix: string) => {
+  if (!prefix) return ''
+  return prefix.startsWith('/') ? prefix : `/${prefix}`
+}
 
-// Request interceptor - thêm token vào header
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
+export const buildGatewayUrl = (pathPrefix = '/api') => {
+  const normalizedPrefix = normalizePrefix(pathPrefix)
+  return `${API_GATEWAY_URL}${normalizedPrefix}`
+}
+
+const attachInterceptors = (client: AxiosInstance) => {
+  client.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = Cookies.get('auth_token') || localStorage.getItem('accessToken')
+      if (token) {
+        config.headers = config.headers ?? {}
+        config.headers.Authorization = `Bearer ${token}`
+      }
+      return config
+    },
+    (error: AxiosError) => Promise.reject(error)
+  )
+
+  client.interceptors.response.use(
+    (response: AxiosResponse) => response,
+    (error: AxiosError) => {
+      if (error.response?.status === 401) {
+        Cookies.remove('auth_token')
+        Cookies.remove('refresh_token')
+        localStorage.removeItem('accessToken')
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
+      }
+
+      if (error.response?.status === 403) {
+        console.error('Access denied')
+      }
+
+      if (error.response?.status && error.response.status >= 500) {
+        console.error('Server error:', error.response.data)
+      }
+
+      return Promise.reject(error)
     }
-    return config
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error)
-  }
-)
+  )
+}
 
-// Response interceptor - xử lý lỗi chung
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response
-  },
-  (error: AxiosError) => {
-    // Xử lý lỗi 401 - Unauthorized
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken')
-      window.location.href = '/login'
-    }
+export const createApiClient = (pathPrefix = '/api') => {
+  const client = axios.create({
+    baseURL: buildGatewayUrl(pathPrefix),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    timeout: 30000,
+  })
 
-    // Xử lý lỗi 403 - Forbidden
-    if (error.response?.status === 403) {
-      console.error('Access denied')
-    }
+  attachInterceptors(client)
+  return client
+}
 
-    // Xử lý lỗi 500 - Server Error
-    if (error.response?.status >= 500) {
-      console.error('Server error:', error.response.data)
-    }
-
-    return Promise.reject(error)
-  }
-)
+const apiClient = createApiClient()
 
 export default apiClient

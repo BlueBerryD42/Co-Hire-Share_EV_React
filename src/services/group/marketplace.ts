@@ -1,10 +1,8 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type { GroupAnalyticsDto, UsageVsOwnershipDto } from '@/models/analytics'
 import type { UUID } from '@/models/booking'
 
-const http = axios.create({
-  baseURL: '/api/analytics',
-})
+const http = createApiClient('/api/analytics')
 
 export interface MarketplaceQuery {
   limit?: number

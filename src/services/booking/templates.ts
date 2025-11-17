@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   BookingTemplateResponse,
   CreateBookingFromTemplateRequest,
@@ -6,9 +6,7 @@ import type {
   UpdateBookingTemplateRequest,
 } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/booking',
-})
+const http = createApiClient('/api/booking')
 
 export const bookingTemplatesApi = {
   getTemplates: async () => {
