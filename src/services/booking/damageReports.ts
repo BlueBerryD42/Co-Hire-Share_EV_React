@@ -1,9 +1,7 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type { DamageReportDto } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/damage-reports',
-})
+const http = createApiClient('/api/damage-reports')
 
 export const damageReportsApi = {
   getByBooking: async (bookingId: string) => {

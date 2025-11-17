@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   CheckInDto,
   CheckInHistoryFilterDto,
@@ -7,9 +7,7 @@ import type {
   StartTripDto,
 } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/checkin',
-})
+const http = createApiClient('/api/checkin')
 
 export const checkInApi = {
   getCheckIn: async (id: string) => {

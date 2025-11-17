@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   CreateBulkNotificationDto,
   CreateNotificationDto,
@@ -6,9 +6,7 @@ import type {
   NotificationRequestDto,
 } from '@/models/notification'
 
-const http = axios.create({
-  baseURL: '/api/notification',
-})
+const http = createApiClient('/api/notification')
 
 export const notificationApi = {
   async create(payload: CreateNotificationDto) {

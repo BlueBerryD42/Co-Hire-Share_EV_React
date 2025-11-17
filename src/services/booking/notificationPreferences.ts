@@ -1,12 +1,10 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type {
   BookingNotificationPreferenceDto,
   UpdateBookingNotificationPreferenceDto,
 } from '@/models/booking'
 
-const http = axios.create({
-  baseURL: '/api/booking/notification-preferences',
-})
+const http = createApiClient('/api/booking/notification-preferences')
 
 export const notificationPreferencesApi = {
   getPreferences: async () => {

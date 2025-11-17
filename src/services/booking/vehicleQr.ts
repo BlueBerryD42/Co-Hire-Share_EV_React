@@ -1,9 +1,7 @@
-import axios from 'axios'
+import { createApiClient } from '@/services/api'
 import type { VehicleQrCodeResponseDto } from '@/models/bookingExtras'
 
-const http = axios.create({
-  baseURL: '/api/vehicle',
-})
+const http = createApiClient('/api/vehicle')
 
 export const vehicleQrApi = {
   getQrAsDataUrl: async (vehicleId: string) => {
