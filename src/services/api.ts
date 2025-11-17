@@ -1,7 +1,12 @@
 import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
+import Cookies from 'js-cookie'
 
-// Base API URL - thay đổi theo môi trường của bạn
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+// API Gateway URL - sử dụng Ocelot Gateway làm điểm truy cập duy nhất
+const API_GATEWAY_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_GATEWAY_URL || 'https://localhost:61600'
+const API_BASE_URL = `${API_GATEWAY_URL}/api`
+
+console.log('🌐 API Gateway URL:', API_GATEWAY_URL)
+console.log('🌐 API Base URL:', API_BASE_URL)
 
 // Tạo axios instance với config mặc định
 const apiClient = axios.create({
@@ -10,14 +15,20 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
+  // Allow self-signed certificates in development
+  ...(import.meta.env.DEV && {
+    httpsAgent: { rejectUnauthorized: false }
+  })
 })
 
 // Request interceptor - thêm token vào header
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken')
+    // Try to get token from cookies first (used by auth), then localStorage
+    const token = Cookies.get('auth_token') || localStorage.getItem('accessToken')
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('🔑 Adding token to request:', config.url)
     }
     return config
   },
@@ -34,18 +45,26 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Xử lý lỗi 401 - Unauthorized
     if (error.response?.status === 401) {
+      console.error('🔒 401 Unauthorized - Clearing tokens and redirecting to login')
+      // Clear both localStorage and cookies
       localStorage.removeItem('accessToken')
-      window.location.href = '/login'
+      Cookies.remove('auth_token')
+      Cookies.remove('refresh_token')
+
+      // Only redirect if not already on login/register page
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login'
+      }
     }
 
     // Xử lý lỗi 403 - Forbidden
     if (error.response?.status === 403) {
-      console.error('Access denied')
+      console.error('🚫 Access denied - insufficient permissions')
     }
 
     // Xử lý lỗi 500 - Server Error
-    if (error.response?.status >= 500) {
-      console.error('Server error:', error.response.data)
+    if (error.response?.status && error.response.status >= 500) {
+      console.error('💥 Server error:', error.response.data)
     }
 
     return Promise.reject(error)
