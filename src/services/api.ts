@@ -11,7 +11,7 @@ const rawGatewayUrl =
   import.meta.env.VITE_API_GATEWAY_URL || 'https://localhost:61600'
 export const API_GATEWAY_URL = rawGatewayUrl.replace(/\/+$/, '')
 
-console.log('🌐 API Gateway URL:', API_GATEWAY_URL)
+console.log('API Gateway URL:', API_GATEWAY_URL)
 
 const normalizePrefix = (prefix: string) => {
   if (!prefix) return ''
@@ -32,7 +32,7 @@ const attachInterceptors = (client: AxiosInstance) => {
       if (token) {
         config.headers = config.headers ?? {}
         config.headers.Authorization = `Bearer ${token}`
-        console.log('🔑 Adding token to request:', config.url)
+        console.log('Adding token to request:', config.url)
       }
       return config
     },
@@ -45,7 +45,7 @@ const attachInterceptors = (client: AxiosInstance) => {
     (error: AxiosError) => {
       // Xử lý lỗi 401 - Unauthorized
       if (error.response?.status === 401) {
-        console.error('🔒 401 Unauthorized - Clearing tokens and redirecting to login')
+        console.error('401 Unauthorized - Clearing tokens and redirecting to login')
         Cookies.remove('auth_token')
         Cookies.remove('refresh_token')
         localStorage.removeItem('accessToken')
@@ -56,12 +56,12 @@ const attachInterceptors = (client: AxiosInstance) => {
 
       // Xử lý lỗi 403 - Forbidden
       if (error.response?.status === 403) {
-        console.error('🚫 Access denied - insufficient permissions')
+        console.error('Access denied - insufficient permissions')
       }
 
       // Xử lý lỗi 500 - Server Error
       if (error.response?.status && error.response.status >= 500) {
-        console.error('💥 Server error:', error.response.data)
+        console.error('Server error:', error.response.data)
       }
 
       return Promise.reject(error)
