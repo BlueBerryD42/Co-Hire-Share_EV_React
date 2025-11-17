@@ -44,7 +44,8 @@ const VehicleDetails = () => {
       setLoading(true)
 
       // Fetch vehicle details, statistics, and health score in parallel
-      const [vehicleData, statsData, healthData] = await Promise.all([
+      // Use Promise.allSettled to allow partial failures
+      const [vehicleResult, statsResult, healthResult] = await Promise.allSettled([
         vehicleService.getVehicleById(id),
         vehicleService.getVehicleStatistics(id, {
           startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -57,9 +58,30 @@ const VehicleDetails = () => {
         }),
       ])
 
-      setVehicle(vehicleData)
-      setStatistics(statsData)
-      setHealthScore(healthData)
+      // Set data if successful, otherwise log error
+      if (vehicleResult.status === 'fulfilled') {
+        setVehicle(vehicleResult.value)
+      } else {
+        console.error('Error fetching vehicle:', vehicleResult.reason)
+      }
+
+      if (statsResult.status === 'fulfilled') {
+        setStatistics(statsResult.value)
+      } else {
+        console.error('Error fetching statistics:', statsResult.reason)
+      }
+
+      if (healthResult.status === 'fulfilled') {
+        setHealthScore(healthResult.value)
+      } else {
+        console.error('Error fetching health score:', healthResult.reason)
+        // Set default health score to prevent UI errors
+        setHealthScore({
+          overallScore: 0,
+          category: 'Unknown',
+          message: 'Không thể tải điểm sức khỏe xe',
+        })
+      }
     } catch (error) {
       console.error('Error fetching vehicle details:', error)
     } finally {
@@ -98,11 +120,12 @@ const VehicleDetails = () => {
   }
 
   // Mock images for carousel (replace with actual images)
+  // Use placehold.co instead of via.placeholder.com (more reliable)
   const vehicleImages = vehicle.images || [
-    'https://via.placeholder.com/800x500?text=Vehicle+Front',
-    'https://via.placeholder.com/800x500?text=Vehicle+Back',
-    'https://via.placeholder.com/800x500?text=Vehicle+Left',
-    'https://via.placeholder.com/800x500?text=Vehicle+Right',
+    'https://placehold.co/800x500/e5e7eb/6b7280?text=Vehicle+Front',
+    'https://placehold.co/800x500/e5e7eb/6b7280?text=Vehicle+Back',
+    'https://placehold.co/800x500/e5e7eb/6b7280?text=Vehicle+Left',
+    'https://placehold.co/800x500/e5e7eb/6b7280?text=Vehicle+Right',
   ]
 
   const getStatusVariant = (status) => {
@@ -257,6 +280,34 @@ const VehicleDetails = () => {
             value={statistics?.costs?.thisMonth?.toLocaleString() || 0}
             unit="đ"
           />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Button
+            variant="primary"
+            onClick={() => navigate(`/vehicles/${id}/expenses`)}
+            className="w-full"
+          >
+            <DollarSign className="w-5 h-5 mr-2" />
+            Chi phí & Thanh toán
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/vehicles/${id}/payments/history`)}
+            className="w-full"
+          >
+            <FileText className="w-5 h-5 mr-2" />
+            Lịch sử thanh toán
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/vehicles/${id}/analytics`)}
+            className="w-full"
+          >
+            <TrendingUp className="w-5 h-5 mr-2" />
+            Phân tích chi phí
+          </Button>
         </div>
 
         {/* Tabs */}
