@@ -101,7 +101,7 @@ const EmailVerification = () => {
 
   const handleCodeKeyDown = (
     index: number,
-    e: React.KeyboardEvent<HTMLInputElement>
+    e: React.KeyboardEvent<HTMLInputElement | HTMLDivElement>
   ) => {
     if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
       codeInputRefs.current[index - 1]?.focus()
