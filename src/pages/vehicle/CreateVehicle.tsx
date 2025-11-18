@@ -39,7 +39,7 @@ const CreateVehicle = () => {
     plateNumber: '',
     model: '',
     year: new Date().getFullYear(),
-    color: '',
+    color: undefined,
     odometer: 0,
     groupId: preselectedGroupId || '',
   })
@@ -128,7 +128,18 @@ const CreateVehicle = () => {
 
     setSubmitting(true)
     try {
-      const created = await vehicleService.createVehicle(formData)
+      // Prepare data - convert empty strings to undefined for optional fields
+      const payload: CreateVehicleDto = {
+        vin: formData.vin.trim(),
+        plateNumber: formData.plateNumber.trim(),
+        model: formData.model.trim(),
+        year: formData.year,
+        color: formData.color?.trim() || undefined,
+        odometer: formData.odometer,
+        groupId: formData.groupId,
+      }
+
+      const created = await vehicleService.createVehicle(payload)
       setSnackbar({
         open: true,
         message: 'Đã tạo xe thành công',
