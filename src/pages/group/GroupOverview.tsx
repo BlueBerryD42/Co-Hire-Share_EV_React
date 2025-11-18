@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   CalendarMonth,
   DirectionsCarFilledOutlined,
@@ -79,19 +79,13 @@ const quickActions = [
 ];
 
 const GroupOverview = () => {
+  const { groupId } = useParams<{ groupId: UUID }>()
   const { data: groups, loading, error, reload } = useGroups();
-  const [selectedGroupId, setSelectedGroupId] = useState<UUID | null>(null);
-
-  useEffect(() => {
-    if (!selectedGroupId && groups && groups.length > 0) {
-      setSelectedGroupId(groups[0].id);
-    }
-  }, [groups, selectedGroupId]);
 
   const selectedGroup = useMemo(() => {
-    if (!groups?.length) return undefined;
-    return groups.find((g) => g.id === selectedGroupId) ?? groups[0];
-  }, [groups, selectedGroupId]);
+    if (!groups?.length || !groupId) return undefined;
+    return groups.find((g) => g.id === groupId);
+  }, [groups, groupId]);
 
   const activeFilter = useMemo(() => ({ status: "Active" }), []);
   const { data: fundBalance, loading: fundLoading } = useFundBalance(
@@ -104,7 +98,7 @@ const GroupOverview = () => {
 
   if (loading) {
     return (
-      <section className="mx-auto max-w-6xl space-y-6 p-6">
+      <section className="space-y-6">
         <div className="animate-pulse rounded-3xl border border-neutral-200 bg-neutral-100 p-10 text-neutral-500">
           Đang tải thông tin nhóm...
         </div>
@@ -114,7 +108,7 @@ const GroupOverview = () => {
 
   if (error) {
     return (
-      <section className="mx-auto max-w-4xl space-y-4 p-6 text-center">
+      <section className="space-y-4 text-center">
         <p className="text-lg font-semibold text-accent-terracotta">
           Không thể tải dữ liệu nhóm
         </p>
@@ -132,7 +126,7 @@ const GroupOverview = () => {
 
   if (!groups?.length || !selectedGroup) {
     return (
-      <section className="mx-auto max-w-4xl space-y-6 p-6">
+      <section className="space-y-6">
         <EmptyState
           type="groupMembers"
           headline="Chưa có nhóm nào"
@@ -187,52 +181,17 @@ const GroupOverview = () => {
   }));
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
-      <header className="space-y-4 rounded-3xl border border-neutral-200 bg-neutral-100 p-6">
+    <section className="space-y-8">
+      <header className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-wide text-neutral-500">
-              Screen 24 · My Group
-            </p>
             <h1 className="text-4xl font-semibold text-neutral-900">
-              Không gian nhóm của bạn
+              {selectedGroup?.name || 'Tổng quan nhóm'}
             </h1>
             <p className="max-w-2xl text-neutral-600">
-              Toàn bộ thông tin chia sẻ xe, thành viên và nguồn quỹ được gom về
-              một nơi duy nhất để bạn nắm bắt nhanh chóng.
+              {selectedGroup?.description || 'Quản lý thành viên, quỹ chung, và đề xuất của nhóm.'}
             </p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-600">
-            {groups.length} nhóm ·{" "}
-            <span className="font-semibold text-neutral-900">
-              chọn để xem chi tiết
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {groups.map((group) => {
-            const status = statusMap[group.status];
-            const isActive = group.id === selectedGroup.id;
-            return (
-              <button
-                type="button"
-                key={group.id}
-                onClick={() => setSelectedGroupId(group.id)}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
-                  isActive
-                    ? "border-accent-blue bg-white text-neutral-900 shadow-sm"
-                    : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-300"
-                }`}
-              >
-                <span className="text-base font-semibold">{group.name}</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
-                >
-                  {status.label}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </header>
 
