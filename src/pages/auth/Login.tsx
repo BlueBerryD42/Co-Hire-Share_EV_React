@@ -21,7 +21,7 @@ const Login = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useAppDispatch()
-  const { isLoading, error, isAuthenticated, rememberMe } = useAppSelector((state) => state.auth)
+  const { isLoading, error, isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   const [formData, setFormData] = useState<LoginRequest>({
     Email: '',
@@ -37,10 +37,19 @@ const Login = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
+      // Redirect SystemAdmin and Staff to admin dashboard
+      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
+      if (user.role === 0 || user.role === 1) {
+        navigate('/admin/dashboard')
+      } else {
+        navigate('/')
+      }
+    } else if (isAuthenticated) {
+      // If authenticated but user data not loaded yet, go to home
       navigate('/')
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, user, navigate])
 
   // Check for success message from email verification
   useEffect(() => {
@@ -122,7 +131,14 @@ const Login = () => {
     const result = await dispatch(login(formData))
 
     if (login.fulfilled.match(result)) {
-      // Login successful, navigation happens via useEffect
+      // Login successful, check user role and redirect accordingly
+      const loggedInUser = result.payload.user
+      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
+      if (loggedInUser?.role === 0 || loggedInUser?.role === 1) {
+        navigate('/admin/dashboard')
+      } else {
+        navigate('/')
+      }
     }
   }
 

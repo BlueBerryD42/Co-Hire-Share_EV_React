@@ -21,10 +21,14 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 import GlobalSearch from "@/components/shared/GlobalSearch";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout } from "@/store/slices/authSlice";
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -251,10 +255,15 @@ const AdminLayout = () => {
             </div>
 
             <div className="flex items-center gap-4 flex-shrink-0">
+              {user && (
+                <span className="text-sm text-neutral-700 whitespace-nowrap">
+                  {user.firstName ? `${user.firstName} ${user.lastName}` : user.email}
+                </span>
+              )}
               <button
-                onClick={() => {
-                  localStorage.removeItem("authToken");
-                  window.location.href = "/";
+                onClick={async () => {
+                  await dispatch(logout());
+                  navigate("/");
                 }}
                 className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200 rounded-md transition-colors"
               >
