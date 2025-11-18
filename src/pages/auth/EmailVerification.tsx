@@ -212,6 +212,7 @@ const EmailVerification = () => {
                   color: canResend ? 'var(--accent-blue)' : 'var(--neutral-400)',
                   textTransform: 'none',
                   fontSize: '1rem',
+                  mb: 2,
                   '&:hover': {
                     borderColor: canResend ? 'var(--accent-blue)' : 'var(--neutral-300)',
                     backgroundColor: canResend ? 'rgba(122, 154, 175, 0.05)' : 'transparent',
@@ -224,6 +225,28 @@ const EmailVerification = () => {
               >
                 {canResend ? 'Resend Verification Email' : `Resend in ${timer}s`}
               </Button>
+
+              {/* Correct Email Button */}
+              {email && (
+                <Button
+                  onClick={() => navigate(`/correct-email?email=${encodeURIComponent(email)}`)}
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    height: '48px',
+                    borderColor: 'var(--accent-terracotta)',
+                    color: 'var(--accent-terracotta)',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    '&:hover': {
+                      borderColor: 'var(--accent-terracotta)',
+                      backgroundColor: 'rgba(184, 125, 111, 0.05)',
+                    },
+                  }}
+                >
+                  Wrong Email? Correct It
+                </Button>
+              )}
             </Box>
 
             <Button
@@ -275,18 +298,37 @@ const EmailVerification = () => {
           <>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {email && (
-                <Button
-                  variant="contained"
-                  onClick={handleResendEmail}
-                  className="btn-primary"
-                  sx={{
-                    height: '48px',
-                    textTransform: 'none',
-                    fontSize: '1rem',
-                  }}
-                >
-                  Resend Verification Email
-                </Button>
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleResendEmail}
+                    className="btn-primary"
+                    sx={{
+                      height: '48px',
+                      textTransform: 'none',
+                      fontSize: '1rem',
+                    }}
+                  >
+                    Resend Verification Email
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate(`/correct-email?email=${encodeURIComponent(email)}`)}
+                    sx={{
+                      height: '48px',
+                      borderColor: 'var(--accent-terracotta)',
+                      color: 'var(--accent-terracotta)',
+                      textTransform: 'none',
+                      fontSize: '1rem',
+                      '&:hover': {
+                        borderColor: 'var(--accent-terracotta)',
+                        backgroundColor: 'rgba(184, 125, 111, 0.05)',
+                      },
+                    }}
+                  >
+                    Wrong Email? Correct It
+                  </Button>
+                </>
               )}
               <Button
                 variant="outlined"

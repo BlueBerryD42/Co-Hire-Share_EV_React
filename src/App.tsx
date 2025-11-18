@@ -6,7 +6,7 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
 
 // Auth Pages
-import { Login, Register, EmailVerification, ForgotPassword, ResetPassword } from "@/pages/auth";
+import { Login, Register, EmailVerification, CorrectEmail, ForgotPassword, ResetPassword } from "@/pages/auth";
 
 // Vehicle Pages
 import {
@@ -85,6 +85,7 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/confirm-email" element={<EmailVerification />} />
+          <Route path="/correct-email" element={<CorrectEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 

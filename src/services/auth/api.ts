@@ -225,6 +225,16 @@ export const authApi = {
   },
 
   /**
+   * Correct email address after registration with incorrect email
+   */
+  correctEmail: async (currentEmail: string, newEmail: string): Promise<void> => {
+    await http.post("Auth/correct-email", {
+      currentEmail,
+      newEmail,
+    });
+  },
+
+  /**
    * Validate authentication token
    */
   validateToken: async (token: string): Promise<boolean> => {
