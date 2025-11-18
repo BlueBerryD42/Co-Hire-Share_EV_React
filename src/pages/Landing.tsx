@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Box, Button, Container, Typography, Card, CardContent, Grid } from '@mui/material'
 import {
   ElectricCar,
@@ -12,6 +12,10 @@ import {
 
 const Landing = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Kiểm tra xem có đang ở trong MainLayout không (path = "/")
+  const isInMainLayout = location.pathname === '/'
 
   const features = [
     {
@@ -88,61 +92,64 @@ const Landing = () => {
 
   return (
     <Box sx={{ backgroundColor: 'var(--neutral-50)', minHeight: '100vh' }}>
-      {/* Header */}
-      <Box
-        component="header"
-        sx={{
-          backgroundColor: 'var(--neutral-100)',
-          borderBottom: '1px solid var(--neutral-200)',
-          py: 2,
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography
-              variant="h5"
-              sx={{
-                fontFamily: 'var(--font-display)',
-                color: 'var(--neutral-800)',
-                fontWeight: 700,
-              }}
-            >
-              Co-Hire Share EV
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/login')}
+      {/* Header - chỉ hiển thị khi ở /app */}
+      {!isInMainLayout && (
+        <Box
+          component="header"
+          sx={{
+            backgroundColor: 'var(--neutral-100)',
+            borderBottom: '1px solid var(--neutral-200)',
+            py: 2,
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+          }}
+        >
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography
+                variant="h5"
                 sx={{
-                  borderColor: 'var(--neutral-300)',
-                  color: 'var(--neutral-700)',
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: 'var(--neutral-400)',
-                    backgroundColor: 'var(--neutral-100)',
-                  },
+                  fontFamily: 'var(--font-display)',
+                  color: 'var(--neutral-800)',
+                  fontWeight: 700,
                 }}
               >
-                Login
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/register')}
-                className="btn-primary"
-                sx={{ textTransform: 'none' }}
-              >
-                Get Started
-              </Button>
+                Co-Hire Share EV
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    borderColor: 'var(--neutral-300)',
+                    color: 'var(--neutral-700)',
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: 'var(--neutral-400)',
+                      backgroundColor: 'var(--neutral-100)',
+                    },
+                  }}
+                >
+                  Login
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/register')}
+                  className="btn-primary"
+                  sx={{ textTransform: 'none' }}
+                >
+                  Get Started
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        </Container>
-      </Box>
+          </Container>
+        </Box>
+      )}
 
       {/* Hero Section */}
       <Box
+        id="overview"
         sx={{
           background: 'linear-gradient(135deg, var(--neutral-50) 0%, var(--neutral-100) 100%)',
           py: { xs: 6, md: 10 },
@@ -411,7 +418,7 @@ const Landing = () => {
       </Box>
 
       {/* Benefits Comparison */}
-      <Box sx={{ py: { xs: 6, md: 10 }, backgroundColor: 'var(--neutral-50)' }}>
+      <Box id="benefits" sx={{ py: { xs: 6, md: 10 }, backgroundColor: 'var(--neutral-50)' }}>
         <Container maxWidth="lg">
           <Grid container spacing={6} alignItems="center">
             <Grid size={{ xs: 12, md: 6 }}>
@@ -497,6 +504,7 @@ const Landing = () => {
 
       {/* Testimonials */}
       <Box
+        id="pricing"
         sx={{
           py: { xs: 6, md: 10 },
           backgroundColor: 'var(--neutral-100)',
@@ -567,6 +575,7 @@ const Landing = () => {
 
       {/* CTA Section */}
       <Box
+        id="contact"
         sx={{
           py: { xs: 6, md: 10 },
           backgroundColor: 'var(--neutral-50)',
@@ -629,15 +638,16 @@ const Landing = () => {
         </Container>
       </Box>
 
-      {/* Footer */}
-      <Box
-        component="footer"
-        sx={{
-          backgroundColor: 'var(--neutral-800)',
-          color: 'var(--neutral-200)',
-          py: 6,
-        }}
-      >
+      {/* Footer - chỉ hiển thị khi ở /app */}
+      {!isInMainLayout && (
+        <Box
+          component="footer"
+          sx={{
+            backgroundColor: 'var(--neutral-800)',
+            color: 'var(--neutral-200)',
+            py: 6,
+          }}
+        >
         <Container maxWidth="lg">
           <Grid container spacing={4}>
             <Grid size={{ xs: 12, md: 4 }} >
@@ -747,7 +757,8 @@ const Landing = () => {
             </Typography>
           </Box>
         </Container>
-      </Box>
+        </Box>
+      )}
     </Box>
   )
 }

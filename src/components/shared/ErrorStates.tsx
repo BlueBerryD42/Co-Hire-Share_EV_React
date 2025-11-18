@@ -44,7 +44,7 @@ const ErrorStates = ({
       defaultMessage: "The page you're looking for doesn't exist",
       color: "var(--accent-terracotta)",
       actions: [
-        { label: "Go to Dashboard", onClick: () => navigate("/app") },
+        { label: "Go to Dashboard", onClick: () => navigate("/home") },
         { label: "Go Back", onClick: () => navigate(-1) },
       ],
     },
@@ -70,7 +70,7 @@ const ErrorStates = ({
       defaultTitle: "Access denied",
       defaultMessage: "You don't have permission to view this",
       color: "var(--accent-terracotta)",
-      actions: [{ label: "Go to Dashboard", onClick: () => navigate("/app") }],
+      actions: [{ label: "Go to Dashboard", onClick: () => navigate("/home") }],
     },
     "payment-failed": {
       icon: CreditCard,
