@@ -54,13 +54,13 @@ export const adminApi = {
     apiClient.put(`/api/Admin/users/${userId}/role`, data),
 
   // KYC
-  getPendingKycUsers: () => apiClient.get("/api/Admin/kyc/pending"),
+  getPendingKycUsers: () => apiClient.get("/api/Admin/users/pending-kyc"),
 
   reviewKycDocument: (documentId: Identifier, data: Payload) =>
     apiClient.post(`/api/Admin/kyc/documents/${documentId}/review`, data),
 
   updateUserKycStatus: (userId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/kyc/users/${userId}/status`, data),
+    apiClient.put(`/api/Admin/users/${userId}/kyc-status`, data),
 
   // Check-in/Out Management
   getCheckIns: (params: QueryParams = {}) =>
