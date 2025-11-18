@@ -88,6 +88,14 @@ const App = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
+          {/* Redirect old routes to new /app routes */}
+          <Route path="/vehicles" element={<Navigate to="/app/vehicles" replace />} />
+          <Route path="/vehicles/*" element={<Navigate to="/app/vehicles" replace />} />
+          <Route path="/booking" element={<Navigate to="/app/booking" replace />} />
+          <Route path="/booking/*" element={<Navigate to="/app/booking" replace />} />
+          <Route path="/groups" element={<Navigate to="/app/groups" replace />} />
+          <Route path="/groups/*" element={<Navigate to="/app/groups" replace />} />
+
           {/* Protected Routes */}
           <Route path="/app" element={<MainLayout />}>
             {/* Home/Dashboard */}

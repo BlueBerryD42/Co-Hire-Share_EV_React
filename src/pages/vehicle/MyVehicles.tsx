@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VehicleList } from '@/components/vehicle'
 import { Button, Badge } from '@/components/shared'
-import { Car, Filter, Grid3x3, List } from 'lucide-react'
+import { Car, Filter, Grid3x3, List, Plus, Users } from 'lucide-react'
 import vehicleService from '@/services/vehicleService'
 
 /**
@@ -106,9 +106,16 @@ const MyVehicles = () => {
                 Quản lý và theo dõi các xe bạn đang sở hữu
               </p>
             </div>
-            <Button variant="accent" onClick={() => navigate('/groups/browse')}>
-              + Tham gia nhóm mới
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => navigate('/app/groups/marketplace')}>
+                <Users className="w-4 h-4 mr-2" />
+                Tham gia nhóm
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/app/groups/create')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Tạo nhóm mới
+              </Button>
+            </div>
           </div>
 
           {/* Quick Stats */}

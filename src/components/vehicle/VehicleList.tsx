@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types'
+import { useNavigate } from 'react-router-dom'
 import VehicleCard from './VehicleCard'
 import { Car } from 'lucide-react'
 
@@ -7,6 +8,7 @@ import { Car } from 'lucide-react'
  * Dùng trong màn hình 10. My Vehicles
  */
 const VehicleList = ({ vehicles, loading, onSelectVehicle }) => {
+  const navigate = useNavigate()
   // Loading state
   if (loading) {
     return (
@@ -43,10 +45,16 @@ const VehicleList = ({ vehicles, loading, onSelectVehicle }) => {
           Bạn chưa có xe nào trong hệ thống. Hãy tham gia một nhóm hoặc tạo nhóm mới để bắt đầu.
         </p>
         <div className="flex gap-4">
-          <button className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-accent-blue transition-colors">
+          <button
+            onClick={() => navigate('/app/groups/marketplace')}
+            className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-accent-blue transition-colors"
+          >
             Duyệt nhóm
           </button>
-          <button className="px-6 py-3 border-2 border-neutral-300 text-neutral-700 font-semibold rounded-md hover:border-neutral-400 transition-colors">
+          <button
+            onClick={() => navigate('/app/groups/create')}
+            className="px-6 py-3 border-2 border-neutral-300 text-neutral-700 font-semibold rounded-md hover:border-neutral-400 transition-colors"
+          >
             Tạo nhóm mới
           </button>
         </div>
