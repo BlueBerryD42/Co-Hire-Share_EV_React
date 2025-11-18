@@ -32,13 +32,14 @@ export interface AuthResponse {
 }
 
 export interface PasswordResetRequest {
-  email: string
+  Email: string
 }
 
 export interface PasswordResetConfirm {
-  token: string
-  newPassword: string
-  confirmPassword: string
+  UserId: string
+  Token: string
+  NewPassword: string
+  ConfirmPassword: string
 }
 
 export interface ChangePasswordRequest {

@@ -33,8 +33,8 @@ const Header = () => {
 
   const handleAnchorClick = (href: string) => {
     setActiveAnchor(href);
-    if (location.pathname !== "/") {
-      navigate("/");
+    if (location.pathname !== "/home") {
+      navigate("/home");
       setTimeout(() => scrollToAnchor(href), 150);
     } else {
       scrollToAnchor(href);

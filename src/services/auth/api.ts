@@ -13,7 +13,7 @@ import type {
   RegisterResponse,
 } from "@/models/auth";
 
-const http = createApiClient("/api/Auth");
+const http = createApiClient("/api");
 
 // Handle 401 responses and log errors
 http.interceptors.response.use(
@@ -58,7 +58,7 @@ export const authApi = {
    */
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     console.log("Sending login request:", credentials);
-    const response = await http.post<AuthResponse>("/login", credentials);
+    const response = await http.post<AuthResponse>("/Auth/login", credentials);
     console.log("Raw response from backend:", response);
     console.log("Response data:", response.data);
     
@@ -138,7 +138,7 @@ export const authApi = {
     };
 
     const { data } = await http.post<RegisterResponse>(
-      "/register",
+      "Auth/register",
       backendData
     );
     return data;
@@ -149,7 +149,7 @@ export const authApi = {
    */
   logout: async (): Promise<void> => {
     const refreshToken = Cookies.get("refresh_token");
-    await http.post("/logout", { RefreshToken: refreshToken });
+    await http.post("/Auth/logout", { RefreshToken: refreshToken });
   },
 
   /**
@@ -177,16 +177,16 @@ export const authApi = {
   requestPasswordReset: async (
     payload: PasswordResetRequest
   ): Promise<void> => {
-    await http.post("/forgot-password", payload);
+    await http.post("/Auth/forgot-password", payload);
   },
 
   /**
-   * Confirm password reset with token
+   * Confirm password reset with token (from email link)
    */
   confirmPasswordReset: async (
     payload: PasswordResetConfirm
   ): Promise<void> => {
-    await http.post("/reset-password", payload);
+    await http.post("/Auth/reset-password", payload);
   },
 
   /**
@@ -194,7 +194,7 @@ export const authApi = {
    * Note: Auth service returns minimal user data. Profile data is fetched from User service.
    */
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-    const { data } = await http.post<AuthResponse>("/refresh", {
+    const { data } = await http.post<AuthResponse>("Auth/refresh", {
       refreshToken,
     });
     
@@ -247,7 +247,7 @@ export const authApi = {
     console.log("  UserId length:", userId.length);
     console.log("  Token length:", token.length);
 
-    const response = await http.post("/confirm-email", payload);
+    const response = await http.post("Auth/confirm-email", payload);
     console.log("Verify email response:", response);
     return response.data;
   },
@@ -256,14 +256,24 @@ export const authApi = {
    * Resend email confirmation
    */
   resendVerificationEmail: async (email: string): Promise<void> => {
-    await http.post("/resend-confirmation", { Email: email });
+    await http.post("Auth//resend-confirmation", { Email: email });
+  },
+
+  /**
+   * Correct email address after registration with incorrect email
+   */
+  correctEmail: async (currentEmail: string, newEmail: string): Promise<void> => {
+    await http.post("Auth/correct-email", {
+      currentEmail,
+      newEmail,
+    });
   },
 
   /**
    * Validate authentication token
    */
   validateToken: async (token: string): Promise<boolean> => {
-    const { data } = await http.post<boolean>("/validate", { Token: token });
+    const { data } = await http.post<boolean>("Auth//validate", { Token: token });
     return data;
   },
 
@@ -271,7 +281,7 @@ export const authApi = {
    * Change password (when user is logged in)
    */
   changePassword: async (payload: ChangePasswordRequest): Promise<void> => {
-    await http.post("/change-password", {
+    await http.post("Auth/change-password", {
       CurrentPassword: payload.currentPassword,
       NewPassword: payload.newPassword,
       ConfirmPassword: payload.confirmPassword,
