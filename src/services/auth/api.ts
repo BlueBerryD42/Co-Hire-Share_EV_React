@@ -61,6 +61,20 @@ export const authApi = {
     console.log("Raw response from backend:", response);
     console.log("Response data:", response.data);
     
+    // IMPORTANT: Store token immediately so subsequent API calls can use it
+    // This must happen BEFORE fetching profile, otherwise getProfile() won't have the token
+    if (response.data.accessToken) {
+      const cookieOptions = credentials.RememberMe
+        ? { expires: 7 } // 7 days
+        : undefined // Session cookie
+      
+      Cookies.set('auth_token', response.data.accessToken, cookieOptions)
+      Cookies.set('refresh_token', response.data.refreshToken, cookieOptions)
+      localStorage.setItem('accessToken', response.data.accessToken)
+      localStorage.setItem('refreshToken', response.data.refreshToken)
+      console.log('Token stored immediately after login')
+    }
+    
     // Auth service no longer returns profile data - fetch from User service
     // Note: Profile might not exist immediately after registration, so handle gracefully
     try {

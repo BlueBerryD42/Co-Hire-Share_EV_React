@@ -14,8 +14,8 @@ interface AuthState {
 
 const initialState: AuthState = {
   user: null,
-  token: Cookies.get('auth_token') || null,
-  isAuthenticated: !!Cookies.get('auth_token'),
+  token: Cookies.get('auth_token') || localStorage.getItem('accessToken') || null,
+  isAuthenticated: !!(Cookies.get('auth_token') || localStorage.getItem('accessToken')),
   isLoading: false,
   error: null,
   rememberMe: false,
@@ -47,7 +47,13 @@ export const login = createAsyncThunk(
 
       Cookies.set('auth_token', response.accessToken, cookieOptions)
       Cookies.set('refresh_token', response.refreshToken, cookieOptions)
+      
+      // Also store in localStorage as backup (for interceptor compatibility)
+      localStorage.setItem('accessToken', response.accessToken)
+      localStorage.setItem('refreshToken', response.refreshToken)
+      
       console.log('Access token saved to cookie:', Cookies.get('auth_token'))
+      console.log('Access token saved to localStorage:', localStorage.getItem('accessToken'))
 
       return response
     } catch (error: any) {
@@ -170,12 +176,18 @@ const authSlice = createSlice({
         state.user = null
         state.token = null
         state.error = null
+        // Clear localStorage tokens
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
       })
       .addCase(logout.rejected, (state) => {
         state.isLoading = false
         state.isAuthenticated = false
         state.user = null
         state.token = null
+        // Clear localStorage tokens even on error
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
       })
 
     // Get current user
@@ -193,6 +205,9 @@ const authSlice = createSlice({
         state.isAuthenticated = false
         state.user = null
         state.token = null
+        // Clear localStorage tokens on auth failure
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
       })
   },
 })
