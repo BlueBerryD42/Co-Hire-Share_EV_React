@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   IconButton,
+  MenuItem,
   Slider,
   Snackbar,
   Step,
@@ -12,13 +13,15 @@ import {
   TextField,
 } from '@mui/material'
 import { Add, Delete } from '@mui/icons-material'
-import type { CreateGroupDto } from '@/models/group'
 import { groupApi } from '@/services/group/groups'
+import { userApi } from '@/services/user/api'
 
 const steps = ['Thông tin nhóm', 'Tỷ lệ sở hữu', 'Quy tắc & xuất bản']
 
 type MemberDraft = {
-  userId: string
+  email: string
+  userId: string | null
+  userName: string
   share: number
   role: 'Admin' | 'Member'
 }
@@ -28,7 +31,7 @@ const CreateGroup = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [groupInfo, setGroupInfo] = useState({ name: '', description: '' })
   const [members, setMembers] = useState<MemberDraft[]>([
-    { userId: '', share: 100, role: 'Admin' },
+    { email: '', userId: null, userName: '', share: 100, role: 'Admin' },
   ])
   const [rules, setRules] = useState({
     bookingWindow: 'Tối đa 2 tuần',
@@ -44,6 +47,58 @@ const CreateGroup = () => {
 
   const shareTotal = useMemo(() => members.reduce((sum, member) => sum + member.share, 0), [members])
 
+  // Validation functions for each step
+  const validateStep0 = (): boolean => {
+    return groupInfo.name.trim().length >= 3
+  }
+
+  const validateStep1 = (): { isValid: boolean; message?: string } => {
+    // Check all members have valid emails (userId)
+    const invalidMembers = members.filter(
+      (member) => !member.userId || (typeof member.userId === 'string' && member.userId.trim().length === 0),
+    )
+    if (invalidMembers.length > 0) {
+      return {
+        isValid: false,
+        message: 'Vui lòng nhập email hợp lệ cho tất cả thành viên',
+      }
+    }
+
+    // Check shares total 100%
+    if (shareTotal !== 100) {
+      return {
+        isValid: false,
+        message: 'Tổng tỷ lệ sở hữu phải bằng 100%',
+      }
+    }
+
+    return { isValid: true }
+  }
+
+  const handleNextStep = () => {
+    if (activeStep === 0) {
+      if (!validateStep0()) {
+        setSnackbar({
+          open: true,
+          severity: 'error',
+          message: 'Vui lòng nhập tên nhóm (ít nhất 3 ký tự)',
+        })
+        return
+      }
+    } else if (activeStep === 1) {
+      const validation = validateStep1()
+      if (!validation.isValid) {
+        setSnackbar({
+          open: true,
+          severity: 'error',
+          message: validation.message || 'Vui lòng hoàn thành thông tin thành viên',
+        })
+        return
+      }
+    }
+    setActiveStep((prev) => prev + 1)
+  }
+
   const handleMemberShareChange = (index: number, value: number) => {
     setMembers((prev) =>
       prev.map((member, idx) => (idx === index ? { ...member, share: value } : member)),
@@ -51,7 +106,42 @@ const CreateGroup = () => {
   }
 
   const addMemberRow = () => {
-    setMembers((prev) => [...prev, { userId: '', share: 0, role: 'Member' }])
+    setMembers((prev) => [...prev, { email: '', userId: null, userName: '', share: 0, role: 'Member' }])
+  }
+
+  const handleEmailChange = async (index: number, email: string) => {
+    setMembers((prev) =>
+      prev.map((member, idx) =>
+        idx === index
+          ? { ...member, email, userId: null, userName: '' }
+          : member,
+      ),
+    )
+
+    // Search for user by email
+    if (email.trim().length > 0 && email.includes('@')) {
+      try {
+        const user = await userApi.searchByEmail(email.trim())
+        setMembers((prev) =>
+          prev.map((member, idx) =>
+            idx === index
+              ? {
+                  ...member,
+                  userId: user.id,
+                  userName: `${user.firstName} ${user.lastName}`.trim() || email,
+                }
+              : member,
+          ),
+        )
+      } catch (error) {
+        // User not found - clear userId and userName
+        setMembers((prev) =>
+          prev.map((member, idx) =>
+            idx === index ? { ...member, userId: null, userName: '' } : member,
+          ),
+        )
+      }
+    }
   }
 
   const removeMemberRow = (index: number) => {
@@ -69,21 +159,35 @@ const CreateGroup = () => {
       return
     }
 
-    const payload: CreateGroupDto = {
-      name: groupInfo.name,
-      description: groupInfo.description,
-      members: members
-        .filter((member) => member.userId.trim().length > 0 && member.share > 0)
+    // Validate all members have userId
+    const invalidMembers = members.filter(
+      (member) => !member.userId || (typeof member.userId === 'string' && member.userId.trim().length === 0),
+    )
+    if (invalidMembers.length > 0) {
+      setSnackbar({
+        open: true,
+        severity: 'error',
+        message: 'Vui lòng nhập email hợp lệ cho tất cả thành viên',
+      })
+      return
+    }
+
+    // Transform to backend format (PascalCase and enum values)
+    const payload = {
+      Name: groupInfo.name,
+      Description: groupInfo.description || null,
+      Members: members
+        .filter((member) => member.userId && member.share > 0)
         .map((member) => ({
-          userId: member.userId as unknown as string,
-          sharePercentage: member.share / 100,
-          roleInGroup: member.role,
+          UserId: member.userId!,
+          SharePercentage: member.share / 100,
+          RoleInGroup: member.role === 'Admin' ? 1 : 0, // Convert string to enum: Admin=1, Member=0
         })),
     }
 
     setSubmitting(true)
     try {
-      const created = await groupApi.createGroup(payload)
+      const created = await groupApi.createGroup(payload as any)
       setSnackbar({ open: true, message: 'Đã tạo nhóm thành công', severity: 'success' })
       navigate(`/groups/${created.id}`)
     } catch (submitError) {
@@ -98,14 +202,9 @@ const CreateGroup = () => {
   }
 
   return (
-    <section className="mx-auto max-w-5xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-2">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 43 · Create group</p>
         <h1 className="text-4xl font-semibold text-neutral-900">Khởi tạo nhóm đồng sở hữu</h1>
-        <p className="text-neutral-600">
-          Wizard ba bước giúp bạn xác định thông tin cơ bản, cấu trúc sở hữu và quy tắc hoạt động.
-          Mọi dữ liệu sẽ được gửi đến Group microservice để tạo nhóm chính thức.
-        </p>
       </header>
 
       <Stepper activeStep={activeStep} alternativeLabel>
@@ -116,7 +215,7 @@ const CreateGroup = () => {
         ))}
       </Stepper>
 
-      <div className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-6">
+      <div className="mt-8 space-y-6 rounded-3xl border border-neutral-200 bg-white p-6">
         {activeStep === 0 && (
           <div className="space-y-4">
             <TextField
@@ -124,6 +223,7 @@ const CreateGroup = () => {
               value={groupInfo.name}
               onChange={(event) => setGroupInfo((prev) => ({ ...prev, name: event.target.value }))}
               fullWidth
+              sx={{ mb: 3 }}
             />
             <TextField
               label="Mô tả"
@@ -153,19 +253,22 @@ const CreateGroup = () => {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <TextField
-                    label="User ID (GUID)"
-                    value={member.userId}
-                    onChange={(event) =>
-                      setMembers((prev) =>
-                        prev.map((row, idx) =>
-                          idx === index ? { ...row, userId: event.target.value } : row,
-                        ),
-                      )
+                    label="Email"
+                    type="email"
+                    value={member.email}
+                    onChange={(event) => handleEmailChange(index, event.target.value)}
+                    helperText={
+                      member.userId
+                        ? `✓ ${member.userName || member.email}`
+                        : member.email && member.email.includes('@')
+                          ? 'Đang tìm kiếm...'
+                          : 'Nhập email người dùng'
                     }
-                    helperText="Nhập ID người dùng được cấp từ hệ thống"
+                    error={member.email.length > 0 && !member.userId && member.email.includes('@')}
                   />
                   <TextField
                     label="Vai trò"
+                    select
                     value={member.role}
                     onChange={(event) =>
                       setMembers((prev) =>
@@ -176,7 +279,11 @@ const CreateGroup = () => {
                         ),
                       )
                     }
-                  />
+                    fullWidth
+                  >
+                    <MenuItem value="Member">Thành viên</MenuItem>
+                    <MenuItem value="Admin">Quản trị viên</MenuItem>
+                  </TextField>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-neutral-500">
@@ -192,11 +299,12 @@ const CreateGroup = () => {
                 </div>
               </div>
             ))}
-            <Button startIcon={<Add />} variant="outlined" onClick={() => addMemberRow()}>
+            <Button startIcon={<Add />} variant="outlined" onClick={() => addMemberRow()} sx={{ mt: 2 }}>
               Thêm thành viên
             </Button>
             <Alert
               severity={shareTotal === 100 ? 'success' : 'warning'}
+              sx={{ mt: 2 }}
             >{`Tổng hiện tại: ${shareTotal}% (cần 100%)`}</Alert>
           </div>
         )}
@@ -208,6 +316,7 @@ const CreateGroup = () => {
               value={rules.bookingWindow}
               onChange={(event) => setRules((prev) => ({ ...prev, bookingWindow: event.target.value }))}
               fullWidth
+              sx={{ mb: 3 }}
             />
             <TextField
               label="Chính sách huỷ"
@@ -216,14 +325,16 @@ const CreateGroup = () => {
                 setRules((prev) => ({ ...prev, cancellationPolicy: event.target.value }))
               }
               fullWidth
+              sx={{ mb: 3 }}
             />
             <TextField
               label="Điều khoản thanh toán"
               value={rules.paymentTerms}
               onChange={(event) => setRules((prev) => ({ ...prev, paymentTerms: event.target.value }))}
               fullWidth
+              sx={{ mb: 3 }}
             />
-            <Alert severity="info">
+            <Alert severity="info" sx={{ mt: 2 }}>
               Các quy tắc này sẽ được lưu trong mô tả nhóm và hiển thị cho mọi thành viên khi tham gia.
             </Alert>
           </div>
@@ -245,8 +356,11 @@ const CreateGroup = () => {
         ) : (
           <Button
             variant="contained"
-            disabled={activeStep === 0 && groupInfo.name.trim().length < 3}
-            onClick={() => setActiveStep((prev) => prev + 1)}
+            disabled={
+              (activeStep === 0 && !validateStep0()) ||
+              (activeStep === 1 && !validateStep1().isValid)
+            }
+            onClick={handleNextStep}
           >
             Tiếp tục
           </Button>

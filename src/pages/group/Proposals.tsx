@@ -48,9 +48,8 @@ const Proposals = () => {
   const filtered = useMemo(() => getFilteredProposals(proposals, activeTab), [proposals, activeTab])
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-3">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 27 · Proposals</p>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-4xl font-semibold text-neutral-900">

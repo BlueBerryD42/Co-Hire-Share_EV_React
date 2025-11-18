@@ -48,9 +48,8 @@ const GroupMarketplace = () => {
   }
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-3">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 41 · Marketplace</p>
         <h1 className="text-4xl font-semibold text-neutral-900">Tìm nhóm đồng sở hữu phù hợp</h1>
         <p className="max-w-3xl text-neutral-600">
           Lọc theo số lượng thành viên, hiệu suất sử dụng và tiềm năng tiết kiệm. Dữ liệu được lấy

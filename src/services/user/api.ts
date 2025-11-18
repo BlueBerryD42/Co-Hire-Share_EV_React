@@ -23,6 +23,19 @@ export const userApi = {
   },
 
   /**
+   * Search user by email to get user ID (for adding members to groups)
+   */
+  searchByEmail: async (email: string): Promise<{ id: string; email: string; firstName: string; lastName: string }> => {
+    const { data } = await http.get<{ Id: string; Email: string; FirstName: string; LastName: string }>(`/search?email=${encodeURIComponent(email)}`);
+    return {
+      id: data.Id || data.id || "",
+      email: data.Email || data.email || "",
+      firstName: data.FirstName || data.firstName || "",
+      lastName: data.LastName || data.lastName || "",
+    };
+  },
+
+  /**
    * Get basic user information by ID (for displaying other users' names)
    */
   getBasicInfo: async (userId: string): Promise<User> => {

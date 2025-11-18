@@ -25,7 +25,7 @@ const MemberDetails = () => {
 
   if (loading) {
     return (
-      <section className="mx-auto max-w-4xl space-y-4 p-6">
+      <section className="space-y-4">
         <div className="animate-pulse rounded-3xl border border-neutral-200 bg-neutral-100 p-10 text-neutral-500">
           Đang tải chi tiết thành viên...
         </div>
@@ -69,13 +69,10 @@ const MemberDetails = () => {
   ]
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
-      <header className="space-y-6 rounded-3xl border border-neutral-200 bg-neutral-100 p-6">
+    <section className="space-y-8">
+      <header className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-wide text-neutral-500">
-              Screen 25 · Member details
-            </p>
             <h1 className="text-4xl font-semibold text-neutral-900">
               {member.userFirstName} {member.userLastName}
             </h1>

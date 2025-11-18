@@ -1,7 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { getCurrentUser } from "@/store/slices/authSlice";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import MainLayout from "@/layouts/MainLayout";
 import AdminLayout from "@/layouts/AdminLayout";
+import GroupLayout from "@/layouts/GroupLayout";
 import Home from "@/pages/Home";
 
 // Auth Pages
@@ -70,12 +74,46 @@ import PredictiveMaintenance from "@/pages/admin/PredictiveMaintenance";
 import CostOptimizationInsights from "@/pages/admin/CostOptimizationInsights";
 
 /**
+ * Component để load user data khi app khởi động và redirect admins
+ */
+const AuthInitializer = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated, token, user } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    // Nếu có token nhưng chưa có user data, load user data
+    if (token && !user && isAuthenticated) {
+      dispatch(getCurrentUser());
+    }
+    // Nếu có token trong localStorage/cookies nhưng chưa authenticated, thử load user
+    else if (token && !isAuthenticated) {
+      dispatch(getCurrentUser());
+    }
+  }, [dispatch, token, user, isAuthenticated]);
+
+  // Redirect admins to admin dashboard if they're on home page
+  useEffect(() => {
+    if (isAuthenticated && user && location.pathname === '/') {
+      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
+      if (user.role === 0 || user.role === 1) {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
+
+  return null;
+};
+
+/**
  * Main App Component với React Router
  */
 const App = () => {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <AuthInitializer />
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
@@ -131,33 +169,35 @@ const App = () => {
               element={<SuccessFeedback />}
             />
 
-            {/* Group Routes */}
-            <Route path="groups" element={<GroupHub />} />
-            <Route path="groups/marketplace" element={<GroupMarketplace />} />
-            <Route path="groups/create" element={<CreateGroup />} />
-            <Route path="groups/:groupId" element={<GroupOverview />} />
-            <Route
-              path="groups/:groupId/members/:memberId"
-              element={<MemberDetails />}
-            />
-            <Route path="groups/:groupId/fund" element={<SharedFund />} />
-            <Route path="groups/:groupId/proposals" element={<Proposals />} />
-            <Route
-              path="groups/:groupId/proposals/create"
-              element={<CreateProposal />}
-            />
-            <Route
-              path="groups/:groupId/proposals/:proposalId"
-              element={<ProposalDetails />}
-            />
-            <Route
-              path="groups/:groupId/apply"
-              element={<JoinGroupApplication />}
-            />
-            <Route
-              path="groups/:groupId/messages"
-              element={<MessageCenter />}
-            />
+            {/* Group Routes - All wrapped in GroupLayout */}
+            <Route path="groups" element={<GroupLayout />}>
+              <Route index element={<GroupHub />} />
+              <Route path="marketplace" element={<GroupMarketplace />} />
+              <Route path="create" element={<CreateGroup />} />
+              <Route path=":groupId" element={<GroupOverview />} />
+              <Route
+                path=":groupId/members/:memberId"
+                element={<MemberDetails />}
+              />
+              <Route path=":groupId/fund" element={<SharedFund />} />
+              <Route path=":groupId/proposals" element={<Proposals />} />
+              <Route
+                path=":groupId/proposals/create"
+                element={<CreateProposal />}
+              />
+              <Route
+                path=":groupId/proposals/:proposalId"
+                element={<ProposalDetails />}
+              />
+              <Route
+                path=":groupId/apply"
+                element={<JoinGroupApplication />}
+              />
+              <Route
+                path=":groupId/messages"
+                element={<MessageCenter />}
+              />
+            </Route>
 
             {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -212,8 +252,8 @@ const App = () => {
             />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </BrowserRouter>
   );
 };
 

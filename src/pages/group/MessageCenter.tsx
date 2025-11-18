@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Snackbar, TextField } from '@mui/material'
 import type { UUID } from '@/models/booking'
 import { useGroup } from '@/hooks/useGroups'
 import { useGroupMessages } from '@/hooks/useGroupMessages'
+import { useAppSelector } from '@/store/hooks'
 
 const MessageBubble = ({
   author,
@@ -34,19 +35,43 @@ const MessageCenter = () => {
   const { groupId } = useParams<{ groupId: UUID }>()
   const { data: group, loading } = useGroup(groupId)
   const { data: messages, loading: messageLoading, error, sendMessage, reload } = useGroupMessages(groupId)
-  const [draft, setDraft] = useState({ name: 'Tôi', content: '' })
+  const { user } = useAppSelector((state) => state.auth)
+  const [draft, setDraft] = useState({ content: '' })
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success',
   })
 
+  // Get display name from user data
+  const displayName = useMemo(() => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`
+    }
+    return user?.email || 'Thành viên'
+  }, [user])
+
+  // Log group members data for debugging
+  useEffect(() => {
+    if (group?.members) {
+      console.log('Group members data:', group.members)
+      group.members.forEach((member, index) => {
+        console.log(`Member ${index}:`, {
+          userId: member.userId,
+          userFirstName: member.userFirstName,
+          userLastName: member.userLastName,
+          userEmail: member.userEmail,
+        })
+      })
+    }
+  }, [group])
+
   const conversation = useMemo(() => messages ?? [], [messages])
 
   const handleSend = async () => {
     if (!draft.content.trim()) return
     try {
-      await sendMessage(draft.content.trim(), draft.name.trim() || 'Thành viên')
+      await sendMessage(draft.content.trim(), displayName)
       setDraft((prev) => ({ ...prev, content: '' }))
       setSnackbar({ open: true, message: 'Đã gửi tin nhắn', severity: 'success' })
     } catch (sendError) {
@@ -59,10 +84,9 @@ const MessageCenter = () => {
   }
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-2">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 44 · Message Center</p>
-        <h1 className="text-4xl font-semibold text-neutral-900">Trao đổi trong nhóm</h1>
+        <h1 className="text-4xl font-semibold text-neutral-900">Tin nhắn nhóm</h1>
         <p className="text-neutral-600">
           Tin nhắn giữa các thành viên sẽ được đồng bộ thông qua Notification Service. Tất cả nội dung
           tại đây cũng xuất hiện trong app di động và email thông báo.
@@ -79,12 +103,17 @@ const MessageCenter = () => {
               {group.members.map((member) => (
                 <li key={member.id} className="flex items-center gap-3">
                   <Avatar sx={{ width: 32, height: 32 }}>
-                    {member.userFirstName.charAt(0)}
-                    {member.userLastName.charAt(0)}
+                    {member.userFirstName && member.userLastName
+                      ? `${member.userFirstName.charAt(0)}${member.userLastName.charAt(0)}`
+                      : member.userEmail
+                        ? member.userEmail.charAt(0).toUpperCase()
+                        : '?'}
                   </Avatar>
                   <div>
                     <p className="font-semibold text-neutral-900">
-                      {member.userFirstName} {member.userLastName}
+                      {member.userFirstName && member.userLastName
+                        ? `${member.userFirstName} ${member.userLastName}`
+                        : member.userEmail || 'Unknown'}
                     </p>
                     <p className="text-xs text-neutral-500">
                       {member.roleInGroup === 'Admin' ? 'Admin' : 'Thành viên'} · Sở hữu{' '}
@@ -127,26 +156,24 @@ const MessageCenter = () => {
                 author={message.userName}
                 message={message.message}
                 timestamp={message.createdAt}
-                isMine={message.userName === draft.name || message.userName === 'Bạn'}
+                isMine={message.userName === displayName || message.userName === user?.email}
               />
             ))}
           </div>
 
           <div className="space-y-3 border-t border-neutral-100 px-6 py-4">
-            <div className="grid gap-4 md:grid-cols-[160px_1fr]">
-              <TextField
-                label="Tên hiển thị"
-                value={draft.name}
-                onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
-              />
-              <TextField
-                label="Nội dung tin nhắn"
-                value={draft.content}
-                onChange={(event) => setDraft((prev) => ({ ...prev, content: event.target.value }))}
-                multiline
-                minRows={2}
-              />
+            <div className="flex items-center gap-2 text-sm text-neutral-600">
+              <span>Gửi với tên:</span>
+              <span className="font-semibold text-neutral-900">{displayName}</span>
             </div>
+            <TextField sx={{mb: 2}}
+              label="Nội dung tin nhắn"
+              value={draft.content}
+              onChange={(event) => setDraft((prev) => ({ ...prev, content: event.target.value }))}
+              multiline
+              minRows={2}
+              fullWidth
+            />
             <div className="flex items-center justify-end gap-3">
               <Button variant="outlined" onClick={() => setDraft((prev) => ({ ...prev, content: '' }))}>
                 Xoá
