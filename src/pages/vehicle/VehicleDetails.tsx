@@ -409,7 +409,7 @@ const OverviewTab = ({ vehicle, healthScore }) => (
           </div>
 
           {/* Breakdown */}
-          {healthScore.breakdown && (
+          {healthScore.breakdown && Array.isArray(healthScore.breakdown) && (
             <div className="space-y-3">
               {healthScore.breakdown.map((item, index) => (
                 <div key={index}>
