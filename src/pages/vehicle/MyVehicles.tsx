@@ -110,7 +110,7 @@ const MyVehicles = () => {
               <Button variant="contained" onClick={() => navigate('/vehicles/create')}>
                 + Thêm xe mới
               </Button>
-              <Button variant="outlined" onClick={() => navigate('/groups/browse')}>
+              <Button variant="outlined" onClick={() => navigate('/groups/marketplace')}>
                 Tham gia nhóm mới
               </Button>
             </div>
