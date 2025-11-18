@@ -20,7 +20,8 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_API_GATEWAY_URL || 'https://localhost:61600',
           changeOrigin: true,
-          secure: false,
+          secure: false, // Allow self-signed certificates
+          rewrite: (path) => path, // Keep the /api prefix
         },
       },
     },

@@ -1,22 +1,34 @@
 import apiClient from './api'
 import type {
   Vehicle,
+  VehicleListItem,
   VehicleStatistics,
+  CreateVehicleDto,
+  UpdateVehicleDto,
+  UpdateOdometerDto,
+  VehicleStatisticsRequest,
+  VehicleStatisticsResponse,
+  CostAnalysisRequest,
+  CostAnalysisResponse,
+  MemberUsageRequest,
+  MemberUsageResponse,
+  HealthScoreRequest,
   HealthScoreResponse,
+  HealthScoreResponseEnhanced,
+  AvailabilityRequest,
+  AvailabilityResponse,
   MaintenanceSchedule,
   MaintenanceRecord,
-  CreateVehicleDto,
-  UpdateVehicleStatusDto,
-  UpdateOdometerDto,
   ScheduleMaintenanceRequest,
   CompleteMaintenanceRequest,
 } from '@/models/vehicle'
 
 /**
  * Vehicle Service - Tất cả API calls liên quan đến Vehicle
- * Backend API: /api/vehicles
+ * Backend API: /api/Vehicle
  */
 
+// Deprecated: Use types from @/types/vehicle instead
 interface AvailabilityParams {
   from?: string
   to?: string
@@ -74,98 +86,99 @@ const vehicleService = {
   // ============ VEHICLE MANAGEMENT ============
 
   /**
-   * GET /api/vehicle
+   * GET /api/Vehicle
    * Lấy danh sách tất cả xe (filtered theo group membership)
+   * Response includes health score for each vehicle
    */
-  getAllVehicles: async (): Promise<Vehicle[]> => {
-    const response = await apiClient.get<Vehicle[]>('/vehicle')
+  getAllVehicles: async (): Promise<VehicleListItem[]> => {
+    const response = await apiClient.get<VehicleListItem[]>('/Vehicle')
     return response.data
   },
 
   /**
-   * GET /api/vehicle/{id}
+   * GET /api/Vehicle/{id}
    * Lấy chi tiết một xe
    */
   getVehicleById: async (id: string): Promise<Vehicle> => {
-    const response = await apiClient.get<Vehicle>(`/vehicle/${id}`)
+    const response = await apiClient.get<Vehicle>(`/Vehicle/${id}`)
     return response.data
   },
 
   /**
-   * POST /api/vehicle
+   * POST /api/Vehicle
    * Tạo xe mới (Admin only)
    */
   createVehicle: async (vehicleData: CreateVehicleDto): Promise<Vehicle> => {
-    const response = await apiClient.post<Vehicle>('/vehicle', vehicleData)
+    const response = await apiClient.post<Vehicle>('/Vehicle', vehicleData)
     return response.data
   },
 
   /**
-   * PUT /api/vehicle/{id}/status
-   * Cập nhật trạng thái xe
+   * PUT /api/Vehicle/{id}
+   * Cập nhật thông tin xe
    */
-  updateVehicleStatus: async (id: string, statusData: UpdateVehicleStatusDto): Promise<Vehicle> => {
-    const response = await apiClient.put<Vehicle>(`/vehicle/${id}/status`, statusData)
+  updateVehicle: async (id: string, vehicleData: UpdateVehicleDto): Promise<Vehicle> => {
+    const response = await apiClient.put<Vehicle>(`/Vehicle/${id}`, vehicleData)
     return response.data
   },
 
   /**
-   * PUT /api/vehicle/{id}/odometer
+   * PUT /api/Vehicle/{id}/odometer
    * Cập nhật số km đã đi
    */
   updateOdometer: async (id: string, odometerData: UpdateOdometerDto): Promise<Vehicle> => {
-    const response = await apiClient.put<Vehicle>(`/vehicle/${id}/odometer`, odometerData)
+    const response = await apiClient.put<Vehicle>(`/Vehicle/${id}/odometer`, odometerData)
     return response.data
   },
 
   /**
-   * GET /api/vehicle/{id}/availability
+   * GET /api/Vehicle/{id}/availability
    * Kiểm tra xe có sẵn trong khoảng thời gian không
    */
-  checkAvailability: async (id: string, params: AvailabilityParams): Promise<boolean> => {
-    const response = await apiClient.get<boolean>(`/vehicle/${id}/availability`, { params })
+  checkAvailability: async (id: string, params: AvailabilityRequest): Promise<AvailabilityResponse> => {
+    const response = await apiClient.get<AvailabilityResponse>(`/Vehicle/${id}/availability`, { params })
     return response.data
   },
 
   // ============ ANALYTICS & STATISTICS ============
 
   /**
-   * GET /api/vehicle/{id}/statistics
+   * GET /api/Vehicle/{id}/statistics
    * Lấy thống kê sử dụng xe chi tiết
    * Query params: startDate, endDate, groupBy, includeBenchmarks
    */
-  getVehicleStatistics: async (id: string, params: StatisticsParams = {}): Promise<VehicleStatistics> => {
-    const response = await apiClient.get<VehicleStatistics>(`/vehicle/${id}/statistics`, { params })
+  getVehicleStatistics: async (id: string, params: VehicleStatisticsRequest = {}): Promise<VehicleStatisticsResponse> => {
+    const response = await apiClient.get<VehicleStatisticsResponse>(`/Vehicle/${id}/statistics`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicle/{id}/cost-analysis
+   * GET /api/Vehicle/{id}/cost-analysis
    * Phân tích chi phí xe
    * Query params: startDate, endDate, groupBy
    */
-  getCostAnalysis: async (id: string, params: CostAnalysisParams = {}): Promise<any> => {
-    const response = await apiClient.get(`/vehicle/${id}/cost-analysis`, { params })
+  getCostAnalysis: async (id: string, params: CostAnalysisRequest = {}): Promise<CostAnalysisResponse> => {
+    const response = await apiClient.get(`/Vehicle/${id}/cost-analysis`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicle/{id}/member-usage
+   * GET /api/Vehicle/{id}/member-usage
    * Phân tích sử dụng theo từng thành viên
    * Query params: startDate, endDate
    */
-  getMemberUsage: async (id: string, params: MemberUsageParams = {}): Promise<any> => {
-    const response = await apiClient.get(`/vehicle/${id}/member-usage`, { params })
+  getMemberUsage: async (id: string, params: MemberUsageRequest = {}): Promise<MemberUsageResponse> => {
+    const response = await apiClient.get<MemberUsageResponse>(`/Vehicle/${id}/member-usage`, { params })
     return response.data
   },
 
   /**
-   * GET /api/vehicle/{id}/health-score
+   * GET /api/Vehicle/{id}/health-score
    * Lấy điểm sức khỏe xe (0-100)
    * Query params: includeHistory, includeBenchmark, historyMonths
    */
-  getHealthScore: async (id: string, params: HealthScoreParams = {}): Promise<HealthScoreResponse> => {
-    const response = await apiClient.get<HealthScoreResponse>(`/vehicle/${id}/health-score`, { params })
+  getHealthScore: async (id: string, params: HealthScoreRequest = {}): Promise<HealthScoreResponse> => {
+    const response = await apiClient.get<HealthScoreResponse>(`/Vehicle/${id}/health-score`, { params })
     return response.data
   },
 

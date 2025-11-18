@@ -24,17 +24,17 @@ const EmailVerification = () => {
 
   // Debug: Log URL parameters
   useEffect(() => {
-    console.log(' Email Verification Page Loaded')
-    console.log(' Current URL:', window.location.href)
-    console.log(' User ID from URL:', userId)
-    console.log(' Token from URL:', token)
-    console.log(' Email from URL:', email)
+    console.log('Email Verification Page Loaded')
+    console.log('Current URL:', window.location.href)
+    console.log('User ID from URL:', userId)
+    console.log('Token from URL:', token)
+    console.log('Email from URL:', email)
   }, [])
 
   useEffect(() => {
     // Only verify once - prevent double API calls
     if (hasVerifiedRef.current) {
-      console.log(' Already verified, skipping...')
+      console.log('Already verified, skipping...')
       return
     }
 
@@ -57,12 +57,12 @@ const EmailVerification = () => {
     setErrorMessage('')
 
     try {
-      console.log(' Calling verify email API')
-      console.log('   User ID:', verificationUserId)
-      console.log('   Token:', verificationToken.substring(0, 20) + '...')
+      console.log('Calling verify email API')
+      console.log('User ID:', verificationUserId)
+      console.log('Token:', verificationToken.substring(0, 20) + '...')
 
       await authApi.verifyEmail(verificationUserId, verificationToken)
-      console.log(' Email verified successfully!')
+      console.log('Email verified successfully!')
       setStatus('success')
 
       // Redirect to login after 3 seconds
@@ -72,7 +72,7 @@ const EmailVerification = () => {
         })
       }, 3000)
     } catch (error: any) {
-      console.error(' Email verification failed:', error)
+      console.error('Email verification failed:', error)
       console.error('Error response:', error.response?.data)
       console.error('Error status:', error.response?.status)
       console.error('Full error:', JSON.stringify(error.response, null, 2))
