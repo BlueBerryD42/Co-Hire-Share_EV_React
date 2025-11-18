@@ -3,6 +3,7 @@ import {
   type BookingCalendarResponse,
   type BookingConflictSummaryDto,
   type BookingDto,
+  type BookingHistoryEntryDto,
   type BookingPriorityDto,
   type BookingSuggestionResponse,
   type CancelBookingDto,
@@ -32,6 +33,16 @@ export const bookingApi = {
     const { data } = await http.get<BookingDto[]>("/my-bookings", {
       params: buildRangeRecord(range),
     });
+    return data;
+  },
+  getMyBookingHistory: async (limit = 20) => {
+    const normalizedLimit = Math.max(1, limit);
+    const { data } = await http.get<BookingHistoryEntryDto[]>(
+      "/my-bookings/history",
+      {
+        params: { limit: normalizedLimit.toString() },
+      }
+    );
     return data;
   },
   getVehicleBookings: async ({ vehicleId, ...range }: VehicleRangeQuery) => {

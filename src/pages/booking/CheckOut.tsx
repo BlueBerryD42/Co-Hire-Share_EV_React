@@ -10,6 +10,48 @@ import {
   type CheckInPhotoInputDto,
 } from "@/models/booking";
 
+const isCheckOutRecord = (record: CheckInDto) =>
+  record.type === 0 || record.type === "CheckOut";
+
+const isCheckInRecord = (record: CheckInDto) =>
+  record.type === 1 || record.type === "CheckIn";
+
+const HistoryTable = ({
+  title,
+  records,
+}: {
+  title: string;
+  records: CheckInDto[];
+}) => (
+  <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+    <p className="text-xs uppercase tracking-wide text-black">{title}</p>
+    {records.length === 0 ? (
+      <p className="py-3 text-center text-xs text-black">Chưa có dữ liệu</p>
+    ) : (
+      <table className="mt-3 w-full text-left text-xs">
+        <thead>
+          <tr>
+            <th className="py-2">Time</th>
+            <th className="py-2">Odometer</th>
+            <th className="py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id}>
+              <td className="py-2">
+                {new Date(record.checkInTime).toLocaleString()}
+              </td>
+              <td className="py-2">{record.odometer ?? "--"}</td>
+              <td className="py-2">{record.notes ?? "--"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+);
+
 const CheckOut = () => {
   const [searchParams] = useSearchParams();
   const [bookingId, setBookingId] = useState("");
@@ -23,6 +65,10 @@ const CheckOut = () => {
   const [startOdometer, setStartOdometer] = useState<number | null>(null);
   const [endOdometer, setEndOdometer] = useState<number | null>(null);
   const [tripCompleted, setTripCompleted] = useState(false);
+  const checkInHistory = useMemo(
+    () => history.filter(isCheckInRecord),
+    [history]
+  );
 
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
@@ -37,10 +83,10 @@ const CheckOut = () => {
       );
       const lastStart = [...records]
         .reverse()
-        .find((record) => record.type === "CheckOut");
+        .find((record) => isCheckOutRecord(record));
       const lastEnd = [...records]
         .reverse()
-        .find((record) => record.type === "CheckIn");
+        .find((record) => isCheckInRecord(record));
       setStartOdometer(lastStart?.odometer ?? null);
       setEndOdometer(lastEnd?.odometer ?? null);
       const hasValidEnd =
@@ -258,47 +304,23 @@ const CheckOut = () => {
             onRemovePhoto={(index) =>
               setPhotos((prev) => prev.filter((_, idx) => idx !== index))
             }
-            buttonLabel={tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"}
+            buttonLabel={
+              tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"
+            }
             onSubmit={handleCompleteTrip}
             disabled={!booking || tripCompleted}
             footerSlot={
               <p className="text-xs text-black/80">
-                Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng thái xe
-                và chi phí quãng đường.
+                Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
+                thái xe và chi phí quãng đường.
               </p>
             }
           />
         </div>
       </div>
 
-      {history.length > 0 && (
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
-          <p className="text-xs uppercase tracking-wide text-black">
-            Check-in history
-          </p>
-          <table className="mt-3 w-full text-left text-xs">
-            <thead>
-              <tr>
-                <th className="py-2">Type</th>
-                <th className="py-2">Time</th>
-                <th className="py-2">Odometer</th>
-                <th className="py-2">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((record) => (
-                <tr key={record.id}>
-                  <td className="py-2">{record.type}</td>
-                  <td className="py-2">
-                    {new Date(record.checkInTime).toLocaleString()}
-                  </td>
-                  <td className="py-2">{record.odometer ?? "--"}</td>
-                  <td className="py-2">{record.notes ?? "--"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {booking && (
+        <HistoryTable title="Check-in history" records={checkInHistory} />
       )}
     </section>
   );

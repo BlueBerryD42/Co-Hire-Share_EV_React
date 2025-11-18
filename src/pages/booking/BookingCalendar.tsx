@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
-import type { BookingCalendarResponse, BookingDto } from "@/models/booking";
+import { checkInApi } from "@/services/booking/checkIn";
+import type {
+  BookingCalendarResponse,
+  BookingDto,
+  CheckInDto,
+} from "@/models/booking";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -89,6 +94,31 @@ const isInactiveStatus = (status: BookingDto['status']) => {
   return status === 'Completed' || status === 'Cancelled'
 }
 
+const formatHistoryOdometer = (value?: number | null) =>
+  typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
+
+const formatHistoryTime = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "short",
+      })
+    : "Chưa có";
+
+const getLatestCheckRecordForCalendar = (
+  records: CheckInDto[],
+  type: CheckInDto["type"]
+) =>
+  [...records]
+    .filter((record) => record.type === type)
+    .sort(
+      (a, b) =>
+        new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime()
+    )
+    .pop();
+
 const BookingCalendar = () => {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const calendarDays = useMemo(
@@ -106,6 +136,12 @@ const BookingCalendar = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingDto | null>(
     null
   );
+  const [checkInHistory, setCheckInHistory] = useState<
+    Record<
+      string,
+      { status: "idle" | "loading" | "error"; records: CheckInDto[] }
+    >
+  >({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const currentMonthLabel = useMemo(
     () =>
@@ -236,6 +272,81 @@ const BookingCalendar = () => {
   const selectedDateEvents = selectedDate
     ? eventsByDate[selectedDate] ?? []
     : [];
+
+  const selectedHistoryMeta = selectedBooking
+    ? checkInHistory[selectedBooking.id]
+    : undefined;
+
+  useEffect(() => {
+    if (!selectedBooking) return;
+    const bookingId = selectedBooking.id;
+    if (
+      selectedHistoryMeta?.status === "loading" ||
+      (selectedHistoryMeta && selectedHistoryMeta.records.length > 0)
+    ) {
+      return;
+    }
+    let cancelled = false;
+    setCheckInHistory((prev) => ({
+      ...prev,
+      [bookingId]: {
+        status: "loading",
+        records: prev[bookingId]?.records ?? [],
+      },
+    }));
+    checkInApi
+      .getHistory(bookingId)
+      .then((data) => {
+        if (!cancelled) {
+          setCheckInHistory((prev) => ({
+            ...prev,
+            [bookingId]: { status: "idle", records: data },
+          }));
+        }
+      })
+      .catch((error) => {
+        console.error("BookingCalendar: unable to fetch check-in history", error);
+        if (!cancelled) {
+          setCheckInHistory((prev) => ({
+            ...prev,
+            [bookingId]: { status: "error", records: [] },
+          }));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedBooking,
+    selectedHistoryMeta?.records.length,
+    selectedHistoryMeta?.status,
+  ]);
+
+  const selectedCheckIns = selectedHistoryMeta?.records ?? [];
+  const historyStatus =
+    selectedHistoryMeta?.status ?? (selectedBooking ? "loading" : "idle");
+  const latestCheckOut = getLatestCheckRecordForCalendar(
+    selectedCheckIns,
+    "CheckOut"
+  );
+  const latestCheckIn = getLatestCheckRecordForCalendar(
+    selectedCheckIns,
+    "CheckIn"
+  );
+
+  const renderCheckSummary = (label: string, record?: CheckInDto) => (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      <p className="text-xs uppercase text-black">{label}</p>
+      {record ? (
+        <>
+          <p>Odo {formatHistoryOdometer(record.odometer)}</p>
+          <p>{formatHistoryTime(record.checkInTime)}</p>
+        </>
+      ) : (
+        <p className="text-sm text-black">Chưa có dữ liệu</p>
+      )}
+    </div>
+  );
 
   return (
     <section className="mx-auto max-w-6xl space-y-10 rounded-3xl bg-amber-50 p-8 text-black shadow-2xl">
@@ -413,6 +524,27 @@ const BookingCalendar = () => {
                   >
                     Check-Out (16)
                   </Link>
+                </div>
+                <div className="space-y-2 border-t border-amber-200 pt-4">
+                  <p className="text-xs uppercase tracking-wide text-black">
+                    Check-in / Check-out
+                  </p>
+                  {historyStatus === "loading" && (
+                    <p className="text-sm text-black">
+                      Đang tải lịch sử check-in/out...
+                    </p>
+                  )}
+                  {historyStatus === "error" && (
+                    <p className="text-sm text-red-600">
+                      Không thể lấy lịch sử check-in/out.
+                    </p>
+                  )}
+                  {historyStatus === "idle" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {renderCheckSummary("Latest check-out", latestCheckOut)}
+                      {renderCheckSummary("Latest check-in", latestCheckIn)}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : selectedDate ? (

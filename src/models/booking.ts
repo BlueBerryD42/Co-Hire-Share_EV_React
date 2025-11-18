@@ -222,6 +222,11 @@ export interface CheckInDto {
   updatedAt: ISODate;
 }
 
+export interface BookingHistoryEntryDto {
+  booking: BookingDto;
+  checkIns: CheckInDto[];
+}
+
 export interface StartTripDto {
   bookingId: UUID;
   odometerReading: number;

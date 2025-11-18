@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import { checkInApi } from "@/services/booking/checkIn";
@@ -13,6 +13,48 @@ import type { VehicleStatus } from "@/models/vehicle";
 
 const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
 
+const isCheckOutRecord = (record: CheckInDto) =>
+  record.type === 0 || record.type === "CheckOut";
+
+const isCheckInRecord = (record: CheckInDto) =>
+  record.type === 1 || record.type === "CheckIn";
+
+const HistoryTable = ({
+  title,
+  records,
+}: {
+  title: string;
+  records: CheckInDto[];
+}) => (
+  <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+    <p className="text-xs uppercase tracking-wide text-black">{title}</p>
+    {records.length === 0 ? (
+      <p className="py-3 text-center text-xs text-black">Chưa có dữ liệu</p>
+    ) : (
+      <table className="mt-3 w-full text-left text-xs">
+        <thead>
+          <tr>
+            <th className="py-2">Time</th>
+            <th className="py-2">Odometer</th>
+            <th className="py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id}>
+              <td className="py-2">
+                {new Date(record.checkInTime).toLocaleString()}
+              </td>
+              <td className="py-2">{record.odometer ?? "--"}</td>
+              <td className="py-2">{record.notes ?? "--"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+);
+
 const CheckIn = () => {
   const [searchParams] = useSearchParams();
   const [bookingId, setBookingId] = useState("");
@@ -24,6 +66,10 @@ const CheckIn = () => {
   const [startForm, setStartForm] = useState({ odometer: "", notes: "" });
   const [startPhotos, setStartPhotos] = useState<CheckInPhotoInputDto[]>([]);
   const [tripStarted, setTripStarted] = useState(false);
+  const checkOutHistory = useMemo(
+    () => history.filter(isCheckOutRecord),
+    [history]
+  );
 
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
@@ -38,10 +84,10 @@ const CheckIn = () => {
 
       const lastStart = [...records]
         .reverse()
-        .find((record) => record.type === "CheckOut");
+        .find((record) => isCheckOutRecord(record));
       const lastEnd = [...records]
         .reverse()
-        .find((record) => record.type === "CheckIn");
+        .find((record) => isCheckInRecord(record));
 
       const hasOpenTrip =
         Boolean(lastStart) &&
@@ -91,33 +137,30 @@ const CheckIn = () => {
     }
   };
 
-  const handleLoadBookingById = useCallback(
-    async (id: string) => {
-      if (!id) {
-        setMessage("Enter a booking id before loading.");
-        return;
-      }
-      setLoading(true);
-      setMessage("Loading booking...");
-      setBookingId(id);
-      try {
-        const data = await bookingApi.getBooking(id);
-        setBooking(data);
-        setMessage(`Loaded ${data.vehicleModel}`);
-        setStartForm({ odometer: "", notes: "" });
-        setStartPhotos([]);
-        setTripStarted(false);
-        setHistory([]);
-        setHistoryMessage(null);
-      } catch (error) {
-        console.error("Failed to load booking for check-in", error);
-        setMessage("Unable to load booking. Check console for details.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const handleLoadBookingById = useCallback(async (id: string) => {
+    if (!id) {
+      setMessage("Enter a booking id before loading.");
+      return;
+    }
+    setLoading(true);
+    setMessage("Loading booking...");
+    setBookingId(id);
+    try {
+      const data = await bookingApi.getBooking(id);
+      setBooking(data);
+      setMessage(`Loaded ${data.vehicleModel}`);
+      setStartForm({ odometer: "", notes: "" });
+      setStartPhotos([]);
+      setTripStarted(false);
+      setHistory([]);
+      setHistoryMessage(null);
+    } catch (error) {
+      console.error("Failed to load booking for check-in", error);
+      setMessage("Unable to load booking. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const idFromQuery = searchParams.get("bookingId");
@@ -196,7 +239,9 @@ const CheckIn = () => {
       </header>
 
       <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-black">Sync booking from API</p>
+        <p className="text-sm font-semibold text-black">
+          Sync booking from API
+        </p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           <input
             value={bookingId}
@@ -285,34 +330,8 @@ const CheckIn = () => {
         </div>
       </div>
 
-      {history.length > 0 && (
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
-          <p className="text-xs uppercase tracking-wide text-black">
-            Check-in history
-          </p>
-          <table className="mt-3 w-full text-left text-xs">
-            <thead>
-              <tr>
-                <th className="py-2">Type</th>
-                <th className="py-2">Time</th>
-                <th className="py-2">Odometer</th>
-                <th className="py-2">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((record) => (
-                <tr key={record.id}>
-                  <td className="py-2">{record.type}</td>
-                  <td className="py-2">
-                    {new Date(record.checkInTime).toLocaleString()}
-                  </td>
-                  <td className="py-2">{record.odometer ?? "--"}</td>
-                  <td className="py-2">{record.notes ?? "--"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {booking && (
+        <HistoryTable title="Check-out history" records={checkOutHistory} />
       )}
     </section>
   );
