@@ -18,6 +18,18 @@ const formatDateTimeLocal = (date: Date) => {
   return iso.slice(0, 16)
 }
 
+const getProposalTypeLabel = (type: ProposalType): string => {
+  const typeMap: Record<ProposalType, string> = {
+    MaintenanceBudget: 'Ngân sách bảo trì',
+    VehicleUpgrade: 'Nâng cấp xe',
+    VehicleSale: 'Bán xe',
+    PolicyChange: 'Thay đổi quy tắc',
+    MembershipChange: 'Thành viên',
+    Other: 'Khác',
+  }
+  return typeMap[type] || type
+}
+
 const CreateProposal = () => {
   const navigate = useNavigate()
   const { groupId } = useParams<{ groupId: UUID }>()
@@ -82,13 +94,11 @@ const CreateProposal = () => {
   }
 
   return (
-    <section className="mx-auto max-w-4xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-3">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 29 · Create proposal</p>
         <h1 className="text-4xl font-semibold text-neutral-900">Tạo đề xuất mới</h1>
         <p className="text-neutral-600">
-          Cung cấp thông tin rõ ràng để các thành viên bỏ phiếu minh bạch. Mọi trường dữ liệu đều
-          đồng bộ với microservice Group & Notification.
+          Cung cấp thông tin rõ ràng để các thành viên bỏ phiếu minh bạch.
         </p>
       </header>
 
@@ -99,12 +109,14 @@ const CreateProposal = () => {
             value={form.title}
             onChange={(event) => handleChange('title', event.target.value)}
             fullWidth
+            sx={{ mb: 3 }}
           />
           <Select
             label="Loại đề xuất"
             value={form.type}
             onChange={(event) => handleChange('type', event.target.value as ProposalType)}
             fullWidth
+            sx={{ mb: 3 }}
           >
             <MenuItem value="MaintenanceBudget">Ngân sách bảo trì</MenuItem>
             <MenuItem value="VehicleUpgrade">Nâng cấp xe</MenuItem>
@@ -120,6 +132,7 @@ const CreateProposal = () => {
             minRows={4}
             onChange={(event) => handleChange('description', event.target.value)}
             fullWidth
+            sx={{ mb: 3 }}
           />
           <TextField
             label="Giá trị ước tính (VND)"
@@ -127,6 +140,7 @@ const CreateProposal = () => {
             value={form.amount}
             onChange={(event) => handleChange('amount', event.target.value)}
             fullWidth
+            sx={{ mb: 3 }}
           />
           <TextField
             label="Bắt đầu bỏ phiếu"
@@ -134,6 +148,7 @@ const CreateProposal = () => {
             value={form.votingStartDate}
             onChange={(event) => handleChange('votingStartDate', event.target.value)}
             fullWidth
+            sx={{ mb: 3 }}
           />
           <TextField
             label="Kết thúc bỏ phiếu"
@@ -141,8 +156,9 @@ const CreateProposal = () => {
             value={form.votingEndDate}
             onChange={(event) => handleChange('votingEndDate', event.target.value)}
             fullWidth
+            sx={{ mb: 3 }}
           />
-          <div>
+          <div className="mb-6">
             <p className="text-sm font-semibold text-neutral-800">
               Ngưỡng chấp nhận ({form.requiredMajority}%)
             </p>
@@ -159,6 +175,7 @@ const CreateProposal = () => {
             fullWidth
             disabled={!isValid || submitting}
             onClick={() => handleSubmit()}
+            sx={{ mt: 2 }}
           >
             {submitting ? 'Đang gửi...' : 'Gửi đề xuất'}
           </Button>
@@ -175,7 +192,7 @@ const CreateProposal = () => {
           <div className="rounded-2xl border border-neutral-200 bg-white p-4">
             <p className="text-sm text-neutral-500">Loại · Ngưỡng</p>
             <p className="text-lg font-semibold text-neutral-900">
-              {form.type} · {form.requiredMajority}%
+              {getProposalTypeLabel(form.type)} · {form.requiredMajority}%
             </p>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-white p-4">

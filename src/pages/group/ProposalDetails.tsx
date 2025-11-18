@@ -92,7 +92,7 @@ const ProposalDetails = () => {
 
   if (loading) {
     return (
-      <section className="mx-auto max-w-4xl space-y-4 p-6">
+      <section className="space-y-4">
         <div className="rounded-3xl border border-neutral-200 bg-neutral-100 p-10 text-center text-neutral-500">
           Đang tải đề xuất...
         </div>
@@ -126,9 +126,8 @@ const ProposalDetails = () => {
   const abstainRatio = 100 - yesRatio - noRatio;
 
   return (
-    <section className="mx-auto max-w-5xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-4">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 28 · Proposal Details</p>
         <Link to={`/groups/${groupId}/proposals`} className="text-sm font-semibold text-accent-blue">
           ← Quay về danh sách đề xuất
         </Link>
