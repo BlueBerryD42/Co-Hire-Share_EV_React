@@ -35,26 +35,7 @@ const ErrorStates = ({
   onAction,
   actionLabel,
 }: ErrorStateProps) => {
-  // ErrorBoundary is now inside BrowserRouter, so useNavigate should always work
   const navigate = useNavigate();
-
-  // Safe navigation helper - wraps navigation calls in try-catch as fallback
-  const safeNavigate = (path: string | number) => {
-    try {
-      if (typeof path === 'string') {
-        navigate(path);
-      } else {
-        navigate(path);
-      }
-    } catch {
-      // Fallback if navigate fails (shouldn't happen, but just in case)
-      if (typeof path === 'string') {
-        window.location.href = path;
-      } else {
-        window.history.back();
-      }
-    }
-  };
 
   const errorConfig = {
     "404": {
@@ -63,8 +44,8 @@ const ErrorStates = ({
       defaultMessage: "The page you're looking for doesn't exist",
       color: "var(--accent-terracotta)",
       actions: [
-        { label: "Go to Dashboard", onClick: () => safeNavigate("/") },
-        { label: "Go Back", onClick: () => safeNavigate(-1) },
+        { label: "Go to Dashboard", onClick: () => navigate("/home") },
+        { label: "Go Back", onClick: () => navigate(-1) },
       ],
     },
     "500": {
@@ -74,7 +55,7 @@ const ErrorStates = ({
       color: "var(--accent-terracotta)",
       actions: [
         { label: "Try Again", onClick: onRetry },
-        { label: "Contact Support", onClick: () => safeNavigate("/help") },
+        { label: "Contact Support", onClick: () => navigate("/help") },
       ],
     },
     "no-internet": {
@@ -89,7 +70,7 @@ const ErrorStates = ({
       defaultTitle: "Access denied",
       defaultMessage: "You don't have permission to view this",
       color: "var(--accent-terracotta)",
-      actions: [{ label: "Go to Dashboard", onClick: () => safeNavigate("/") }],
+      actions: [{ label: "Go to Dashboard", onClick: () => navigate("/home") }],
     },
     "payment-failed": {
       icon: CreditCard,
@@ -99,7 +80,7 @@ const ErrorStates = ({
       actions: [
         { label: "Try Again", onClick: onRetry },
         { label: "Change Method", onClick: onAction },
-        { label: "Contact Support", onClick: () => safeNavigate("/help") },
+        { label: "Contact Support", onClick: () => navigate("/help") },
       ],
     },
     "session-expired": {
@@ -107,7 +88,7 @@ const ErrorStates = ({
       defaultTitle: "Session expired",
       defaultMessage: "Please log in again to continue",
       color: "var(--accent-gold)",
-      actions: [{ label: "Log In", onClick: () => safeNavigate("/login") }],
+      actions: [{ label: "Log In", onClick: () => navigate("/login") }],
     },
     "upload-failed": {
       icon: CloudUpload,

@@ -10,11 +10,12 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
 
 // Auth Pages
-import { Login, Register, EmailVerification, ForgotPassword, ResetPassword } from "@/pages/auth";
+import { Login, Register, EmailVerification, CorrectEmail, ForgotPassword, ResetPassword } from "@/pages/auth";
 
 // Vehicle Pages
 import {
   MyVehicles,
+  CreateVehicle,
   VehicleDetails,
   ExpensesPayments as VehicleExpensesPayments,
   ExpenseDetails,
@@ -116,24 +117,26 @@ const App = () => {
       <ErrorBoundary>
         <AuthInitializer />
         <Routes>
-          {/* Public Landing Page */}
+
+
           <Route path="/" element={<Landing />} />
 
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/confirm-email" element={<EmailVerification />} />
+          <Route path="/correct-email" element={<CorrectEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes */}
-          <Route path="/app" element={<MainLayout />}>
-            {/* Home/Dashboard */}
+          <Route path="/home" element={<MainLayout />}>
             <Route index element={<Home />} />
 
             {/* Vehicle Routes */}
             <Route path="vehicles">
               <Route index element={<MyVehicles />} />
+              <Route path="create" element={<CreateVehicle />} />
               <Route path=":id" element={<VehicleDetails />} />
 
               {/* Expenses & Payments */}
@@ -206,7 +209,7 @@ const App = () => {
             </Route>
 
             {/* Catch all - redirect to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
