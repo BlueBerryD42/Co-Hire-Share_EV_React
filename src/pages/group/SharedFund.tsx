@@ -119,9 +119,8 @@ const SharedFund = () => {
   })
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
-      <header className="space-y-4 rounded-3xl border border-neutral-200 bg-neutral-100 p-6">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 26 · Shared fund</p>
+    <section className="space-y-8">
+      <header className="space-y-4">
         <h1 className="text-4xl font-semibold text-neutral-900">
           Quỹ chung · {group?.name ?? 'Đang tải'}
         </h1>
@@ -285,6 +284,7 @@ const SharedFund = () => {
             fullWidth
             value={formValues.amount}
             onChange={(event) => setFormValues((prev) => ({ ...prev, amount: event.target.value }))}
+            sx={{ mb: 3 }}
           />
           <TextField
             label={dialog.type === 'deposit' ? 'Mô tả' : 'Lý do rút'}
@@ -293,6 +293,7 @@ const SharedFund = () => {
             onChange={(event) =>
               setFormValues((prev) => ({ ...prev, description: event.target.value }))
             }
+            sx={{ mb: 3 }}
           />
           <TextField
             label={dialog.type === 'deposit' ? 'Mã tham chiếu (tuỳ chọn)' : 'Người nhận (tuỳ chọn)'}
