@@ -1,5 +1,6 @@
 // Export tất cả vehicle pages
 export { default as MyVehicles } from './MyVehicles'
+export { default as CreateVehicle } from './CreateVehicle'
 export { default as VehicleDetails } from './VehicleDetails'
 export { default as ExpensesPayments } from './ExpensesPayments'
 export { default as ExpenseDetails } from './ExpenseDetails'

@@ -14,6 +14,7 @@ import { Login, Register, EmailVerification } from "@/pages/auth";
 // Vehicle Pages
 import {
   MyVehicles,
+  CreateVehicle,
   VehicleDetails,
   ExpensesPayments as VehicleExpensesPayments,
   ExpenseDetails,
@@ -128,6 +129,7 @@ const App = () => {
             {/* Vehicle Routes */}
             <Route path="vehicles">
               <Route index element={<MyVehicles />} />
+              <Route path="create" element={<CreateVehicle />} />
               <Route path=":id" element={<VehicleDetails />} />
 
               {/* Expenses & Payments */}

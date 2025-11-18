@@ -106,9 +106,14 @@ const MyVehicles = () => {
                 Quản lý và theo dõi các xe bạn đang sở hữu
               </p>
             </div>
-            <Button variant="accent" onClick={() => navigate('/groups/browse')}>
-              + Tham gia nhóm mới
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="contained" onClick={() => navigate('/vehicles/create')}>
+                + Thêm xe mới
+              </Button>
+              <Button variant="outlined" onClick={() => navigate('/groups/browse')}>
+                Tham gia nhóm mới
+              </Button>
+            </div>
           </div>
 
           {/* Quick Stats */}
