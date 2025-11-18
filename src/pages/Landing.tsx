@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Box, Button, Container, Typography, Grid, Card, CardContent } from '@mui/material'
+import { Box, Button, Container, Typography, Card, CardContent, Grid } from '@mui/material'
 import {
   ElectricCar,
   Groups,
@@ -150,7 +150,7 @@ const Landing = () => {
       >
         <Container maxWidth="lg">
           <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography
                 variant="h2"
                 sx={{
@@ -217,7 +217,7 @@ const Landing = () => {
                 </Button>
               </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   backgroundColor: 'var(--neutral-100)',
@@ -292,7 +292,7 @@ const Landing = () => {
 
           <Grid container spacing={4}>
             {features.map((feature, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
                 <Card
                   className="card"
                   sx={{
@@ -364,7 +364,7 @@ const Landing = () => {
 
           <Grid container spacing={4}>
             {steps.map((step, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
                 <Box sx={{ textAlign: 'center', position: 'relative' }}>
                   <Typography
                     sx={{
@@ -414,7 +414,7 @@ const Landing = () => {
       <Box sx={{ py: { xs: 6, md: 10 }, backgroundColor: 'var(--neutral-50)' }}>
         <Container maxWidth="lg">
           <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography
                 variant="h3"
                 sx={{
@@ -447,7 +447,7 @@ const Landing = () => {
                 ))}
               </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   backgroundColor: 'var(--accent-blue)',
@@ -519,7 +519,7 @@ const Landing = () => {
 
           <Grid container spacing={4}>
             {testimonials.map((testimonial, index) => (
-              <Grid item xs={12} md={4} key={index}>
+              <Grid size={{ xs: 12, md:4}} key={index}>
                 <Card
                   className="card"
                   sx={{
@@ -640,7 +640,7 @@ const Landing = () => {
       >
         <Container maxWidth="lg">
           <Grid container spacing={4}>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }} >
               <Typography
                 variant="h6"
                 sx={{
@@ -657,7 +657,7 @@ const Landing = () => {
                 co-ownership.
               </Typography>
             </Grid>
-            <Grid item xs={6} md={2}>
+            <Grid size={{ xs: 6, md: 2 }} >
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: 600, mb: 2, color: 'white' }}
@@ -676,7 +676,7 @@ const Landing = () => {
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={6} md={2}>
+            <Grid size={{ xs: 6, md: 2 }}>
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: 600, mb: 2, color: 'white' }}
@@ -695,7 +695,7 @@ const Landing = () => {
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={6} md={2}>
+            <Grid size={{ xs: 6, md: 2 }}>
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: 600, mb: 2, color: 'white' }}
@@ -714,7 +714,7 @@ const Landing = () => {
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={6} md={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: 600, mb: 2, color: 'white' }}
