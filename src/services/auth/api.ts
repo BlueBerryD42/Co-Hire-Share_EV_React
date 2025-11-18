@@ -1,6 +1,7 @@
 import Cookies from "js-cookie";
 import { createApiClient } from "@/services/api";
 import { userApi } from "@/services/user/api";
+import { getRoleFromToken } from "@/utils/jwt";
 import type {
   LoginRequest,
   RegisterRequest,
@@ -75,11 +76,17 @@ export const authApi = {
       console.log('Token stored immediately after login')
     }
     
+    // IMPORTANT: Get role from JWT token (most reliable source)
+    // The JWT token contains the correct role from Identity claims
+    // UserProfile might have outdated role data
+    const roleFromToken = getRoleFromToken(response.data.accessToken);
+    
     // Auth service no longer returns profile data - fetch from User service
     // Note: Profile might not exist immediately after registration, so handle gracefully
     try {
       const profile = await userApi.getProfile();
       // Merge profile data with auth response
+      // Use role from JWT token instead of profile.role
       return {
         ...response.data,
         user: {
@@ -87,7 +94,7 @@ export const authApi = {
           firstName: profile.firstName || "",
           lastName: profile.lastName || "",
           phone: profile.phone || "",
-          role: profile.role ?? 0,
+          role: roleFromToken, // Use role from JWT token, not profile
           kycStatus: profile.kycStatus ?? 0,
           createdAt: profile.createdAt || response.data.user.createdAt || new Date().toISOString(),
         },
@@ -103,7 +110,7 @@ export const authApi = {
           firstName: response.data.user.firstName || "",
           lastName: response.data.user.lastName || "",
           phone: response.data.user.phone || "",
-          role: response.data.user.role ?? 0,
+          role: roleFromToken, // Use role from JWT token
           kycStatus: response.data.user.kycStatus ?? 0,
         },
       };
@@ -148,10 +155,20 @@ export const authApi = {
   /**
    * Get current authenticated user
    * Note: Auth service no longer returns profile data - fetch from User service instead
+   * Role is extracted from JWT token (most reliable source)
    */
   getCurrentUser: async (): Promise<User> => {
     // Fetch profile from User service (which has all profile data)
-    return await userApi.getProfile();
+    const profile = await userApi.getProfile();
+    
+    // Get role from JWT token (most reliable source)
+    const token = Cookies.get('auth_token') || localStorage.getItem('accessToken');
+    const roleFromToken = token ? getRoleFromToken(token) : profile.role;
+    
+    return {
+      ...profile,
+      role: roleFromToken, // Use role from JWT token, not profile
+    };
   },
 
   /**
@@ -181,10 +198,14 @@ export const authApi = {
       refreshToken,
     });
     
+    // IMPORTANT: Get role from JWT token (most reliable source)
+    const roleFromToken = getRoleFromToken(data.accessToken);
+    
     // Auth service no longer returns profile data - fetch from User service
     try {
       const profile = await userApi.getProfile();
       // Merge profile data with auth response
+      // Use role from JWT token instead of profile.role
       return {
         ...data,
         user: {
@@ -192,7 +213,7 @@ export const authApi = {
           firstName: profile.firstName || "",
           lastName: profile.lastName || "",
           phone: profile.phone || "",
-          role: profile.role ?? 0,
+          role: roleFromToken, // Use role from JWT token, not profile
           kycStatus: profile.kycStatus ?? 0,
           createdAt: profile.createdAt || data.user.createdAt || new Date().toISOString(),
         },
@@ -207,7 +228,7 @@ export const authApi = {
           firstName: data.user.firstName || "",
           lastName: data.user.lastName || "",
           phone: data.user.phone || "",
-          role: data.user.role ?? 0,
+          role: roleFromToken, // Use role from JWT token
           kycStatus: data.user.kycStatus ?? 0,
         },
       };

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { getCurrentUser } from "@/store/slices/authSlice";
@@ -75,10 +75,12 @@ import PredictiveMaintenance from "@/pages/admin/PredictiveMaintenance";
 import CostOptimizationInsights from "@/pages/admin/CostOptimizationInsights";
 
 /**
- * Component để load user data khi app khởi động
+ * Component để load user data khi app khởi động và redirect admins
  */
 const AuthInitializer = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, token, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
@@ -91,6 +93,16 @@ const AuthInitializer = () => {
       dispatch(getCurrentUser());
     }
   }, [dispatch, token, user, isAuthenticated]);
+
+  // Redirect admins to admin dashboard if they're on home page
+  useEffect(() => {
+    if (isAuthenticated && user && location.pathname === '/') {
+      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
+      if (user.role === 0 || user.role === 1) {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
 
   return null;
 };

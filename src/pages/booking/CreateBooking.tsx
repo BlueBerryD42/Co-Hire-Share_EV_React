@@ -1,258 +1,273 @@
-import { useEffect, useMemo, useState } from 'react'
-import { bookingApi } from '@/services/booking/api'
-import { bookingTemplatesApi } from '@/services/booking/templates'
-import type { CreateBookingDto } from '@/models/booking'
-import type { BookingTemplateResponse } from '@/models/bookingExtras'
-import { useAppSelector } from '@/store/hooks'
-import Cookies from 'js-cookie'
-import { useGroups } from '@/hooks/useGroups'
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { bookingApi } from "@/services/booking/api";
+import type { BookingPriority, CreateBookingDto } from "@/models/booking";
+import { useAppSelector } from "@/store/hooks";
+import Cookies from "js-cookie";
+import { useGroups } from "@/hooks/useGroups";
 
 const initialForm = {
-  vehicle: 'Tesla Model 3 Performance',
-  date: '2025-03-18',
-  start: '08:00',
-  end: '15:00',
-  repeat: 'none',
-  purpose: 'Business',
+  vehicle: "Tesla Model 3 Performance",
+  date: "2025-03-18",
+  endDate: "2025-03-18",
+  start: "08:00",
+  end: "15:00",
+  repeat: "none",
+  purpose: "Business",
   distance: 120,
-  notes: '',
-}
+  notes: "",
+  priority: "Normal" as BookingPriority,
+  isEmergency: false,
+  emergencyReason: "",
+  emergencyAutoCancelConflicts: false,
+};
 
 const repeatOptions = [
-  { value: 'none', label: 'No repeat' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-]
+  { value: "none", label: "No repeat" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+];
+
+const priorityMap: Record<BookingPriority, number> = {
+  Low: 0,
+  Normal: 1,
+  High: 2,
+  Emergency: 3,
+};
 
 const vehicleMap: Record<string, string> = {
-  'Tesla Model 3 Performance': '00000000-0000-0000-0000-000000000001',
-  'Kia EV6 GT-Line': '00000000-0000-0000-0000-000000000002',
-}
+  "Tesla Model 3 Performance": "00000000-0000-0000-0000-000000000001",
+  "Kia EV6 GT-Line": "00000000-0000-0000-0000-000000000002",
+};
 
-type FormState = typeof initialForm
+type FormState = typeof initialForm;
 
 const decodeUserIdFromToken = (token?: string | null) => {
-  if (!token) return ''
+  if (!token) return "";
   try {
-    const parts = token.split('.')
-    if (parts.length < 2) return ''
-    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    const json = atob(normalized)
-    const payload = JSON.parse(json)
-    return payload?.sub || payload?.nameid || payload?.userId || ''
+    const parts = token.split(".");
+    if (parts.length < 2) return "";
+    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(normalized);
+    const payload = JSON.parse(json);
+    return payload?.sub || payload?.nameid || payload?.userId || "";
   } catch {
-    return ''
+    return "";
   }
-}
+};
 
 const CreateBooking = () => {
-  const [form, setForm] = useState(initialForm)
-  const [purpose, setPurpose] = useState('Business')
-  const [templates, setTemplates] = useState<BookingTemplateResponse[]>([])
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
-  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
-  const [serverMessage, setServerMessage] = useState<string | null>(null)
-  const [templateMessage, setTemplateMessage] = useState<string | null>(null)
-  const auth = useAppSelector((state) => state.auth)
+  const navigate = useNavigate();
+  const [form, setForm] = useState(initialForm);
+  const [purpose, setPurpose] = useState("Business");
+  const [submissionStatus, setSubmissionStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
+  const [serverMessage, setServerMessage] = useState<string | null>(null);
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
+  const auth = useAppSelector((state) => state.auth);
   const derivedUserId = useMemo(() => {
-    if (auth.user?.id) return auth.user.id
-    return decodeUserIdFromToken(auth.token || Cookies.get('auth_token'))
-  }, [auth.token, auth.user?.id])
-  const [userId, setUserId] = useState(derivedUserId)
-  const { data: groups, loading: groupsLoading, error: groupsError } = useGroups()
-  const [groupId, setGroupId] = useState('')
-  const [lastPayload, setLastPayload] = useState<CreateBookingDto | null>(null)
+    if (auth.user?.id) return auth.user.id;
+    return decodeUserIdFromToken(auth.token || Cookies.get("auth_token"));
+  }, [auth.token, auth.user?.id]);
+  const [userId, setUserId] = useState(derivedUserId);
+  const {
+    data: groups,
+    loading: groupsLoading,
+    error: groupsError,
+  } = useGroups();
+  const [groupId, setGroupId] = useState("");
+  const [lastPayload, setLastPayload] = useState<CreateBookingDto | null>(null);
 
   useEffect(() => {
-    setUserId(derivedUserId)
-  }, [derivedUserId])
+    setUserId(derivedUserId);
+  }, [derivedUserId]);
 
   useEffect(() => {
     if (!groupId && groups && groups.length > 0) {
-      setGroupId(groups[0].id)
+      setGroupId(groups[0].id);
     }
-  }, [groups, groupId])
+  }, [groups, groupId]);
 
-  useEffect(() => {
-    let mounted = true
-    bookingTemplatesApi
-      .getTemplates()
-      .then((data) => {
-        if (mounted) setTemplates(Array.isArray(data) ? data : [])
-      })
-      .catch((error) => {
-        console.error('Failed to load booking templates', error)
-        if (mounted) setTemplateMessage('Không thể tải template từ API.')
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  const duration = useMemo(() => {
-    const [startHour, startMin] = form.start.split(':').map(Number)
-    const [endHour, endMin] = form.end.split(':').map(Number)
-    const hours = endHour + endMin / 60 - (startHour + startMin / 60)
-    if (Number.isNaN(hours) || hours <= 0) return 0
-    return hours
-  }, [form.start, form.end])
-
-  const usageWarning = duration > 8 ? 'Longer than 8 hours, fairness impact is higher.' : null
-  const conflict = form.date === '2025-03-18'
-
-  const updateForm = <K extends keyof FormState>(field: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const applyTemplate = (template: BookingTemplateResponse) => {
-    const preferredHour = template.preferredStartTime.substring(0, 5)
-    setForm((prev) => ({
-      ...prev,
-      start: preferredHour,
-      end: form.end,
-      purpose: template.purpose ?? prev.purpose,
-      notes: template.notes ?? prev.notes,
-    }))
-    setPurpose(template.purpose ?? purpose)
-    setTemplateMessage(`Áp dụng template "${template.name}" với ưu tiên ${template.priority}.`)
-  }
+  const updateForm = <K extends keyof FormState>(
+    field: K,
+    value: FormState[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async () => {
-    const vehicleId = vehicleMap[form.vehicle] ?? form.vehicle
+    const vehicleId = vehicleMap[form.vehicle] ?? form.vehicle;
     if (!vehicleId) {
-      setServerMessage('Vehicle ID is missing')
-      setSubmissionStatus('error')
-      return
+      setServerMessage("Vehicle ID is missing");
+      setSubmissionStatus("error");
+      return;
     }
 
-    const buildIso = (date: string, time: string) => new Date(`${date}T${time}:00`).toISOString()
+    const buildIso = (date: string, time: string) =>
+      new Date(`${date}T${time}:00`).toISOString();
     if (!userId || !groupId) {
-      setServerMessage('UserId và GroupId là bắt buộc')
-      setSubmissionStatus('error')
-      return
+      setServerMessage("UserId và GroupId là bắt buộc");
+      setSubmissionStatus("error");
+      return;
     }
 
-    const payload: CreateBookingDto = {
+    const startIso = buildIso(form.date, form.start);
+    const endIso = buildIso(form.endDate, form.end);
+
+    try {
+      const conflicts = await bookingApi.checkConflicts(
+        vehicleId,
+        startIso,
+        endIso
+      );
+      if (conflicts?.hasConflicts) {
+        setConflictMessage(
+          `Time conflict with ${conflicts.conflictingBookings.length} existing booking(s). Please select another slot.`
+        );
+        setSubmissionStatus("error");
+        return;
+      }
+      setConflictMessage(null);
+    } catch (checkError) {
+      console.warn("Unable to check booking conflicts", checkError);
+      setConflictMessage(
+        "Could not verify conflicts due to network error. Please try again."
+      );
+      setSubmissionStatus("error");
+      return;
+    }
+
+    const prioritySelection: BookingPriority = form.priority;
+    const apiPayload: CreateBookingDto = {
       vehicleId,
-      startAt: buildIso(form.date, form.start),
-      endAt: buildIso(form.date, form.end),
+      startAt: startIso,
+      endAt: endIso,
       notes: form.notes,
       purpose,
-      isEmergency: false,
-      priority: 'Normal',
+      isEmergency: form.isEmergency,
+      emergencyReason: form.isEmergency ? form.emergencyReason : undefined,
+      emergencyAutoCancelConflicts: form.isEmergency
+        ? form.emergencyAutoCancelConflicts
+        : undefined,
+      priority: priorityMap[prioritySelection],
       userId,
       groupId,
-    }
+    };
 
-    setLastPayload(payload)
-    setSubmissionStatus('submitting')
-    setServerMessage('Sending to /api/booking …')
+    setLastPayload(apiPayload);
+    setSubmissionStatus("submitting");
+    setServerMessage("Sending to /api/booking ...");
     try {
-      const booking = await bookingApi.create(payload)
-      setSubmissionStatus('success')
-      setServerMessage(`Created booking ${booking.id.slice(0, 8)} for ${booking.vehicleModel}`)
+      const booking = await bookingApi.create(apiPayload);
+      setSubmissionStatus("success");
+      const successMessage = `Created booking ${booking.id.slice(0, 8)} for ${booking.vehicleModel}`;
+      setServerMessage(successMessage);
+      setCreatedBookingId(booking.id);
+      setTimeout(() => navigate("/booking/calendar"), 800);
     } catch (error) {
-      console.error('Failed to create booking', error)
-      setSubmissionStatus('error')
-      setServerMessage('Failed to create booking. Check console for details.')
+      console.error("Failed to create booking", error);
+      setSubmissionStatus("error");
+      setServerMessage("Failed to create booking. Check console for details.");
+      setCreatedBookingId(null);
     }
-  }
+  };
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8">
-      <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Screen 13</p>
-        <h1 className="text-4xl font-semibold text-slate-50">Create booking</h1>
-        <p className="text-slate-300">Full width form with warnings and live summary.</p>
-      </header>
-
-      {conflict && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-          <p className="font-semibold">Conflict with Quan (07:00 - 12:00).</p>
-          <p>Pick another slot or request a swap.</p>
-        </div>
-      )}
-
-      {usageWarning && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-          {usageWarning}
-        </div>
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <form className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-8">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+      <div className="grid gap-1">
+        <form className="space-y-6 rounded-3xl border border-slate-800 bg-amber-50 p-8">
           <div className="grid gap-5 sm:grid-cols-2">
-          <label className="space-y-2 text-sm text-slate-300">
-            <span>Vehicle</span>
+            <label className="space-y-2 text-sm text-black">
+              <span>Vehicle</span>
               <select
                 value={form.vehicle}
-                onChange={(e) => updateForm('vehicle', e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                onChange={(e) => updateForm("vehicle", e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               >
                 <option>Tesla Model 3 Performance</option>
                 <option>Kia EV6 GT-Line</option>
               </select>
             </label>
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-black">
               <span>Start date</span>
               <input
                 type="date"
                 value={form.date}
-                onChange={(e) => updateForm('date', e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                onChange={(e) => updateForm("date", e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               />
             </label>
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-black">
+              <span>End date</span>
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => updateForm("endDate", e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              />
+            </label>
+            <label className="space-y-2 text-sm text-black">
               <span>Start time</span>
               <input
                 type="time"
                 value={form.start}
-                onChange={(e) => updateForm('start', e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                onChange={(e) => updateForm("start", e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               />
             </label>
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-black">
               <span>End time</span>
               <input
                 type="time"
                 value={form.end}
-                onChange={(e) => updateForm('end', e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+                onChange={(e) => updateForm("end", e.target.value)}
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               />
             </label>
           </div>
+          {conflictMessage && (
+            <p className="text-xs text-rose-600">{conflictMessage}</p>
+          )}
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-black">
               <span>User ID</span>
               <input
                 type="text"
                 value={userId}
                 readOnly
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3 font-mono text-xs text-slate-400"
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 font-mono text-xs text-black"
               />
             </label>
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-black">
               <span>Group</span>
               <select
                 value={groupId}
                 disabled={groupsLoading || !groups?.length}
                 onChange={(e) => setGroupId(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm"
+                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 text-sm"
               >
                 {groupsLoading && <option value="">Loading groups...</option>}
-                {!groupsLoading && !groups?.length && <option value="">No groups available</option>}
+                {!groupsLoading && !groups?.length && (
+                  <option value="">No groups available</option>
+                )}
                 {groups?.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.name}
                   </option>
                 ))}
               </select>
-              {groupsError && <p className="text-xs text-rose-300">Không thể tải danh sách nhóm.</p>}
+              {groupsError && (
+                <p className="text-xs text-black">
+                  Không thể tải danh sách nhóm.
+                </p>
+              )}
             </label>
           </div>
 
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Repeat</span>
             <div className="grid gap-3 sm:grid-cols-3">
               {repeatOptions.map((option) => (
@@ -261,10 +276,10 @@ const CreateBooking = () => {
                   key={option.value}
                   className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
                     form.repeat === option.value
-                      ? 'border-brand bg-brand/20 text-brand'
-                      : 'border-slate-800 text-slate-400 hover:border-brand/40'
+                      ? "border-brand bg-brand/20 text-black"
+                      : "border-slate-800 text-black hover:border-brand/40"
                   }`}
-                  onClick={() => updateForm('repeat', option.value)}
+                  onClick={() => updateForm("repeat", option.value)}
                 >
                   {option.label}
                 </button>
@@ -272,15 +287,15 @@ const CreateBooking = () => {
             </div>
           </label>
 
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Purpose</span>
             <select
               value={purpose}
               onChange={(e) => {
-                setPurpose(e.target.value)
-                updateForm('purpose', e.target.value)
+                setPurpose(e.target.value);
+                updateForm("purpose", e.target.value);
               }}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
             >
               <option>Personal</option>
               <option>Business</option>
@@ -288,23 +303,84 @@ const CreateBooking = () => {
             </select>
           </label>
 
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
+            <span>Priority</span>
+            <select
+              value={form.priority}
+              onChange={(e) =>
+                updateForm("priority", e.target.value as BookingPriority)
+              }
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+            >
+              <option value="Low">Low</option>
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Emergency">Emergency</option>
+            </select>
+          </label>
+
+          <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
+            <div className="flex items-center gap-3">
+              <input
+                id="emergency-toggle"
+                type="checkbox"
+                checked={form.isEmergency}
+                onChange={(e) => updateForm("isEmergency", e.target.checked)}
+                className="h-4 w-4 rounded border border-slate-800 text-brand focus:ring-brand"
+              />
+              <label htmlFor="emergency-toggle" className="text-sm text-black">
+                Emergency booking
+              </label>
+            </div>
+            {form.isEmergency && (
+              <div className="space-y-4">
+                <label className="space-y-2 text-sm text-black">
+                  <span>Emergency reason</span>
+                  <textarea
+                    rows={3}
+                    value={form.emergencyReason}
+                    onChange={(e) =>
+                      updateForm("emergencyReason", e.target.value)
+                    }
+                    className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    placeholder="Describe why this booking is urgent"
+                  />
+                </label>
+                <label className="flex items-center gap-3 text-sm text-black">
+                  <input
+                    type="checkbox"
+                    checked={form.emergencyAutoCancelConflicts}
+                    onChange={(e) =>
+                      updateForm(
+                        "emergencyAutoCancelConflicts",
+                        e.target.checked
+                      )
+                    }
+                    className="h-4 w-4 rounded border border-slate-800 text-brand focus:ring-brand"
+                  />
+                  <span>Auto-cancel conflicting bookings</span>
+                </label>
+              </div>
+            )}
+          </div>
+
+          <label className="space-y-2 text-sm text-black">
             <span>Estimated distance (km)</span>
             <input
               type="number"
               value={form.distance}
-              onChange={(e) => updateForm('distance', Number(e.target.value))}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              onChange={(e) => updateForm("distance", Number(e.target.value))}
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
             />
           </label>
 
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Notes</span>
             <textarea
               rows={4}
               value={form.notes}
-              onChange={(e) => updateForm('notes', e.target.value)}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              onChange={(e) => updateForm("notes", e.target.value)}
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               placeholder="Add context for other co-owners"
             />
           </label>
@@ -312,83 +388,37 @@ const CreateBooking = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submissionStatus === 'submitting'}
-            className="w-full rounded-2xl bg-brand/90 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={submissionStatus === "submitting"}
+            className="w-full rounded-2xl bg-brand/90 px-6 py-3 text-center text-sm font-semibold text-black transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submissionStatus === 'submitting' ? 'Creating…' : 'Create booking'}
+            {submissionStatus === "submitting"
+              ? "Creating..."
+              : "Create booking"}
           </button>
           {serverMessage && (
-            <p className="text-xs text-slate-400" aria-live="polite">
+            <p className="text-xs text-black" aria-live="polite">
               {serverMessage}
             </p>
           )}
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-400">
-            <p className="text-slate-200">Booking templates (API)</p>
-            <p>{templates.length} template(s) loaded.</p>
-            <select
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2"
-              value={selectedTemplateId}
-              onChange={(event) => {
-                const templateId = event.target.value
-                setSelectedTemplateId(templateId)
-                const selected = templates.find((template) => template.id === templateId)
-                if (selected) {
-                  applyTemplate(selected)
-                }
-              }}
-            >
-              <option value="">Chọn template để áp dụng</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} · {template.duration}
-                </option>
-              ))}
-            </select>
-            {templateMessage && <p className="mt-2">{templateMessage}</p>}
-          </div>
+          {createdBookingId && (
+            <div className="text-xs text-black">
+              <Link to={`/booking/details/${createdBookingId}`}>
+                Next: Booking Details (Screen 14)
+              </Link>
+            </div>
+          )}
           {lastPayload && (
-            <div className="rounded-2xl border border-emerald-800 bg-emerald-950/40 p-4 text-xs text-emerald-100">
-              <p className="text-emerald-300">Payload preview (gửi lên API)</p>
+            <div className="rounded-2xl border border-emerald-800 bg-amber-50 p-4 text-xs text-black">
+              <p className="text-black">Payload preview (gửi lên API)</p>
               <pre className="mt-2 overflow-auto text-[11px] leading-4">
                 {JSON.stringify(lastPayload, null, 2)}
               </pre>
             </div>
           )}
         </form>
-
-        <aside className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Preview</p>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-              <p className="text-lg font-semibold text-slate-50">{form.vehicle}</p>
-              <p>
-                {form.date} · {form.start} - {form.end}
-              </p>
-              <p className="text-slate-400">
-                {duration}h · {purpose}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3 text-sm text-slate-300">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-xs uppercase text-slate-500">Fairness impact</p>
-              <p className="text-lg font-semibold text-slate-100">+4.2%</p>
-              <p className="text-slate-400">Compared to personal quota</p>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-xs uppercase text-slate-500">Charging suggestion</p>
-              <p className="text-slate-100">District 1 fast charge</p>
-              <p className="text-slate-400">2.3 km away</p>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-xs uppercase text-slate-500">AI note</p>
-              <p className="text-slate-200">Demand is low between 08:00 - 15:00.</p>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default CreateBooking
+export default CreateBooking;
