@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type {
   BookingDto,
@@ -136,33 +135,8 @@ const TripHistory = () => {
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-black">Screen 39</p>
         <h1 className="text-4xl font-semibold text-black">Trip history</h1>
-        <p className="text-black">
-          View every completed booking and its check-in/check-out data.
-        </p>
-        <p className="text-xs text-black">
-          {status === "loading"
-            ? "Đang tải /api/booking/my-bookings/history..."
-            : status === "error"
-            ? "Không thể tải lịch sử. Vui lòng thử lại."
-            : `API trả về ${historyEntries.length} bản ghi lịch sử`}
-        </p>
       </header>
-      <div className="flex flex-wrap gap-3 text-sm text-black">
-        <Link
-          to="/booking/report-issue"
-          className="rounded-2xl border border-slate-700 px-4 py-2"
-        >
-          Next: Report Issue (Screen 40)
-        </Link>
-        <Link
-          to="/booking/expenses"
-          className="rounded-2xl bg-brand px-4 py-2 font-semibold text-black"
-        >
-          Go to Expenses (Screen 18)
-        </Link>
-      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {["Date", "Vehicle", "Status"].map((label) => (
