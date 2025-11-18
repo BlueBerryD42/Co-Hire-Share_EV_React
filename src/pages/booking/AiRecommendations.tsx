@@ -12,36 +12,7 @@ type StaticSuggestion = {
   weather: string
 }
 
-const staticSuggestions: StaticSuggestion[] = [
-  {
-    label: 'Best match',
-    slot: 'Tue 18 Mar 13:00 - 15:00',
-    duration: '2h',
-    confidence: '92%',
-    impact: '+1.4% fairness',
-    reasoning: 'Low demand period that matches your usual pattern.',
-    weather: 'Light clouds',
-  },
-  {
-    label: 'Balanced usage',
-    slot: 'Thu 20 Mar 07:00 - 10:00',
-    duration: '3h',
-    confidence: '88%',
-    impact: '-0.8% fairness',
-    reasoning: 'Balances with other co-owners and keeps morning habit.',
-    weather: 'Sunny',
-  },
-  {
-    label: 'Charging friendly',
-    slot: 'Sat 22 Mar 05:00 - 08:00',
-    duration: '3h',
-    confidence: '81%',
-    impact: '+0.2% fairness',
-    reasoning: 'Close to an empty fast charging bay.',
-    weather: 'Cool 26C',
-  },
-]
-
+const fallbackSuggestions: StaticSuggestion[] = []
 const AiRecommendations = () => {
   const [form, setForm] = useState({
     vehicleId: '00000000-0000-0000-0000-000000000001',
@@ -95,23 +66,23 @@ const AiRecommendations = () => {
       }))
     : null
 
-  const suggestionsToRender = transformedRemoteSuggestions ?? staticSuggestions
+  const suggestionsToRender = transformedRemoteSuggestions ?? fallbackSuggestions
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Screen 60</p>
-        <h1 className="text-4xl font-semibold text-slate-50">AI booking recommendations</h1>
-        <p className="text-slate-300">Sheet style drawer with inputs on the left and cards on the right.</p>
+        <p className="text-xs uppercase tracking-wide text-black">Screen 60</p>
+        <h1 className="text-4xl font-semibold text-black">AI booking recommendations</h1>
+        <p className="text-black">Sheet style drawer with inputs on the left and cards on the right.</p>
       </header>
 
-      <div className="grid gap-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6 lg:grid-cols-[1.1fr,1fr]">
+      <div className="grid gap-6 rounded-3xl border border-slate-800 bg-amber-50 p-6 lg:grid-cols-[1.1fr,1fr]">
         <form className="space-y-4">
-          <p className="text-sm font-semibold text-slate-200">Input preferences</p>
-          <label className="space-y-2 text-sm text-slate-300">
+          <p className="text-sm font-semibold text-black">Input preferences</p>
+          <label className="space-y-2 text-sm text-black">
             <span>Vehicle</span>
             <select
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               value={form.vehicleId}
               onChange={(event) => setForm((prev) => ({ ...prev, vehicleId: event.target.value }))}
             >
@@ -119,27 +90,27 @@ const AiRecommendations = () => {
               <option value="00000000-0000-0000-0000-000000000002">Kia EV6</option>
             </select>
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Preferred date</span>
             <input
               type="date"
               value={form.preferredDate}
               onChange={(event) => setForm((prev) => ({ ...prev, preferredDate: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
             />
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Time of day</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
               <option>Morning (05:00 - 11:00)</option>
               <option>Afternoon</option>
               <option>Evening</option>
             </select>
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Duration</span>
             <select
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               value={form.durationHours}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, durationHours: Number(event.target.value) }))
@@ -152,9 +123,9 @@ const AiRecommendations = () => {
               ))}
             </select>
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-black">
             <span>Priority</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
               <option>Fairness</option>
               <option>Prime time</option>
               <option>Charging ready</option>
@@ -162,32 +133,35 @@ const AiRecommendations = () => {
           </label>
           <button
             type="button"
-            className="w-full rounded-2xl border border-brand/50 bg-brand/10 px-6 py-3 text-sm font-semibold text-brand disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-2xl border border-brand/50 bg-brand/10 px-6 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
             onClick={fetchSuggestions}
             disabled={loading}
           >
             {loading ? 'Loading…' : 'Regenerate suggestions'}
           </button>
-          {statusMessage && <p className="text-xs text-slate-400">{statusMessage}</p>}
+          {statusMessage && <p className="text-xs text-black">{statusMessage}</p>}
         </form>
 
         <div className="space-y-4">
+          {suggestionsToRender.length === 0 && (
+            <p className="text-sm text-black">No suggestions available.</p>
+          )}
           {suggestionsToRender.map((suggestion) => (
-            <div key={suggestion.slot} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div key={suggestion.slot} className="rounded-2xl border border-slate-800 bg-amber-50 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wide text-brand">{suggestion.label}</span>
-                <span className="text-xs text-slate-400">Confidence {suggestion.confidence}</span>
+                <span className="text-xs uppercase tracking-wide text-black">{suggestion.label}</span>
+                <span className="text-xs text-black">Confidence {suggestion.confidence}</span>
               </div>
-              <p className="mt-2 text-lg font-semibold text-slate-50">{suggestion.slot}</p>
-              <p className="text-sm text-slate-300">{suggestion.duration} - {suggestion.weather}</p>
-              <p className="mt-2 text-xs font-semibold text-emerald-200">{suggestion.impact}</p>
-              <p className="mt-2 text-sm text-slate-400">{suggestion.reasoning}</p>
-              <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand/90 px-4 py-1 text-xs font-semibold text-slate-950">
+              <p className="mt-2 text-lg font-semibold text-black">{suggestion.slot}</p>
+              <p className="text-sm text-black">{suggestion.duration} - {suggestion.weather}</p>
+              <p className="mt-2 text-xs font-semibold text-black">{suggestion.impact}</p>
+              <p className="mt-2 text-sm text-black">{suggestion.reasoning}</p>
+              <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand/90 px-4 py-1 text-xs font-semibold text-black">
                 Book this slot
               </button>
             </div>
           ))}
-          <button type="button" className="w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm text-slate-200">
+          <button type="button" className="w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm text-black">
             Show more options
           </button>
         </div>

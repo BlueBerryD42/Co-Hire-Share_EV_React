@@ -1,3 +1,5 @@
+import type { VehicleStatus } from "@/models/vehicle";
+
 // Shared helpers
 export type UUID = string;
 export type ISODate = string;
@@ -34,6 +36,9 @@ export interface BookingDto {
   requiresDamageReview: boolean;
   recurringBookingId?: UUID;
   createdAt: ISODate;
+  vehicleStatus: VehicleStatus;
+  distanceKm?: number | null;
+  tripFeeAmount: number;
 }
 
 export interface CreateBookingDto {
@@ -45,7 +50,7 @@ export interface CreateBookingDto {
   isEmergency?: boolean;
   emergencyReason?: string;
   emergencyAutoCancelConflicts?: boolean;
-  priority?: BookingPriority;
+  priority?: BookingPriority | number;
   userId: UUID;
   groupId: UUID;
 }
@@ -59,6 +64,14 @@ export interface UpdateBookingDto {
 
 export interface CancelBookingDto {
   reason?: string;
+}
+
+export interface UpdateVehicleStatusDto {
+  status: VehicleStatus;
+}
+
+export interface UpdateTripSummaryDto {
+  distanceKm: number;
 }
 
 export interface BookingConflictSummaryDto {
@@ -122,17 +135,119 @@ export type VehicleRangeQuery = DateRangeQuery & {
   vehicleId: UUID;
 };
 
-export interface BookingNotificationPreferenceDto {
-  enableReminders: boolean;
-  enableEmail: boolean;
-  enableSms: boolean;
-  preferredTimeZoneId?: string | null;
+// Check-in / trip DTOs (previously in bookingExtras)
+export type CheckInType = "CheckOut" | "CheckIn";
+
+export const PhotoTypeValue = {
+  Exterior: 0,
+  Interior: 1,
+  Dashboard: 2,
+  Damage: 3,
+  Other: 4,
+} as const;
+
+export type PhotoType = (typeof PhotoTypeValue)[keyof typeof PhotoTypeValue];
+
+export interface CheckInPhotoDto {
+  id: UUID;
+  checkInId: UUID;
+  photoUrl: string;
+  thumbnailUrl?: string | null;
+  type: PhotoType;
+  description?: string | null;
+  contentType?: string | null;
+  capturedAt?: ISODate;
+  latitude?: number | null;
+  longitude?: number | null;
+  isDeleted: boolean;
+}
+
+export interface CheckInPhotoInputDto {
+  photoUrl: string;
+  type: PhotoType;
+  description?: string;
+}
+
+export interface SignatureMetadataDto {
+  capturedAt?: ISODate;
+  device?: string | null;
+  deviceId?: string | null;
+  ipAddress?: string | null;
+  hash?: string | null;
+  matchesPrevious?: boolean | null;
+  certificateUrl?: string | null;
+  additionalMetadata?: Record<string, string>;
+}
+
+export interface LateReturnFeeDto {
+  id: UUID;
+  bookingId: UUID;
+  checkInId: UUID;
+  userId: UUID;
+  vehicleId: UUID;
+  groupId: UUID;
+  lateDurationMinutes: number;
+  feeAmount: number;
+  originalFeeAmount?: number;
+  calculationMethod?: string;
+  status: string;
+  expenseId?: UUID;
+  invoiceId?: UUID;
+  waivedBy?: UUID;
+  waivedReason?: string;
+  waivedAt?: ISODate;
+  createdAt: ISODate;
   updatedAt: ISODate;
 }
 
-export interface UpdateBookingNotificationPreferenceDto {
-  enableReminders?: boolean;
-  enableEmail?: boolean;
-  enableSms?: boolean;
-  preferredTimeZoneId?: string | null;
+export interface CheckInDto {
+  id: UUID;
+  bookingId: UUID;
+  userId: UUID;
+  vehicleId?: UUID | null;
+  userFirstName: string;
+  userLastName: string;
+  type: CheckInType;
+  odometer: number;
+  checkInTime: ISODate;
+  isLateReturn: boolean;
+  lateReturnMinutes?: number | null;
+  lateFeeAmount?: number | null;
+  lateReturnFee?: LateReturnFeeDto | null;
+  notes?: string | null;
+  signatureReference?: string | null;
+  signatureMetadata?: SignatureMetadataDto | null;
+  photos: CheckInPhotoDto[];
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
+export interface BookingHistoryEntryDto {
+  booking: BookingDto;
+  checkIns: CheckInDto[];
+}
+
+export interface StartTripDto {
+  bookingId: UUID;
+  odometerReading: number;
+  notes?: string;
+  signatureReference?: string;
+  clientTimestamp?: ISODate;
+  photos?: CheckInPhotoInputDto[];
+}
+
+export interface EndTripDto {
+  bookingId: UUID;
+  odometerReading: number;
+  notes?: string;
+  signatureReference?: string;
+  clientTimestamp?: ISODate;
+  photos?: CheckInPhotoInputDto[];
+}
+
+export interface VehicleQrCodeResponseDto {
+  vehicleId: UUID;
+  format: "dataUrl" | "payload";
+  payload: string;
+  expiresAt: ISODate;
 }

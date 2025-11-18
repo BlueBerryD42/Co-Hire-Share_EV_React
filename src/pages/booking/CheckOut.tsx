@@ -1,116 +1,329 @@
-import { useEffect, useState } from 'react'
-import { bookingApi } from '@/services/booking/api'
-import type { BookingDto } from '@/models/booking'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { bookingApi } from "@/services/booking/api";
+import { checkInApi } from "@/services/booking/checkIn";
+import TripStageCard from "@/pages/booking/components/TripStageCard";
+import {
+  PhotoTypeValue,
+  type BookingDto,
+  type CheckInDto,
+  type CheckInPhotoInputDto,
+} from "@/models/booking";
 
-const summary = {
-  mileage: { start: '32,118 km', end: '32,482 km', delta: '+364 km' },
-  battery: { start: '92%', end: '38%', delta: '-54%' },
-}
+const isCheckOutRecord = (record: CheckInDto) =>
+  record.type === 0 || record.type === "CheckOut";
+
+const isCheckInRecord = (record: CheckInDto) =>
+  record.type === 1 || record.type === "CheckIn";
+
+const HistoryTable = ({
+  title,
+  records,
+}: {
+  title: string;
+  records: CheckInDto[];
+}) => (
+  <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+    <p className="text-xs uppercase tracking-wide text-black">{title}</p>
+    {records.length === 0 ? (
+      <p className="py-3 text-center text-xs text-black">Chưa có dữ liệu</p>
+    ) : (
+      <table className="mt-3 w-full text-left text-xs">
+        <thead>
+          <tr>
+            <th className="py-2">Time</th>
+            <th className="py-2">Odometer</th>
+            <th className="py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id}>
+              <td className="py-2">
+                {new Date(record.checkInTime).toLocaleString()}
+              </td>
+              <td className="py-2">{record.odometer ?? "--"}</td>
+              <td className="py-2">{record.notes ?? "--"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+);
 
 const CheckOut = () => {
-  const [latestBooking, setLatestBooking] = useState<BookingDto | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [searchParams] = useSearchParams();
+  const [bookingId, setBookingId] = useState("");
+  const [booking, setBooking] = useState<BookingDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [history, setHistory] = useState<CheckInDto[]>([]);
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
+  const [endForm, setEndForm] = useState({ odometer: "", notes: "" });
+  const [photos, setPhotos] = useState<CheckInPhotoInputDto[]>([]);
+  const [startOdometer, setStartOdometer] = useState<number | null>(null);
+  const [endOdometer, setEndOdometer] = useState<number | null>(null);
+  const [tripCompleted, setTripCompleted] = useState(false);
+  const checkInHistory = useMemo(
+    () => history.filter(isCheckInRecord),
+    [history]
+  );
+
+  const refreshHistory = useCallback(async () => {
+    if (!booking) return;
+    try {
+      const records = await checkInApi.getHistory(booking.id);
+      setHistory(records);
+      setHistoryMessage(
+        `Loaded ${records.length} trip record(s) for booking ${booking.id.slice(
+          0,
+          8
+        )}.`
+      );
+      const lastStart = [...records]
+        .reverse()
+        .find((record) => isCheckOutRecord(record));
+      const lastEnd = [...records]
+        .reverse()
+        .find((record) => isCheckInRecord(record));
+      setStartOdometer(lastStart?.odometer ?? null);
+      setEndOdometer(lastEnd?.odometer ?? null);
+      const hasValidEnd =
+        Boolean(lastEnd) &&
+        (!lastStart ||
+          new Date(lastEnd.checkInTime) >= new Date(lastStart.checkInTime));
+      setTripCompleted(hasValidEnd);
+    } catch (error) {
+      console.error("Unable to load check-in history for checkout", error);
+      setHistoryMessage("Unable to load check-in history.");
+    }
+  }, [booking]);
 
   useEffect(() => {
-    let mounted = true
-    bookingApi
-      .getMyBookings()
-      .then((data) => {
-        if (!mounted) return
-        setLatestBooking(data[0] ?? null)
-        setMessage(data[0] ? `Last booking: ${data[0].vehicleModel}` : 'No bookings found')
-      })
-      .catch((error) => {
-        console.error('Unable to fetch bookings for checkout', error)
-        if (mounted) setMessage('Cannot load bookings from API.')
-      })
-    return () => {
-      mounted = false
+    void refreshHistory();
+  }, [refreshHistory]);
+
+  const convertFilesToPhotos = async (
+    fileList: FileList,
+    existing: CheckInPhotoInputDto[]
+  ) => {
+    const files = Array.from(fileList);
+    const newPhotos = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<CheckInPhotoInputDto>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({
+                photoUrl: reader.result as string,
+                type: PhotoTypeValue.Exterior,
+                description: file.name,
+              });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+    return [...existing, ...newPhotos];
+  };
+
+  const handleLoadBookingById = useCallback(async (id: string) => {
+    if (!id) {
+      setMessage("Enter a booking id before loading.");
+      return;
     }
-  }, [])
+    setLoading(true);
+    setMessage("Loading booking...");
+    setBookingId(id);
+    try {
+      const data = await bookingApi.getBooking(id);
+      setBooking(data);
+      setMessage(`Loaded ${data.vehicleModel}`);
+      setEndForm({ odometer: "", notes: "" });
+      setPhotos([]);
+      setStartOdometer(null);
+      setEndOdometer(null);
+      setTripCompleted(false);
+      setHistory([]);
+      setHistoryMessage(null);
+    } catch (error) {
+      console.error("Failed to load booking for checkout", error);
+      setMessage("Unable to load booking. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const idFromQuery = searchParams.get("bookingId");
+    if (idFromQuery) {
+      setBookingId(idFromQuery);
+      void handleLoadBookingById(idFromQuery);
+    }
+  }, [handleLoadBookingById, searchParams]);
+
+  const handleCompleteTrip = async () => {
+    if (!booking) return;
+    if (!endForm.odometer) {
+      setMessage("Enter an odometer reading before completing the trip.");
+      return;
+    }
+    setMessage("Submitting checkout payload...");
+    try {
+      const odo = Number(endForm.odometer);
+      await checkInApi.endTrip({
+        bookingId: booking.id,
+        odometerReading: odo,
+        notes: endForm.notes || undefined,
+        clientTimestamp: new Date().toISOString(),
+        photos,
+      });
+      await bookingApi.updateVehicleStatus(booking.id, { status: "Available" });
+      if (startOdometer != null && odo > startOdometer) {
+        await bookingApi.updateTripSummary(booking.id, {
+          distanceKm: odo - startOdometer,
+        });
+      }
+      setEndOdometer(odo);
+      setPhotos([]);
+      setTripCompleted(true);
+      const localTimestamp = new Date();
+      setMessage(
+        `Checkout captured at ${localTimestamp.toLocaleString()} (client + server timestamps stored).`
+      );
+      await refreshHistory();
+    } catch (error) {
+      console.error("Checkout failed", error);
+      setMessage("Unable to complete checkout.");
+    }
+  };
+
+  const handleLoadBooking = async () => {
+    if (!bookingId) {
+      setMessage("Enter a booking id before loading.");
+      return;
+    }
+    await handleLoadBookingById(bookingId);
+  };
+
+  const handlePhotoSelection = async (files: FileList) => {
+    const updated = await convertFilesToPhotos(files, photos);
+    setPhotos(updated);
+  };
+
+  const distanceKm = useMemo(() => {
+    if (startOdometer != null && endOdometer != null) {
+      return Math.max(0, endOdometer - startOdometer);
+    }
+    if (booking?.distanceKm != null) {
+      return booking.distanceKm;
+    }
+    return null;
+  }, [booking?.distanceKm, endOdometer, startOdometer]);
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Screen 16</p>
-        <h1 className="text-4xl font-semibold text-slate-50">Vehicle check-out</h1>
-        <p className="text-slate-300">Side by side comparisons and closing summary.</p>
+        <p className="text-xs uppercase tracking-wide text-black">Trip tools</p>
+        <h1 className="text-4xl font-semibold text-black">Vehicle check-out</h1>
+        <p className="text-black">
+          Record ending odometer, upload post-trip photos, and wrap up fees.
+        </p>
       </header>
 
-      {message && <p className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-2 text-xs text-slate-400">{message}</p>}
+      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-black">Select booking</p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+          <input
+            value={bookingId}
+            onChange={(e) => setBookingId(e.target.value)}
+            className="flex-1 rounded-2xl border border-slate-700 bg-amber-50 px-4 py-2 text-sm"
+            placeholder="Enter BookingId (GUID)"
+          />
+          <button
+            type="button"
+            onClick={handleLoadBooking}
+            className="rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Load booking"}
+          </button>
+        </div>
+        {message && <p className="mt-2 text-xs text-black">{message}</p>}
+        {booking && (
+          <p className="mt-1 text-xs text-black">
+            Vehicle: {booking.vehicleModel} ·{" "}
+            {new Date(booking.endAt).toLocaleString()}
+          </p>
+        )}
+      </div>
+      {historyMessage && <p className="text-xs text-black">{historyMessage}</p>}
 
-      <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
-        <div className="grid gap-4 text-sm text-slate-300 md:grid-cols-4">
-          {['Scan QR', 'Photos', 'Odometer', 'Battery'].map((step) => (
-            <span key={step} className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-emerald-100">
-              {step} done
-            </span>
-          ))}
+      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="grid gap-4 text-sm text-black md:grid-cols-4">
+          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+            <p className="text-xs uppercase text-black">Start odometer</p>
+            <p className="text-xl font-semibold text-black">
+              {startOdometer ?? "--"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+            <p className="text-xs uppercase text-black">End odometer</p>
+            <p className="text-xl font-semibold text-black">
+              {endOdometer ?? "--"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+            <p className="text-xs uppercase text-black">Distance (km)</p>
+            <p className="text-xl font-semibold text-black">
+              {distanceKm ?? "--"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+            <p className="text-xs uppercase text-black">Trip fee</p>
+            <p className="text-xl font-semibold text-black">
+              {booking ? `$${booking.tripFeeAmount.toFixed(2)}` : "--"}
+            </p>
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {Object.entries(summary).map(([key, value]) => (
-            <div key={key} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <p className="text-sm uppercase text-slate-500">{key === 'mileage' ? 'Distance' : 'Battery'}</p>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-300">
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                  <p className="text-xs text-slate-500">Before</p>
-                  <p className="text-lg font-semibold text-slate-100">{value.start}</p>
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                  <p className="text-xs text-slate-500">After</p>
-                  <p className="text-lg font-semibold text-slate-100">{value.end}</p>
-                </div>
-              </div>
-              <p className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                key === 'mileage' ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'
-              }`}>
-                {value.delta}
+        <div className="mt-6">
+          <TripStageCard
+            title="Check-out xe"
+            subtitle="Hoàn tất chuyến đi và trả xe về trạng thái Available"
+            odometerLabel="Ending odometer (km)"
+            notesLabel="Ghi chú sau chuyến"
+            notesPlaceholder="Tình trạng pin, vệ sinh, hư hỏng..."
+            form={endForm}
+            onChange={(field, value) =>
+              setEndForm((prev) => ({ ...prev, [field]: value }))
+            }
+            photos={photos}
+            onFilesSelected={handlePhotoSelection}
+            onRemovePhoto={(index) =>
+              setPhotos((prev) => prev.filter((_, idx) => idx !== index))
+            }
+            buttonLabel={
+              tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"
+            }
+            onSubmit={handleCompleteTrip}
+            disabled={!booking || tripCompleted}
+            footerSlot={
+              <p className="text-xs text-black/80">
+                Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
+                thái xe và chi phí quãng đường.
               </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-sm font-semibold text-slate-200">Cost summary</p>
-          <div className="mt-3 grid gap-4 text-sm text-slate-300 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-              <p className="text-xs text-slate-500">Distance</p>
-              <p className="text-xl font-semibold text-slate-100">364 km</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-              <p className="text-xs text-slate-500">Energy</p>
-              <p className="text-xl font-semibold text-slate-100">74 kWh</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-              <p className="text-xs text-slate-500">Estimate</p>
-              <p className="text-xl font-semibold text-slate-100">$63.40</p>
-            </div>
-          </div>
-        </div>
-
-        <label className="mt-6 block text-sm text-slate-300">
-          <span>Issue report (optional)</span>
-          <textarea rows={4} className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3" placeholder="Example: small scratch on rear door" />
-        </label>
-
-        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-300 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase text-slate-500">Wrap up</p>
-            <p className="text-lg font-semibold text-slate-100">Ready to submit check-out</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" className="rounded-2xl border border-slate-700 px-4 py-2 text-slate-200">
-              Save draft
-            </button>
-            <button type="button" className="rounded-2xl bg-brand px-6 py-2 text-slate-950 font-semibold">
-              Confirm return
-            </button>
-          </div>
+            }
+          />
         </div>
       </div>
-    </section>
-  )
-}
 
-export default CheckOut
+      {booking && (
+        <HistoryTable title="Check-in history" records={checkInHistory} />
+      )}
+    </section>
+  );
+};
+
+export default CheckOut;

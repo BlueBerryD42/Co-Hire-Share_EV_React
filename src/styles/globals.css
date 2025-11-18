@@ -84,6 +84,165 @@
     transform: translateY(-1px);
   }
 
+  .btn-accent {
+    background-color: var(--accent-blue);
+    color: var(--neutral-50);
+    border-radius: var(--radius-md);
+    padding: 0.65rem 1.25rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(122, 154, 175, 0.25);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .btn-accent:hover {
+    background-color: #6c8aa0;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background-color: var(--neutral-50);
+    border: 1.5px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    color: var(--neutral-700);
+    padding: 0.65rem 1.25rem;
+    font-weight: 600;
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--neutral-400);
+    color: var(--neutral-800);
+    background-color: var(--neutral-100);
+  }
+
+  .booking-panel {
+    background-color: var(--neutral-100);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .ds-input {
+    background-color: var(--neutral-50);
+    border: 1.5px solid var(--neutral-200);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.85rem;
+    color: var(--neutral-700);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .ds-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(122, 154, 175, 0.15);
+    outline: none;
+  }
+
+  .ds-input::placeholder {
+    color: var(--neutral-400);
+  }
+
+  .booking-table {
+    width: 100%;
+    border-spacing: 0;
+  }
+
+  .booking-table thead {
+    background-color: var(--neutral-50);
+  }
+
+  .booking-table th {
+    color: var(--neutral-600);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .booking-table td {
+    color: var(--neutral-700);
+    padding: 1rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.9rem;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-warning {
+    background-color: rgba(212, 165, 116, 0.18);
+    border-color: rgba(212, 165, 116, 0.45);
+    color: #6f4f2f;
+  }
+
+  .badge-success {
+    background-color: rgba(122, 155, 118, 0.2);
+    border-color: rgba(122, 155, 118, 0.5);
+    color: #2f4e34;
+  }
+
+  .badge-primary {
+    background-color: rgba(122, 154, 175, 0.18);
+    border-color: rgba(122, 154, 175, 0.45);
+    color: #324554;
+  }
+
+  .badge-neutral {
+    background-color: rgba(217, 207, 197, 0.35);
+    border-color: rgba(214, 204, 194, 0.7);
+    color: var(--neutral-700);
+  }
+
+  .badge-error {
+    background-color: rgba(184, 125, 111, 0.2);
+    border-color: rgba(184, 125, 111, 0.5);
+    color: #6d322a;
+  }
+
+  .action-chip {
+    background-color: var(--neutral-50);
+    border: 1.5px solid var(--neutral-200);
+    border-radius: var(--radius-full);
+    color: var(--neutral-700);
+    padding: 0.35rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .action-chip:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+  }
+
+  .action-chip--danger {
+    border-color: rgba(184, 125, 111, 0.4);
+    color: var(--accent-terracotta);
+    background-color: rgba(184, 125, 111, 0.1);
+  }
+
+  .action-chip--danger:hover {
+    border-color: rgba(184, 125, 111, 0.7);
+    background-color: rgba(184, 125, 111, 0.18);
+    color: #6d322a;
+  }
+
+  .action-chip:disabled,
+  .action-chip[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--neutral-200);
+    color: var(--neutral-500);
+    background-color: var(--neutral-100);
+  }
+
   .surface {
     background-color: var(--neutral-100);
     border-radius: var(--radius-lg);
