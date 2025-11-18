@@ -62,14 +62,12 @@ const GroupHub = () => {
   ]
 
   return (
-    <section className="mx-auto max-w-6xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-3">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Group squad</p>
-        <h1 className="text-4xl font-semibold text-neutral-900">Trung tâm trải nghiệm nhóm</h1>
+        <h1 className="text-4xl font-semibold text-neutral-900">Quản lý nhóm</h1>
         <p className="max-w-3xl text-neutral-600">
-          Tổng hợp mọi màn hình thuộc phạm vi Quân: quản lý nhóm, marketplace, hồ sơ ứng tuyển và
-          message center. Điểm truy cập nhanh giúp bạn chuyển qua lại giữa nhóm của mình và các nhóm
-          khác trong hệ sinh thái.
+          Quản lý nhóm đồng sở hữu, khám phá marketplace, và tương tác với các thành viên. 
+          Tất cả công cụ bạn cần để điều phối và phát triển nhóm của mình.
         </p>
       </header>
 

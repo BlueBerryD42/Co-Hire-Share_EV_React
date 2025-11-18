@@ -45,7 +45,7 @@ const JoinGroupApplication = () => {
 
   if (!groupId) {
     return (
-      <section className="mx-auto max-w-3xl space-y-4 p-6 text-center">
+      <section className="space-y-4 text-center">
         <p className="text-lg font-semibold text-accent-terracotta">Thiếu tham số nhóm.</p>
       </section>
     )
@@ -72,9 +72,8 @@ const JoinGroupApplication = () => {
   }
 
   return (
-    <section className="mx-auto max-w-4xl space-y-8 p-6">
+    <section className="space-y-8">
       <header className="space-y-2">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Screen 42 · Join group</p>
         <h1 className="text-4xl font-semibold text-neutral-900">Ứng tuyển vào nhóm</h1>
         <p className="text-neutral-600">
           Cung cấp thông tin rõ ràng để admin có thể đánh giá nhanh hồ sơ của bạn. Mọi yêu cầu sẽ
