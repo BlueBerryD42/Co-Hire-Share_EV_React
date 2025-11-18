@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { bookingApi } from '@/services/booking/api'
-import { damageReportsApi } from '@/services/booking/damageReports'
 import type { BookingDto } from '@/models/booking'
-import type { DamageReportDto } from '@/models/bookingExtras'
 
 const categories = [
   { value: 'damage', label: 'Vehicle damage' },
@@ -19,7 +18,7 @@ const priorities = ['Low', 'Medium', 'High', 'Urgent']
 const ReportIssue = () => {
   const [bookings, setBookings] = useState<BookingDto[]>([])
   const [selectedBookingId, setSelectedBookingId] = useState<string>('')
-  const [damageReports, setDamageReports] = useState<DamageReportDto[]>([])
+  const [existingDamageMessage, setExistingDamageMessage] = useState<string>('Select a booking to review.')
 
   useEffect(() => {
     let mounted = true
@@ -37,32 +36,26 @@ const ReportIssue = () => {
   }, [])
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Screen 40</p>
-        <h1 className="text-4xl font-semibold text-slate-50">Report issue</h1>
-        <p className="text-slate-300">Wizard style form with visual categories and preview.</p>
+        <p className="text-xs uppercase tracking-wide text-black">Screen 40</p>
+        <h1 className="text-4xl font-semibold text-black">Report issue</h1>
+        <p className="text-black">Wizard style form with visual categories and preview.</p>
       </header>
 
-      <form className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-8">
-        <label className="space-y-2 text-sm text-slate-300">
+      <form className="space-y-6 rounded-3xl border border-slate-800 bg-amber-50 p-8">
+        <label className="space-y-2 text-sm text-black">
           <span>Related to</span>
           <select
-            className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3"
+            className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
             value={selectedBookingId}
             onChange={(event) => {
               const bookingId = event.target.value
               setSelectedBookingId(bookingId)
               if (bookingId) {
-                damageReportsApi
-                  .getByBooking(bookingId)
-                  .then(setDamageReports)
-                  .catch((error) => {
-                    console.error('Unable to load damage reports', error)
-                    setDamageReports([])
-                  })
+                setExistingDamageMessage('Damage report APIs were removed from Booking service.')
               } else {
-                setDamageReports([])
+                setExistingDamageMessage('Select a booking to review.')
               }
             }}
           >
@@ -76,13 +69,13 @@ const ReportIssue = () => {
         </label>
 
         <div className="space-y-3">
-          <span className="text-sm font-semibold text-slate-200">Category</span>
+          <span className="text-sm font-semibold text-black">Category</span>
           <div className="grid gap-3 sm:grid-cols-2">
             {categories.map((category) => (
               <button
                 type="button"
                 key={category.value}
-                className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-left text-sm text-slate-300 hover:border-brand/40"
+                className="rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 text-left text-sm text-black hover:border-brand/40"
               >
                 {category.label}
               </button>
@@ -91,14 +84,14 @@ const ReportIssue = () => {
         </div>
 
         <div className="space-y-3">
-          <span className="text-sm font-semibold text-slate-200">Priority</span>
+          <span className="text-sm font-semibold text-black">Priority</span>
           <div className="flex flex-wrap gap-3">
             {priorities.map((priority) => (
               <button
                 key={priority}
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                  priority === 'High' ? 'bg-rose-500/20 text-rose-200' : 'bg-slate-900 text-slate-400'
+                  priority === 'High' ? 'bg-amber-50 text-black' : 'bg-amber-50 text-black'
                 }`}
               >
                 {priority}
@@ -107,16 +100,16 @@ const ReportIssue = () => {
           </div>
         </div>
 
-        <label className="space-y-2 text-sm text-slate-300">
+        <label className="space-y-2 text-sm text-black">
           <span>Description (min 20 characters)</span>
-          <textarea rows={5} className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3" placeholder="Describe the incident in detail" />
+          <textarea rows={5} className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3" placeholder="Describe the incident in detail" />
         </label>
 
-        <div className="space-y-2 text-sm text-slate-300">
+        <div className="space-y-2 text-sm text-black">
           <span>Attachments</span>
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3].map((slot) => (
-              <div key={slot} className="flex min-h-[90px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 text-xs text-slate-500">
+              <div key={slot} className="flex min-h-[90px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-amber-50 text-xs text-black">
                 <span>Photo {slot}</span>
                 <button type="button" className="mt-2 rounded-full border border-slate-700 px-3 py-1">
                   Upload
@@ -126,41 +119,43 @@ const ReportIssue = () => {
           </div>
         </div>
 
-        <label className="space-y-2 text-sm text-slate-300">
+        <label className="space-y-2 text-sm text-black">
           <span>Contact preference</span>
-          <select className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
+          <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
             <option>Email</option>
             <option>Phone</option>
             <option>In-app</option>
           </select>
         </label>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-          <p className="text-xs uppercase text-slate-500">Preview</p>
-          <p className="text-lg font-semibold text-slate-100">Issue ID AI-0451</p>
+        <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+          <p className="text-xs uppercase text-black">Preview</p>
+          <p className="text-lg font-semibold text-black">Issue ID AI-0451</p>
           <p>Expected response: under 2h.</p>
         </div>
 
-        {damageReports.length > 0 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
-            <p className="text-xs uppercase text-slate-500">Existing damage reports</p>
-            {damageReports.map((report) => (
-              <p key={report.id}>
-                {report.severity} · {report.description.slice(0, 40)}
-              </p>
-            ))}
-          </div>
-        )}
+        <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+          <p className="text-xs uppercase text-black">Existing damage reports</p>
+          <p>{existingDamageMessage}</p>
+        </div>
 
         <div className="flex flex-wrap gap-3">
-          <button type="button" className="rounded-2xl border border-slate-700 px-6 py-3 text-slate-200">
+          <button type="button" className="rounded-2xl border border-slate-700 px-6 py-3 text-black">
             Save draft
           </button>
-          <button type="submit" className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-slate-950">
+          <button type="submit" className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-black">
             Submit issue
           </button>
         </div>
       </form>
+      <div className="flex flex-wrap gap-3 text-sm text-black">
+        <Link to="/booking/expenses" className="rounded-2xl bg-brand px-5 py-2 text-black font-semibold">
+          Next: Expenses & Payments (Screen 18)
+        </Link>
+        <Link to="/booking/trip-history" className="rounded-2xl border border-slate-700 px-5 py-2">
+          Back to Trip History
+        </Link>
+      </div>
     </section>
   )
 }

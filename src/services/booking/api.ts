@@ -9,6 +9,8 @@ import {
   type CreateBookingDto,
   type DateRangeQuery,
   type SuggestionsQuery,
+  type UpdateTripSummaryDto,
+  type UpdateVehicleStatusDto,
   type VehicleRangeQuery,
 } from "@/models/booking";
 
@@ -76,6 +78,26 @@ export const bookingApi = {
   cancelBooking: async (bookingId: string, payload: CancelBookingDto) => {
     const { data } = await http.post<BookingDto>(
       `/${bookingId}/cancel`,
+      payload
+    );
+    return data;
+  },
+  updateVehicleStatus: async (
+    bookingId: string,
+    payload: UpdateVehicleStatusDto
+  ) => {
+    const { data } = await http.patch<BookingDto>(
+      `/${bookingId}/vehicle-status`,
+      payload
+    );
+    return data;
+  },
+  updateTripSummary: async (
+    bookingId: string,
+    payload: UpdateTripSummaryDto
+  ) => {
+    const { data } = await http.patch<BookingDto>(
+      `/${bookingId}/trip-summary`,
       payload
     );
     return data;

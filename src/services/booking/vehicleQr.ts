@@ -1,5 +1,5 @@
 import { createApiClient } from '@/services/api'
-import type { VehicleQrCodeResponseDto } from '@/models/bookingExtras'
+import type { VehicleQrCodeResponseDto } from '@/models/booking'
 
 const http = createApiClient('/api/vehicle')
 

@@ -10,7 +10,7 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Pricing', href: '/#pricing', type: 'anchor' },
   { label: 'Contact', href: '/#contact', type: 'anchor' },
   { label: 'Vehicles', href: '/vehicles', type: 'route' },
-  { label: 'Booking Suite', href: '/booking', type: 'route' },
+  { label: 'Booking Suite', href: '/booking/calendar', type: 'route' },
   { label: 'Group Suite', href: '/groups', type: 'route' },
   { label: 'Marketplace', href: '/groups/marketplace', type: 'route' },
   { label: 'Create Group', href: '/groups/create', type: 'route' },
