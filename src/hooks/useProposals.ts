@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProposalDetailsDto, ProposalListDto } from '@/models/proposal'
 import type { UUID } from '@/models/booking'
 import { proposalApi, type ProposalListFilters } from '@/services/group/proposals'
@@ -16,16 +16,28 @@ export const useProposals = (groupId?: UUID, filters: ProposalListFilters = {}) 
     error: null,
   })
 
+  // Store filters in ref to avoid stale closures
+  const filtersRef = useRef(filters)
+  
+  // Create a stable key from filter properties (status is the only property)
+  const filtersKey = filters.status ?? ''
+  
+  // Update ref when filters change
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+
   const load = useCallback(async () => {
     if (!groupId) return
     setState((prev) => ({ ...prev, loading: true, error: null }))
     try {
-      const data = await proposalApi.getByGroup(groupId, filters)
+      // Use ref to get latest filters value
+      const data = await proposalApi.getByGroup(groupId, filtersRef.current)
       setState({ data, loading: false, error: null })
     } catch (error) {
       setState({ data: null, loading: false, error: error as Error })
     }
-  }, [filters, groupId])
+  }, [groupId, filtersKey])
 
   useEffect(() => {
     void load()
