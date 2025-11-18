@@ -24,15 +24,43 @@ export const buildGatewayUrl = (pathPrefix = '/api') => {
 }
 
 const attachInterceptors = (client: AxiosInstance) => {
+  // Public endpoints that don't require authentication
+  const publicEndpoints = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/confirm-email',
+    '/resend-confirmation',
+    '/refresh',
+  ]
+  
+  const isPublicEndpoint = (url: string | undefined): boolean => {
+    if (!url) return false
+    return publicEndpoints.some(endpoint => url.includes(endpoint))
+  }
+
   // Request interceptor - thêm token vào header
   client.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-      const token =
-        Cookies.get('auth_token') || localStorage.getItem('accessToken')
+      const cookieToken = Cookies.get('auth_token')
+      const localStorageToken = localStorage.getItem('accessToken')
+      const token = cookieToken || localStorageToken
+      
+      // Skip token check for public endpoints
+      if (isPublicEndpoint(config.url)) {
+        return config
+      }
+      
       if (token) {
         config.headers = config.headers ?? {}
         config.headers.Authorization = `Bearer ${token}`
-        console.log('Adding token to request:', config.url)
+        console.log('✓ Adding Authorization header to request:', config.url)
+      } else {
+        // Only warn for protected endpoints that need authentication
+        console.warn('⚠ No token found for protected endpoint:', config.url)
+        console.warn('  Cookie token:', cookieToken ? 'Found' : 'Not found')
+        console.warn('  LocalStorage token:', localStorageToken ? 'Found' : 'Not found')
       }
       return config
     },
@@ -46,9 +74,12 @@ const attachInterceptors = (client: AxiosInstance) => {
       // Xử lý lỗi 401 - Unauthorized
       if (error.response?.status === 401) {
         console.error('401 Unauthorized - Clearing tokens and redirecting to login')
+        console.error('  Request URL:', error.config?.url)
+        console.error('  Request headers:', error.config?.headers)
         Cookies.remove('auth_token')
         Cookies.remove('refresh_token')
         localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
         if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
           window.location.href = '/login'
         }
