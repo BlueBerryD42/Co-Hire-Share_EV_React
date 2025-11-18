@@ -1,5 +1,5 @@
 import { Outlet, useParams, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import {
   Groups,
   Message,
@@ -28,6 +28,13 @@ const GroupLayout = () => {
   }, [urlGroupId, groups])
 
   const currentGroup = groups?.find((g) => g.id === activeGroupId)
+
+  // Debug: Log groups when they change
+  useEffect(() => {
+    if (groups) {
+      console.log('[GroupLayout] Groups loaded:', groups.length, groups.map(g => ({ id: g.id, name: g.name })))
+    }
+  }, [groups])
 
   const groupNavItems = activeGroupId
     ? [
@@ -85,7 +92,7 @@ const GroupLayout = () => {
     <div className="mx-auto flex max-w-7xl gap-6">
       {/* Sidebar Navigation */}
       <aside className="hidden w-64 shrink-0 lg:block pt-6">
-        <nav className="sticky top-6 space-y-2 rounded-2xl bg-white border border-neutral-200 p-4">
+        <nav className="sticky top-6 space-y-2 rounded-2xl bg-white border border-neutral-200 p-4 overflow-y-auto max-h-[calc(100vh-3rem)]">
           {/* Global Group Navigation */}
           <div className="mb-6">
             <h3 className="mb-3 px-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -118,9 +125,9 @@ const GroupLayout = () => {
           {!groupsLoading && groups && groups.length > 0 && (
             <div className="mb-6">
               <h3 className="mb-3 px-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Chọn nhóm
+                Chọn nhóm ({groups.length})
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-96 overflow-y-auto">
                 {groups.map((group) => {
                   const isSelected = group.id === activeGroupId
                   return (
