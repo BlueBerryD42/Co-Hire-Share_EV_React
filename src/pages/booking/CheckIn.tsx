@@ -13,11 +13,18 @@ import type { VehicleStatus } from "@/models/vehicle";
 
 const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
 
+const normalizeCheckRecordType = (type: CheckInDto["type"] | number) => {
+  if (typeof type === "number") {
+    return type === 0 ? "CheckOut" : "CheckIn";
+  }
+  return type;
+};
+
 const isCheckOutRecord = (record: CheckInDto) =>
-  record.type === 0 || record.type === "CheckOut";
+  normalizeCheckRecordType(record.type) === "CheckOut";
 
 const isCheckInRecord = (record: CheckInDto) =>
-  record.type === 1 || record.type === "CheckIn";
+  normalizeCheckRecordType(record.type) === "CheckIn";
 
 const HistoryTable = ({
   title,
@@ -89,10 +96,13 @@ const CheckIn = () => {
         .reverse()
         .find((record) => isCheckInRecord(record));
 
-      const hasOpenTrip =
-        Boolean(lastStart) &&
-        (!lastEnd ||
-          new Date(lastEnd.checkInTime) < new Date(lastStart.checkInTime));
+      let hasOpenTrip = false;
+      if (lastStart) {
+        const lastEndBeforeStart =
+          !lastEnd ||
+          new Date(lastEnd.checkInTime) < new Date(lastStart.checkInTime);
+        hasOpenTrip = lastEndBeforeStart;
+      }
       setTripStarted(hasOpenTrip);
     } catch (error) {
       console.error("Failed to load check-in history", error);
@@ -188,7 +198,6 @@ const CheckIn = () => {
       });
       await updateVehicleStatus("InUse");
       setTripStarted(true);
-      setLastStartOdometer(odo);
       setStartPhotos([]);
       setMessage(
         `Đã check-in lúc ${new Date().toLocaleString()} (ghi nhận cả phía FE lẫn BE).`

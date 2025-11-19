@@ -1,32 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { bookingApi } from '@/services/booking/api'
 import type { BookingDto } from '@/models/booking'
 
-type ExpenseStatus = 'Paid' | 'Pending' | 'Overdue'
-
-const summaryCards = [
-  { label: 'Total expenses (month)', value: '$1,245', sub: '+12% vs last month' },
-  { label: 'Your share', value: '$312', sub: '3 items pending' },
-  { label: 'Pending payments', value: '$148', sub: '2 overdue' },
-]
-
-const expenses: { id: string; date: string; category: string; amount: string; share: string; status: ExpenseStatus }[] = [
-  { id: 'EXP-2301', date: '12 Mar', category: 'Charging', amount: '$32.10', share: '$8.02', status: 'Pending' },
-  { id: 'EXP-2288', date: '10 Mar', category: 'Maintenance', amount: '$240.00', share: '$60.00', status: 'Paid' },
-  { id: 'EXP-2274', date: '04 Mar', category: 'Insurance', amount: '$530.00', share: '$132.50', status: 'Pending' },
-]
-
-const statusStyles: Record<ExpenseStatus, string> = {
-  Paid: 'bg-amber-50 text-black',
-  Pending: 'bg-amber-50 text-black',
-  Overdue: 'bg-amber-50 text-black',
+const statusStyles: Record<BookingDto['status'], string> = {
+  Pending: 'bg-amber-50 text-black border border-slate-800',
+  PendingApproval: 'bg-amber-50 text-black border border-slate-800',
+  Confirmed: 'bg-amber-50 text-black border border-slate-800',
+  InProgress: 'bg-amber-50 text-black border border-emerald-500/40',
+  Completed: 'bg-amber-50 text-black border border-slate-800',
+  Cancelled: 'bg-amber-50 text-black border border-rose-500/40',
+  NoShow: 'bg-amber-50 text-black border border-rose-500/40',
 }
+
+const formatCurrency = (value?: number | null) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A'
+  return `$${value.toFixed(2)}`
+}
+
+const formatDateLabel = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleDateString('vi-VN', {
+        month: 'short',
+        day: 'numeric',
+      })
+    : 'N/A'
 
 const ExpensesPayments = () => {
   const [bookings, setBookings] = useState<BookingDto[]>([])
   const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
-  const [lateFeeMessage] = useState<string>('Late return fee API unavailable in current backend.')
 
   useEffect(() => {
     let mounted = true
@@ -34,19 +36,57 @@ const ExpensesPayments = () => {
     bookingApi
       .getMyBookings()
       .then((data) => {
-        if (mounted) {
-          setBookings(data)
-          setApiStatus('loaded')
-        }
+        if (!mounted) return
+        setBookings(Array.isArray(data) ? data : [])
+        setApiStatus('loaded')
       })
       .catch((error) => {
         console.error('Failed to fetch bookings for expenses', error)
-        if (mounted) setApiStatus('error')
+        if (mounted) {
+          setBookings([])
+          setApiStatus('error')
+        }
       })
     return () => {
       mounted = false
     }
   }, [])
+
+  const totalTripFee = useMemo(
+    () => bookings.reduce((sum, booking) => sum + (booking.tripFeeAmount ?? 0), 0),
+    [bookings],
+  )
+  const pendingCount = useMemo(
+    () =>
+      bookings.filter(
+        (booking) => booking.status === 'Pending' || booking.status === 'PendingApproval',
+      ).length,
+    [bookings],
+  )
+  const activeCount = useMemo(
+    () => bookings.filter((booking) => booking.status === 'InProgress').length,
+    [bookings],
+  )
+
+  const summaryCards = [
+    {
+      label: 'Total trip fee',
+      value: formatCurrency(totalTripFee),
+      sub: `${bookings.length} booking${bookings.length === 1 ? '' : 's'}`,
+    },
+    {
+      label: 'Pending approvals',
+      value: `${pendingCount}`,
+      sub: 'Awaiting confirmation',
+    },
+    {
+      label: 'Active trips',
+      value: `${activeCount}`,
+      sub: 'Currently in progress',
+    },
+  ]
+
+  const lateFeeMessage = 'Late return fee data requires the finance API and is not yet available.'
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
@@ -72,6 +112,7 @@ const ExpensesPayments = () => {
           <p className="text-sm text-black">From /api/booking/my-bookings</p>
         </div>
       </div>
+
       <div className="rounded-2xl border border-slate-800 bg-amber-50 p-5 text-sm text-black">
         <p className="text-xs uppercase text-black">Late return fees</p>
         <p>{lateFeeMessage}</p>
@@ -94,33 +135,46 @@ const ExpensesPayments = () => {
         <div className="grid grid-cols-5 gap-4 border-b border-slate-800 px-6 py-4 text-xs uppercase tracking-wide text-black">
           <span>ID</span>
           <span>Date</span>
-          <span>Category</span>
-          <span>Total and share</span>
+          <span>Vehicle</span>
+          <span>Total</span>
           <span>Status</span>
         </div>
-        {expenses.map((expense) => (
-          <div key={expense.id} className="grid grid-cols-5 gap-4 border-b border-slate-900 px-6 py-4 text-sm text-black">
-            <span className="font-semibold">{expense.id}</span>
-            <span>{expense.date}</span>
-            <span>{expense.category}</span>
-            <span>
-              {expense.amount}
-              <span className="block text-xs text-black">Your share {expense.share}</span>
-            </span>
-            <span
-              className={`inline-flex h-fit w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                statusStyles[expense.status]
-              }`}
-            >
-              {expense.status}
-            </span>
+        {bookings.length === 0 ? (
+          <div className="px-6 py-4 text-sm text-black">
+            {apiStatus === 'loading'
+              ? 'Loading bookings from /api/booking/my-bookings...'
+              : 'No expense data available.'}
           </div>
-        ))}
+        ) : (
+          bookings.map((booking) => (
+            <div
+              key={booking.id}
+              className="grid grid-cols-5 gap-4 border-b border-slate-900 px-6 py-4 text-sm text-black"
+            >
+              <span className="font-semibold">{booking.id.slice(0, 8)}</span>
+              <span>{formatDateLabel(booking.startAt)}</span>
+              <span>{booking.vehicleModel}</span>
+              <span>
+                {formatCurrency(booking.tripFeeAmount)}
+                <span className="block text-xs text-black">
+                  Start {formatDateLabel(booking.startAt)}
+                </span>
+              </span>
+              <span
+                className={`inline-flex h-fit w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                  statusStyles[booking.status]
+                }`}
+              >
+                {booking.status}
+              </span>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm">
         <button type="button" className="rounded-2xl bg-brand px-6 py-3 font-semibold text-black">
-          Pay pending (2)
+          Pay pending
         </button>
         <button type="button" className="rounded-2xl border border-slate-800 px-6 py-3 text-black">
           Export PDF

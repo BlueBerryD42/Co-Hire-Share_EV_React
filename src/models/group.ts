@@ -29,6 +29,7 @@ export interface GroupVehicleDto {
   groupName?: string | null
   lastServiceDate?: ISODate | null
   createdAt: ISODate
+  updatedAt?: ISODate
 }
 
 export interface GroupDto {

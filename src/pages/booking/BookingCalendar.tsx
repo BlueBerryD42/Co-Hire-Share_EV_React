@@ -87,37 +87,37 @@ const expandBookingDates = (booking: BookingDto) => {
 const getVehicleOwner = (booking: BookingDto) =>
   `${booking.userFirstName} ${booking.userLastName}`;
 
-const isInactiveStatus = (status: BookingDto['status']) => {
-  if (typeof status === 'number') {
-    return status === 4 || status === 5
+const isInactiveStatus = (status: BookingDto["status"]) => {
+  if (typeof status === "number") {
+    return status === 4 || status === 5;
   }
-  return status === 'Completed' || status === 'Cancelled'
-}
+  return status === "Completed" || status === "Cancelled";
+};
 
-const formatHistoryOdometer = (value?: number | null) =>
-  typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
+// const formatHistoryOdometer = (value?: number | null) =>
+//   typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
 
-const formatHistoryTime = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        day: "2-digit",
-        month: "short",
-      })
-    : "Chưa có";
+// const formatHistoryTime = (iso?: string) =>
+//   iso
+//     ? new Date(iso).toLocaleString("vi-VN", {
+//         hour: "2-digit",
+//         minute: "2-digit",
+//         day: "2-digit",
+//         month: "short",
+//       })
+//     : "Chưa có";
 
-const getLatestCheckRecordForCalendar = (
-  records: CheckInDto[],
-  type: CheckInDto["type"]
-) =>
-  [...records]
-    .filter((record) => record.type === type)
-    .sort(
-      (a, b) =>
-        new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime()
-    )
-    .pop();
+// const getLatestCheckRecordForCalendar = (
+//   records: CheckInDto[],
+//   type: CheckInDto["type"]
+// ) =>
+//   [...records]
+//     .filter((record) => record.type === type)
+//     .sort(
+//       (a, b) =>
+//         new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime()
+//     )
+//     .pop();
 
 const BookingCalendar = () => {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
@@ -128,11 +128,7 @@ const BookingCalendar = () => {
   const [vehicleId, setVehicleId] = useState<string>("");
   const [calendarData, setCalendarData] =
     useState<BookingCalendarResponse | null>(null);
-  const [loadingCalendar, setLoadingCalendar] = useState<boolean>(false);
   const [myBookings, setMyBookings] = useState<BookingDto[]>([]);
-  const [bookingStatus, setBookingStatus] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
   const [selectedBooking, setSelectedBooking] = useState<BookingDto | null>(
     null
   );
@@ -158,25 +154,29 @@ const BookingCalendar = () => {
   useEffect(() => {
     let cancelled = false;
     const loadBookings = () => {
-      setBookingStatus("loading");
       bookingApi
         .getMyBookings()
         .then((data) => {
           if (cancelled) return;
           setMyBookings(data);
           if (data.length > 0) {
-            setSelectedBooking((previous) => previous ?? data[0]);
-            setSelectedDate(
-              (previous) => previous ?? data[0].startAt.slice(0, 10)
-            );
             setVehicleId((prev) => prev || data[0].vehicleId);
           }
-          setBookingStatus("idle");
+          setSelectedBooking((previous) =>
+            previous && data.some((booking) => booking.id === previous.id)
+              ? previous
+              : null
+          );
+          setSelectedDate((previous) =>
+            previous &&
+            data.some((booking) => booking.startAt.slice(0, 10) === previous)
+              ? previous
+              : null
+          );
         })
         .catch((error) => {
           if (cancelled) return;
           console.error("BookingCalendar: unable to fetch bookings", error);
-          setBookingStatus("error");
         });
     };
 
@@ -193,7 +193,6 @@ const BookingCalendar = () => {
     let cancelled = false;
 
     const loadCalendar = () => {
-      setLoadingCalendar(true);
       bookingApi
         .getCalendar(vehicleId, currentMonthStartIso)
         .then((data) => {
@@ -201,9 +200,6 @@ const BookingCalendar = () => {
         })
         .catch((error) => {
           if (!cancelled) console.error("Failed to load calendar", error);
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingCalendar(false);
         });
     };
 
@@ -273,16 +269,17 @@ const BookingCalendar = () => {
     ? eventsByDate[selectedDate] ?? []
     : [];
 
-  const selectedHistoryMeta = selectedBooking
-    ? checkInHistory[selectedBooking.id]
-    : undefined;
+  // const selectedHistoryMeta = selectedBooking
+  //   ? checkInHistory[selectedBooking.id]
+  //   : undefined;
 
   useEffect(() => {
     if (!selectedBooking) return;
     const bookingId = selectedBooking.id;
+    const historyMeta = checkInHistory[bookingId];
     if (
-      selectedHistoryMeta?.status === "loading" ||
-      (selectedHistoryMeta && selectedHistoryMeta.records.length > 0)
+      historyMeta?.status === "loading" ||
+      (historyMeta && historyMeta.records.length > 0)
     ) {
       return;
     }
@@ -305,7 +302,10 @@ const BookingCalendar = () => {
         }
       })
       .catch((error) => {
-        console.error("BookingCalendar: unable to fetch check-in history", error);
+        console.error(
+          "BookingCalendar: unable to fetch check-in history",
+          error
+        );
         if (!cancelled) {
           setCheckInHistory((prev) => ({
             ...prev,
@@ -316,37 +316,33 @@ const BookingCalendar = () => {
     return () => {
       cancelled = true;
     };
-  }, [
-    selectedBooking,
-    selectedHistoryMeta?.records.length,
-    selectedHistoryMeta?.status,
-  ]);
+  }, [selectedBooking, selectedBooking?.id, checkInHistory]);
 
-  const selectedCheckIns = selectedHistoryMeta?.records ?? [];
-  const historyStatus =
-    selectedHistoryMeta?.status ?? (selectedBooking ? "loading" : "idle");
-  const latestCheckOut = getLatestCheckRecordForCalendar(
-    selectedCheckIns,
-    "CheckOut"
-  );
-  const latestCheckIn = getLatestCheckRecordForCalendar(
-    selectedCheckIns,
-    "CheckIn"
-  );
+  // const selectedCheckIns = selectedHistoryMeta?.records ?? [];
+  // const historyStatus =
+  //   selectedHistoryMeta?.status ?? (selectedBooking ? "loading" : "idle");
+  // const latestCheckOut = getLatestCheckRecordForCalendar(
+  //   selectedCheckIns,
+  //   "CheckOut"
+  // );
+  // const latestCheckIn = getLatestCheckRecordForCalendar(
+  //   selectedCheckIns,
+  //   "CheckIn"
+  // );
 
-  const renderCheckSummary = (label: string, record?: CheckInDto) => (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-      <p className="text-xs uppercase text-black">{label}</p>
-      {record ? (
-        <>
-          <p>Odo {formatHistoryOdometer(record.odometer)}</p>
-          <p>{formatHistoryTime(record.checkInTime)}</p>
-        </>
-      ) : (
-        <p className="text-sm text-black">Chưa có dữ liệu</p>
-      )}
-    </div>
-  );
+  // const renderCheckSummary = (label: string, record?: CheckInDto) => (
+  //   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+  //     <p className="text-xs uppercase text-black">{label}</p>
+  //     {record ? (
+  //       <>
+  //         <p>Odo {formatHistoryOdometer(record.odometer)}</p>
+  //         <p>{formatHistoryTime(record.checkInTime)}</p>
+  //       </>
+  //     ) : (
+  //       <p className="text-sm text-black">Chưa có dữ liệu</p>
+  //     )}
+  //   </div>
+  // );
 
   return (
     <section className="mx-auto max-w-6xl space-y-10 rounded-3xl bg-amber-50 p-8 text-black shadow-2xl">
@@ -504,28 +500,28 @@ const BookingCalendar = () => {
                     to={`/booking/details/${selectedBooking.id}`}
                     className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
                   >
-                    Details (Screen 14)
+                    Details
                   </Link>
                   <Link
                     to={`/booking/check-in?bookingId=${selectedBooking.id}`}
                     className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
                   >
-                    Check-In (15)
+                    Check-In
                   </Link>
-                  <Link
+                  {/* <Link
                     to={`/booking/active-trip?bookingId=${selectedBooking.id}`}
                     className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
                   >
                     Active Trip (17)
-                  </Link>
+                  </Link> */}
                   <Link
                     to={`/booking/check-out?bookingId=${selectedBooking.id}`}
                     className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
                   >
-                    Check-Out (16)
+                    Check-Out
                   </Link>
                 </div>
-                <div className="space-y-2 border-t border-amber-200 pt-4">
+                {/* <div className="space-y-2 border-t border-amber-200 pt-4">
                   <p className="text-xs uppercase tracking-wide text-black">
                     Check-in / Check-out
                   </p>
@@ -545,28 +541,33 @@ const BookingCalendar = () => {
                       {renderCheckSummary("Latest check-in", latestCheckIn)}
                     </div>
                   )}
-                </div>
-              </div>
-            ) : selectedDate ? (
-              <div className="space-y-2">
-                <p className="font-semibold text-black">
-                  {new Date(selectedDate).toDateString()}
-                </p>
-                <p>No personal bookings selected on this date.</p>
-                {selectedDateEvents.length > 0 && (
-                  <ul className="list-disc pl-4">
-                    {selectedDateEvents.map((event) => (
-                      <li key={`${event.label}-${event.time}`}>
-                        {event.label} - {event.time} ({event.owner})
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                </div> */}
               </div>
             ) : (
-              <p>
-                Select a day or booking on the calendar to preview details here.
-              </p>
+              <div className="space-y-2">
+                {selectedDate ? (
+                  <>
+                    <p className="font-semibold text-black">
+                      {new Date(selectedDate).toDateString()}
+                    </p>
+                    <p>No personal bookings selected on this date.</p>
+                    {selectedDateEvents.length > 0 && (
+                      <ul className="list-disc pl-4">
+                        {selectedDateEvents.map((event) => (
+                          <li key={`${event.label}-${event.time}`}>
+                            {event.label} - {event.time} ({event.owner})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p>
+                    Select a day or booking on the calendar to preview details
+                    here.
+                  </p>
+                )}
+              </div>
             )}
           </aside>
         </div>
