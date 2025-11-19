@@ -36,40 +36,6 @@ const priorityMap: Record<BookingPriority, number> = {
   High: 2,
   Emergency: 3,
 };
-
-const fallbackVehicles: VehicleListItem[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000001",
-    vin: "VIN-TESLA-0001",
-    plateNumber: "FAKE-001",
-    model: "Tesla Model 3 Performance",
-    year: 2024,
-    color: "Trắng",
-    status: "Available",
-    lastServiceDate: null,
-    odometer: 12000,
-    groupId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    healthScore: null,
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000002",
-    vin: "VIN-KIA-0002",
-    plateNumber: "FAKE-002",
-    model: "Kia EV6 GT-Line",
-    year: 2023,
-    color: "Đen",
-    status: "Available",
-    lastServiceDate: null,
-    odometer: 18500,
-    groupId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    healthScore: null,
-  },
-];
-
 type FormState = typeof initialForm;
 
 const decodeUserIdFromToken = (token?: string | null) => {
@@ -109,7 +75,7 @@ const CreateBooking = () => {
   } = useGroups();
   const [groupId, setGroupId] = useState("");
   const [lastPayload, setLastPayload] = useState<CreateBookingDto | null>(null);
-  const [vehicles, setVehicles] = useState<VehicleListItem[]>(fallbackVehicles);
+  const [vehicles, setVehicles] = useState<VehicleListItem[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
 
@@ -146,14 +112,14 @@ const CreateBooking = () => {
           setVehicles(data);
           setVehiclesError(null);
         } else {
-          setVehicles(fallbackVehicles);
-          setVehiclesError("Không tìm thấy xe thực, đang dùng dữ liệu mẫu.");
+          setVehicles([]);
+          setVehiclesError("No vehicles returned from the vehicle service.");
         }
       } catch (error) {
         console.warn("CreateBooking: unable to load vehicles", error);
         if (!cancelled) {
-          setVehicles(fallbackVehicles);
-          setVehiclesError("Không thể tải danh sách xe, đang dùng dữ liệu mẫu.");
+          setVehicles([]);
+          setVehiclesError("Unable to load vehicles at this time.");
         }
       }
     };
@@ -189,7 +155,9 @@ const CreateBooking = () => {
       return groupVehicles;
     }
     if (groupId) {
-      const filtered = vehicles.filter((vehicle) => vehicle.groupId === groupId);
+      const filtered = vehicles.filter(
+        (vehicle) => vehicle.groupId === groupId
+      );
       if (filtered.length > 0) {
         return filtered;
       }
@@ -201,7 +169,10 @@ const CreateBooking = () => {
     if (availableVehicles.length === 0) {
       return;
     }
-    if (!vehicleId || !availableVehicles.some((vehicle) => vehicle.id === vehicleId)) {
+    if (
+      !vehicleId ||
+      !availableVehicles.some((vehicle) => vehicle.id === vehicleId)
+    ) {
       const initialVehicle = availableVehicles[0];
       setVehicleId(initialVehicle.id);
       setForm((prev) => ({ ...prev, vehicle: initialVehicle.model }));
@@ -291,7 +262,9 @@ const CreateBooking = () => {
     try {
       const booking = await bookingApi.create(apiPayload);
       setSubmissionStatus("success");
-      const successMessage = `Created booking ${booking.id.slice(0, 8)} for ${booking.vehicleModel}`;
+      const successMessage = `Created booking ${booking.id.slice(0, 8)} for ${
+        booking.vehicleModel
+      }`;
       setServerMessage(successMessage);
       setCreatedBookingId(booking.id);
       setTimeout(() => navigate("/booking/calendar"), 800);
@@ -402,7 +375,7 @@ const CreateBooking = () => {
             </label>
           </div>
 
-          <label className="space-y-2 text-sm text-black">
+          {/* <label className="space-y-2 text-sm text-black">
             <span>Repeat</span>
             <div className="grid gap-3 sm:grid-cols-3">
               {repeatOptions.map((option) => (
@@ -420,7 +393,7 @@ const CreateBooking = () => {
                 </button>
               ))}
             </div>
-          </label>
+          </label> */}
 
           <label className="space-y-2 text-sm text-black">
             <span>Purpose</span>
@@ -454,7 +427,7 @@ const CreateBooking = () => {
             </select>
           </label>
 
-          <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
+          {/* <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
             <div className="flex items-center gap-3">
               <input
                 id="emergency-toggle"
@@ -497,7 +470,7 @@ const CreateBooking = () => {
                 </label>
               </div>
             )}
-          </div>
+          </div> */}
 
           <label className="space-y-2 text-sm text-black">
             <span>Estimated distance (km)</span>
@@ -542,14 +515,14 @@ const CreateBooking = () => {
               </Link>
             </div>
           )}
-          {lastPayload && (
+          {/* {lastPayload && (
             <div className="rounded-2xl border border-emerald-800 bg-amber-50 p-4 text-xs text-black">
               <p className="text-black">Payload preview (gửi lên API)</p>
               <pre className="mt-2 overflow-auto text-[11px] leading-4">
                 {JSON.stringify(lastPayload, null, 2)}
               </pre>
             </div>
-          )}
+          )} */}
         </form>
       </div>
     </section>
