@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
+import vehicleService from "@/services/vehicleService";
 import type { BookingPriority, CreateBookingDto } from "@/models/booking";
 import { useAppSelector } from "@/store/hooks";
 import Cookies from "js-cookie";
 import { useGroups } from "@/hooks/useGroups";
+import type { VehicleListItem } from "@/models/vehicle";
 
 const initialForm = {
   vehicle: "Tesla Model 3 Performance",
@@ -34,12 +36,6 @@ const priorityMap: Record<BookingPriority, number> = {
   High: 2,
   Emergency: 3,
 };
-
-const vehicleMap: Record<string, string> = {
-  "Tesla Model 3 Performance": "00000000-0000-0000-0000-000000000001",
-  "Kia EV6 GT-Line": "00000000-0000-0000-0000-000000000002",
-};
-
 type FormState = typeof initialForm;
 
 const decodeUserIdFromToken = (token?: string | null) => {
@@ -79,16 +75,109 @@ const CreateBooking = () => {
   } = useGroups();
   const [groupId, setGroupId] = useState("");
   const [lastPayload, setLastPayload] = useState<CreateBookingDto | null>(null);
+  const [vehicles, setVehicles] = useState<VehicleListItem[]>([]);
+  const [vehicleId, setVehicleId] = useState("");
+  const [vehiclesError, setVehiclesError] = useState<string | null>(null);
 
   useEffect(() => {
     setUserId(derivedUserId);
   }, [derivedUserId]);
 
-  useEffect(() => {
-    if (!groupId && groups && groups.length > 0) {
-      setGroupId(groups[0].id);
+  const joinedGroups = useMemo(() => {
+    const collection = groups ?? [];
+    if (!userId) {
+      return collection;
     }
-  }, [groups, groupId]);
+    const filtered = collection.filter((group) =>
+      group.members?.some((member) => member.userId === userId)
+    );
+    return filtered.length > 0 ? filtered : collection;
+  }, [groups, userId]);
+
+  useEffect(() => {
+    if (!groupId && joinedGroups.length > 0) {
+      setGroupId(joinedGroups[0].id);
+    }
+  }, [joinedGroups, groupId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadVehicles = async () => {
+      try {
+        const data = await vehicleService.getAllVehicles();
+        if (cancelled) {
+          return;
+        }
+        if (data.length > 0) {
+          setVehicles(data);
+          setVehiclesError(null);
+        } else {
+          setVehicles([]);
+          setVehiclesError("No vehicles returned from the vehicle service.");
+        }
+      } catch (error) {
+        console.warn("CreateBooking: unable to load vehicles", error);
+        if (!cancelled) {
+          setVehicles([]);
+          setVehiclesError("Unable to load vehicles at this time.");
+        }
+      }
+    };
+    void loadVehicles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedGroup = useMemo(
+    () => joinedGroups.find((group) => group.id === groupId),
+    [joinedGroups, groupId]
+  );
+
+  const availableVehicles = useMemo(() => {
+    const groupVehicles =
+      selectedGroup?.vehicles?.map((vehicle) => ({
+        id: vehicle.id,
+        vin: vehicle.vin ?? "",
+        plateNumber: vehicle.plateNumber ?? "",
+        model: vehicle.model ?? vehicle.id,
+        year: vehicle.year ?? new Date().getFullYear(),
+        color: vehicle.color ?? null,
+        status: vehicle.status ?? "Available",
+        lastServiceDate: vehicle.lastServiceDate ?? null,
+        odometer: vehicle.odometer ?? 0,
+        groupId: vehicle.groupId ?? selectedGroup?.id ?? null,
+        createdAt: vehicle.createdAt ?? new Date().toISOString(),
+        updatedAt: vehicle.updatedAt ?? new Date().toISOString(),
+        healthScore: null,
+      })) ?? [];
+    if (groupVehicles.length > 0) {
+      return groupVehicles;
+    }
+    if (groupId) {
+      const filtered = vehicles.filter(
+        (vehicle) => vehicle.groupId === groupId
+      );
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    }
+    return vehicles;
+  }, [groupId, selectedGroup, vehicles]);
+
+  useEffect(() => {
+    if (availableVehicles.length === 0) {
+      return;
+    }
+    if (
+      !vehicleId ||
+      !availableVehicles.some((vehicle) => vehicle.id === vehicleId)
+    ) {
+      const initialVehicle = availableVehicles[0];
+      setVehicleId(initialVehicle.id);
+      setForm((prev) => ({ ...prev, vehicle: initialVehicle.model }));
+    }
+  }, [availableVehicles, vehicleId]);
 
   const updateForm = <K extends keyof FormState>(
     field: K,
@@ -97,9 +186,20 @@ const CreateBooking = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleVehicleSelect = (id: string) => {
+    setVehicleId(id);
+    const matched =
+      availableVehicles.find((vehicle) => vehicle.id === id) ||
+      vehicles.find((vehicle) => vehicle.id === id);
+    setForm((prev) => ({
+      ...prev,
+      vehicle: matched?.model ?? id,
+    }));
+  };
+
   const handleSubmit = async () => {
-    const vehicleId = vehicleMap[form.vehicle] ?? form.vehicle;
-    if (!vehicleId) {
+    const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
+    if (!resolvedVehicleId) {
       setServerMessage("Vehicle ID is missing");
       setSubmissionStatus("error");
       return;
@@ -118,7 +218,7 @@ const CreateBooking = () => {
 
     try {
       const conflicts = await bookingApi.checkConflicts(
-        vehicleId,
+        resolvedVehicleId,
         startIso,
         endIso
       );
@@ -141,7 +241,7 @@ const CreateBooking = () => {
 
     const prioritySelection: BookingPriority = form.priority;
     const apiPayload: CreateBookingDto = {
-      vehicleId,
+      vehicleId: resolvedVehicleId,
       startAt: startIso,
       endAt: endIso,
       notes: form.notes,
@@ -162,7 +262,9 @@ const CreateBooking = () => {
     try {
       const booking = await bookingApi.create(apiPayload);
       setSubmissionStatus("success");
-      const successMessage = `Created booking ${booking.id.slice(0, 8)} for ${booking.vehicleModel}`;
+      const successMessage = `Created booking ${booking.id.slice(0, 8)} for ${
+        booking.vehicleModel
+      }`;
       setServerMessage(successMessage);
       setCreatedBookingId(booking.id);
       setTimeout(() => navigate("/booking/calendar"), 800);
@@ -182,13 +284,19 @@ const CreateBooking = () => {
             <label className="space-y-2 text-sm text-black">
               <span>Vehicle</span>
               <select
-                value={form.vehicle}
-                onChange={(e) => updateForm("vehicle", e.target.value)}
+                value={vehicleId}
+                onChange={(e) => handleVehicleSelect(e.target.value)}
                 className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
               >
-                <option>Tesla Model 3 Performance</option>
-                <option>Kia EV6 GT-Line</option>
+                {availableVehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.model}
+                  </option>
+                ))}
               </select>
+              {vehiclesError && (
+                <p className="text-xs text-amber-800">{vehiclesError}</p>
+              )}
             </label>
             <label className="space-y-2 text-sm text-black">
               <span>Start date</span>
@@ -245,15 +353,15 @@ const CreateBooking = () => {
               <span>Group</span>
               <select
                 value={groupId}
-                disabled={groupsLoading || !groups?.length}
+                disabled={groupsLoading || joinedGroups.length === 0}
                 onChange={(e) => setGroupId(e.target.value)}
                 className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 text-sm"
               >
                 {groupsLoading && <option value="">Loading groups...</option>}
-                {!groupsLoading && !groups?.length && (
+                {!groupsLoading && joinedGroups.length === 0 && (
                   <option value="">No groups available</option>
                 )}
-                {groups?.map((group) => (
+                {joinedGroups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.name}
                   </option>
@@ -267,7 +375,7 @@ const CreateBooking = () => {
             </label>
           </div>
 
-          <label className="space-y-2 text-sm text-black">
+          {/* <label className="space-y-2 text-sm text-black">
             <span>Repeat</span>
             <div className="grid gap-3 sm:grid-cols-3">
               {repeatOptions.map((option) => (
@@ -285,7 +393,7 @@ const CreateBooking = () => {
                 </button>
               ))}
             </div>
-          </label>
+          </label> */}
 
           <label className="space-y-2 text-sm text-black">
             <span>Purpose</span>
@@ -319,7 +427,7 @@ const CreateBooking = () => {
             </select>
           </label>
 
-          <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
+          {/* <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
             <div className="flex items-center gap-3">
               <input
                 id="emergency-toggle"
@@ -362,7 +470,7 @@ const CreateBooking = () => {
                 </label>
               </div>
             )}
-          </div>
+          </div> */}
 
           <label className="space-y-2 text-sm text-black">
             <span>Estimated distance (km)</span>
@@ -407,14 +515,14 @@ const CreateBooking = () => {
               </Link>
             </div>
           )}
-          {lastPayload && (
+          {/* {lastPayload && (
             <div className="rounded-2xl border border-emerald-800 bg-amber-50 p-4 text-xs text-black">
               <p className="text-black">Payload preview (gửi lên API)</p>
               <pre className="mt-2 overflow-auto text-[11px] leading-4">
                 {JSON.stringify(lastPayload, null, 2)}
               </pre>
             </div>
-          )}
+          )} */}
         </form>
       </div>
     </section>
