@@ -200,9 +200,6 @@ const BookingCalendar = () => {
         })
         .catch((error) => {
           if (!cancelled) console.error("Failed to load calendar", error);
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingCalendar(false);
         });
     };
 
