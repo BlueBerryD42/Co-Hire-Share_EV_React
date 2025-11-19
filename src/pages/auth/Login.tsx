@@ -43,11 +43,11 @@ const Login = () => {
       if (user.role === 0 || user.role === 1) {
         navigate('/admin/dashboard')
       } else {
-        navigate('/')
+        navigate('/home')
       }
     } else if (isAuthenticated) {
       // If authenticated but user data not loaded yet, go to home
-      navigate('/')
+      navigate('/home')
     }
   }, [isAuthenticated, user, navigate])
 
@@ -137,7 +137,7 @@ const Login = () => {
       if (loggedInUser?.role === 0 || loggedInUser?.role === 1) {
         navigate('/admin/dashboard')
       } else {
-        navigate('/')
+        navigate('/home')
       }
     }
   }
