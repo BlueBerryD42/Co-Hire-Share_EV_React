@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type { BookingDto, DateRangeQuery } from "@/models/booking";
