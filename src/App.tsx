@@ -38,7 +38,6 @@ import {
   ReportIssue,
   AiRecommendations,
   SuccessFeedback,
-  ExpensesPayments as BookingExpensesPayments,
 } from "@/pages/booking";
 
 // Group Pages
@@ -129,12 +128,13 @@ const App = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Protected Routes */}
-          <Route path="/home" element={<MainLayout />}>
-            <Route index element={<Home />} />
+          {/* Protected Routes - All use MainLayout but are top-level */}
+          <Route element={<MainLayout />}>
+            {/* Home Dashboard */}
+            <Route path="/home" element={<Home />} />
 
             {/* Vehicle Routes */}
-            <Route path="vehicles">
+            <Route path="/vehicles">
               <Route index element={<MyVehicles />} />
               <Route path="create" element={<CreateVehicle />} />
               <Route path=":id" element={<VehicleDetails />} />
@@ -157,29 +157,29 @@ const App = () => {
             </Route>
 
             {/* Booking Routes */}
-            <Route path="booking" element={<BookingHub />} />
-            <Route path="booking/calendar" element={<BookingCalendar />} />
-            <Route path="booking/create" element={<CreateBooking />} />
+            <Route path="/booking" element={<BookingHub />} />
+            <Route path="/booking/calendar" element={<BookingCalendar />} />
+            <Route path="/booking/create" element={<CreateBooking />} />
             <Route
-              path="booking/details/:bookingId"
+              path="/booking/details/:bookingId"
               element={<BookingDetails />}
             />
-            <Route path="booking/check-in" element={<CheckIn />} />
-            <Route path="booking/check-out" element={<CheckOut />} />
-            <Route path="booking/active-trip" element={<ActiveTrip />} />
-            <Route path="booking/trip-history" element={<TripHistory />} />
-            <Route path="booking/report-issue" element={<ReportIssue />} />
+            <Route path="/booking/check-in" element={<CheckIn />} />
+            <Route path="/booking/check-out" element={<CheckOut />} />
+            <Route path="/booking/active-trip" element={<ActiveTrip />} />
+            <Route path="/booking/trip-history" element={<TripHistory />} />
+            <Route path="/booking/report-issue" element={<ReportIssue />} />
             <Route
-              path="booking/ai-recommendations"
+              path="/booking/ai-recommendations"
               element={<AiRecommendations />}
             />
             <Route
-              path="booking/success-feedback"
+              path="/booking/success-feedback"
               element={<SuccessFeedback />}
             />
 
             {/* Group Routes - All wrapped in GroupLayout */}
-            <Route path="groups" element={<GroupLayout />}>
+            <Route path="/groups" element={<GroupLayout />}>
               <Route index element={<GroupHub />} />
               <Route path="marketplace" element={<GroupMarketplace />} />
               <Route path="create" element={<CreateGroup />} />
