@@ -87,12 +87,12 @@ const expandBookingDates = (booking: BookingDto) => {
 const getVehicleOwner = (booking: BookingDto) =>
   `${booking.userFirstName} ${booking.userLastName}`;
 
-const isInactiveStatus = (status: BookingDto['status']) => {
-  if (typeof status === 'number') {
-    return status === 4 || status === 5
+const isInactiveStatus = (status: BookingDto["status"]) => {
+  if (typeof status === "number") {
+    return status === 4 || status === 5;
   }
-  return status === 'Completed' || status === 'Cancelled'
-}
+  return status === "Completed" || status === "Cancelled";
+};
 
 const formatHistoryOdometer = (value?: number | null) =>
   typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
@@ -165,12 +165,19 @@ const BookingCalendar = () => {
           if (cancelled) return;
           setMyBookings(data);
           if (data.length > 0) {
-            setSelectedBooking((previous) => previous ?? data[0]);
-            setSelectedDate(
-              (previous) => previous ?? data[0].startAt.slice(0, 10)
-            );
             setVehicleId((prev) => prev || data[0].vehicleId);
           }
+          setSelectedBooking((previous) =>
+            previous && data.some((booking) => booking.id === previous.id)
+              ? previous
+              : null
+          );
+          setSelectedDate((previous) =>
+            previous &&
+            data.some((booking) => booking.startAt.slice(0, 10) === previous)
+              ? previous
+              : null
+          );
           setBookingStatus("idle");
         })
         .catch((error) => {
@@ -305,7 +312,10 @@ const BookingCalendar = () => {
         }
       })
       .catch((error) => {
-        console.error("BookingCalendar: unable to fetch check-in history", error);
+        console.error(
+          "BookingCalendar: unable to fetch check-in history",
+          error
+        );
         if (!cancelled) {
           setCheckInHistory((prev) => ({
             ...prev,
@@ -547,26 +557,31 @@ const BookingCalendar = () => {
                   )}
                 </div>
               </div>
-            ) : selectedDate ? (
+            ) : (
               <div className="space-y-2">
-                <p className="font-semibold text-black">
-                  {new Date(selectedDate).toDateString()}
-                </p>
-                <p>No personal bookings selected on this date.</p>
-                {selectedDateEvents.length > 0 && (
-                  <ul className="list-disc pl-4">
-                    {selectedDateEvents.map((event) => (
-                      <li key={`${event.label}-${event.time}`}>
-                        {event.label} - {event.time} ({event.owner})
-                      </li>
-                    ))}
-                  </ul>
+                {selectedDate ? (
+                  <>
+                    <p className="font-semibold text-black">
+                      {new Date(selectedDate).toDateString()}
+                    </p>
+                    <p>No personal bookings selected on this date.</p>
+                    {selectedDateEvents.length > 0 && (
+                      <ul className="list-disc pl-4">
+                        {selectedDateEvents.map((event) => (
+                          <li key={`${event.label}-${event.time}`}>
+                            {event.label} - {event.time} ({event.owner})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p>
+                    Select a day or booking on the calendar to preview details
+                    here.
+                  </p>
                 )}
               </div>
-            ) : (
-              <p>
-                Select a day or booking on the calendar to preview details here.
-              </p>
             )}
           </aside>
         </div>
