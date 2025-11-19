@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   CalendarMonth,
@@ -6,6 +6,9 @@ import {
   EventAvailable,
   SavingsOutlined,
   HowToVote,
+  Description,
+  Assignment,
+  HowToReg,
 } from '@mui/icons-material'
 import type { GroupStatus } from '@/models/group'
 import type { UUID } from '@/models/booking'
@@ -13,6 +16,8 @@ import { useGroups } from '@/hooks/useGroups'
 import { useFundBalance } from '@/hooks/useFund'
 import { useProposals } from '@/hooks/useProposals'
 import { EmptyState } from '@/components/shared'
+import { documentApi } from '@/services/group/documents'
+import { DocumentType, SignatureStatus, type DocumentListItemResponse } from '@/models/document'
 
 const currency = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -51,7 +56,14 @@ const OwnershipRing = ({ percentage }: { percentage: number }) => {
   );
 };
 
-const quickActions = [
+type QuickAction = {
+  label: string;
+  description: string;
+  icon: React.ComponentType;
+  to: ((groupId: UUID) => string) | (() => string) | null;
+};
+
+const quickActions: QuickAction[] = [
   {
     label: "Shared fund",
     description: "View balance & request withdrawal",
@@ -71,6 +83,12 @@ const quickActions = [
     to: (groupId: UUID) => `/groups/${groupId}/proposals/create`,
   },
   {
+    label: "E-Contract",
+    description: "View, manage & sign documents",
+    icon: Description,
+    to: (groupId: UUID) => `/groups/${groupId}/documents`,
+  },
+  {
     label: "Booking calendar",
     description: "Jump to shared vehicle scheduling",
     icon: CalendarMonth,
@@ -81,6 +99,9 @@ const quickActions = [
 const GroupOverview = () => {
   const { groupId } = useParams<{ groupId: UUID }>()
   const { data: groups, loading, error, reload } = useGroups();
+  const [pendingDocuments, setPendingDocuments] = useState<DocumentListItemResponse[]>([])
+  const [recentContracts, setRecentContracts] = useState<DocumentListItemResponse[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
 
   const selectedGroup = useMemo(() => {
     if (!groups?.length || !groupId) return undefined;
@@ -95,6 +116,42 @@ const GroupOverview = () => {
     selectedGroup?.id,
     activeFilter
   );
+
+  // Fetch pending signatures and recent contracts
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!selectedGroup?.id) return
+
+      setLoadingDocuments(true)
+      try {
+        // Get pending signatures (documents waiting for user's signature)
+        const pendingResponse = await documentApi.getGroupDocuments(selectedGroup.id as UUID, {
+          page: 1,
+          pageSize: 5,
+          signatureStatus: SignatureStatus.SentForSigning,
+        })
+        setPendingDocuments(pendingResponse?.items || [])
+
+        // Get recent contracts (Ownership Agreements)
+        const contractsResponse = await documentApi.getGroupDocuments(selectedGroup.id as UUID, {
+          page: 1,
+          pageSize: 3,
+          documentType: DocumentType.OwnershipAgreement,
+          sortBy: 'CreatedAt',
+          sortDescending: true,
+        })
+        setRecentContracts(contractsResponse?.items || [])
+      } catch (err) {
+        console.error(`Error fetching documents for group ${selectedGroup.id}:`, err)
+        setPendingDocuments([])
+        setRecentContracts([])
+      } finally {
+        setLoadingDocuments(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [selectedGroup?.id])
 
   if (loading) {
     return (
@@ -285,14 +342,24 @@ const GroupOverview = () => {
         {quickActions.map((action) => {
           if (!selectedGroup.id) return null;
           const Icon = action.icon;
+          
+          // Handle regular link actions
+          if (!action.to) return null;
+          
+          const linkTo = typeof action.to === 'function' 
+            ? (action.to as (groupId: UUID) => string).length > 0 
+              ? (action.to as (groupId: UUID) => string)(selectedGroup.id) 
+              : (action.to as () => string)()
+            : action.to;
+          
           return (
             <Link
               key={action.label}
-              to={action.to(selectedGroup.id)}
+              to={linkTo}
               className="group flex items-center gap-4 rounded-2xl border border-neutral-200 bg-white p-5 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
             >
               <span className="rounded-2xl bg-neutral-100 p-3 text-accent-blue">
-                <Icon fontSize="small" />
+                <Icon />
               </span>
               <div>
                 <p className="text-lg font-semibold text-neutral-900">
@@ -303,6 +370,200 @@ const GroupOverview = () => {
             </Link>
           );
         })}
+      </section>
+
+      {/* E-Contract & Signature Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-neutral-900">E-Contract & Chữ ký số</h2>
+            <p className="text-sm text-neutral-600">
+              Quản lý hợp đồng điện tử, theo dõi trạng thái chữ ký và tài liệu nhóm
+            </p>
+          </div>
+          {selectedGroup?.id && (
+            <Link
+              to={`/groups/${selectedGroup.id}/documents`}
+              className="text-sm font-semibold text-accent-blue"
+            >
+              Xem tất cả →
+            </Link>
+          )}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Pending Signatures Card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="rounded-2xl bg-accent-gold/10 p-2 text-accent-gold">
+                <HowToReg fontSize="small" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900">Chờ ký</h3>
+                <p className="text-sm text-neutral-600">
+                  {loadingDocuments
+                    ? 'Đang tải...'
+                    : pendingDocuments.length > 0
+                      ? `${pendingDocuments.length} tài liệu đang chờ bạn ký`
+                      : 'Không có tài liệu nào chờ ký'}
+                </p>
+              </div>
+            </div>
+
+            {loadingDocuments ? (
+              <div className="text-center py-4 text-neutral-500">Đang tải...</div>
+            ) : pendingDocuments.length > 0 ? (
+              <div className="space-y-2">
+                {pendingDocuments.slice(0, 3).map((doc) => (
+                  <Link
+                    key={doc.id}
+                    to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
+                    className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-gold hover:bg-accent-gold/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{doc.fileName.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '📝'}</span>
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 line-clamp-1">
+                          {doc.fileName}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-accent-gold/20 px-2 py-1 text-xs font-semibold text-accent-gold">
+                      Ký ngay
+                    </span>
+                  </Link>
+                ))}
+                {pendingDocuments.length > 3 && (
+                  <Link
+                    to={`/groups/${selectedGroup?.id}/documents?status=pending`}
+                    className="block text-center text-sm font-semibold text-accent-blue"
+                  >
+                    Xem thêm {pendingDocuments.length - 3} tài liệu →
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-500">
+                Tất cả tài liệu đã được ký
+              </div>
+            )}
+          </div>
+
+          {/* Recent Contracts Card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="rounded-2xl bg-accent-blue/10 p-2 text-accent-blue">
+                <Description fontSize="small" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900">Hợp đồng gần đây</h3>
+                <p className="text-sm text-neutral-600">
+                  {loadingDocuments
+                    ? 'Đang tải...'
+                    : recentContracts.length > 0
+                      ? `${recentContracts.length} hợp đồng sở hữu`
+                      : 'Chưa có hợp đồng nào'}
+                </p>
+              </div>
+            </div>
+
+            {loadingDocuments ? (
+              <div className="text-center py-4 text-neutral-500">Đang tải...</div>
+            ) : recentContracts.length > 0 ? (
+              <div className="space-y-2">
+                {recentContracts.map((doc) => (
+                  <Link
+                    key={doc.id}
+                    to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
+                    className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-blue hover:bg-accent-blue/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📄</span>
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 line-clamp-1">
+                          {doc.fileName}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {doc.signatureStatus === SignatureStatus.FullySigned
+                            ? 'Đã ký hoàn tất'
+                            : doc.signatureStatus === SignatureStatus.PartiallySigned
+                              ? 'Đang ký'
+                              : 'Nháp'}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        doc.signatureStatus === SignatureStatus.FullySigned
+                          ? 'bg-accent-green/20 text-accent-green'
+                          : doc.signatureStatus === SignatureStatus.PartiallySigned
+                            ? 'bg-accent-gold/20 text-accent-gold'
+                            : 'bg-neutral-200 text-neutral-600'
+                      }`}
+                    >
+                      {doc.signatureStatus === SignatureStatus.FullySigned
+                        ? 'Hoàn tất'
+                        : doc.signatureStatus === SignatureStatus.PartiallySigned
+                          ? 'Đang ký'
+                          : 'Nháp'}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-500">
+                Chưa có hợp đồng nào được tạo
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        {selectedGroup?.id && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Link
+              to={`/groups/${selectedGroup.id}/documents`}
+              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
+            >
+              <span className="rounded-2xl bg-accent-blue/10 p-2 text-accent-blue">
+                <Description fontSize="small" />
+              </span>
+              <div>
+                <p className="font-semibold text-neutral-900">Xem tất cả tài liệu</p>
+                <p className="text-sm text-neutral-600">Quản lý và xem tài liệu nhóm</p>
+              </div>
+            </Link>
+
+            <Link
+              to={`/groups/${selectedGroup.id}/documents?status=pending`}
+              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-gold hover:shadow-lg"
+            >
+              <span className="rounded-2xl bg-accent-gold/10 p-2 text-accent-gold">
+                <Assignment fontSize="small" />
+              </span>
+              <div>
+                <p className="font-semibold text-neutral-900">Chữ ký đang chờ</p>
+                <p className="text-sm text-neutral-600">Xem tài liệu cần ký</p>
+              </div>
+            </Link>
+
+            <Link
+              to={`/groups/${selectedGroup.id}/documents?type=contract`}
+              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-green hover:shadow-lg"
+            >
+              <span className="rounded-2xl bg-accent-green/10 p-2 text-accent-green">
+                <HowToReg fontSize="small" />
+              </span>
+              <div>
+                <p className="font-semibold text-neutral-900">Hợp đồng sở hữu</p>
+                <p className="text-sm text-neutral-600">Xem hợp đồng điện tử</p>
+              </div>
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="card space-y-4">

@@ -54,6 +54,9 @@ import {
   JoinGroupApplication,
   CreateGroup,
   MessageCenter,
+  Documents,
+  DocumentViewer,
+  DocumentSigning,
 } from "@/pages/group";
 
 // Admin Pages
@@ -130,7 +133,7 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes */}
-          <Route path="/home" element={<MainLayout />}>
+          <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />
 
             {/* Vehicle Routes */}
@@ -205,6 +208,18 @@ const App = () => {
               <Route
                 path=":groupId/messages"
                 element={<MessageCenter />}
+              />
+              <Route
+                path=":groupId/documents"
+                element={<Documents />}
+              />
+              <Route
+                path=":groupId/documents/:documentId"
+                element={<DocumentViewer />}
+              />
+              <Route
+                path=":groupId/documents/:documentId/sign"
+                element={<DocumentSigning />}
               />
             </Route>
 
