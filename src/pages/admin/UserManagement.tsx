@@ -6,18 +6,49 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/ui/Loading";
 
+interface User {
+  id?: string;
+  Id?: string;
+  userName?: string;
+  UserName?: string;
+  normalizedUserName?: string;
+  NormalizedUserName?: string;
+  email?: string;
+  Email?: string;
+  normalizedEmail?: string;
+  NormalizedEmail?: string;
+  emailConfirmed?: boolean;
+  EmailConfirmed?: boolean;
+  phoneNumber?: string;
+  PhoneNumber?: string;
+  phoneNumberConfirmed?: boolean;
+  PhoneNumberConfirmed?: boolean;
+  twoFactorEnabled?: boolean;
+  TwoFactorEnabled?: boolean;
+  lockoutEnabled?: boolean;
+  LockoutEnabled?: boolean;
+  lockoutEnd?: string | null;
+  LockoutEnd?: string | null;
+  accessFailedCount?: number;
+  AccessFailedCount?: number;
+  fullName?: string;
+  phone?: string;
+}
+
 const UserManagement = () => {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const searchTimeoutRef = useRef(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userDetails, setUserDetails] = useState<User | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialMount = useRef(true);
 
   // Debounced search effect
@@ -41,13 +72,13 @@ const UserManagement = () => {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [roleFilter, statusFilter]);
+  }, [roleFilter]);
 
   // Fetch users when filters or page change
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, roleFilter, statusFilter, appliedSearch]);
+  }, [page, roleFilter, appliedSearch]);
 
   const fetchUsers = async () => {
     const isFirstLoad = isInitialMount.current;
@@ -68,7 +99,6 @@ const UserManagement = () => {
         pageSize: 20,
         search: appliedSearch || undefined,
         role: roleFilter || undefined,
-        accountStatus: statusFilter || undefined,
       };
       const response = await adminApi.getUsers(params);
       setUsers(response.data.users || []);
@@ -92,41 +122,32 @@ const UserManagement = () => {
     setPage(1); // Reset to page 1
   };
 
-  const getRoleBadge = (role) => {
-    const roleMap = {
-      CoOwner: { variant: "default", label: "Co-Owner" },
-      Staff: { variant: "primary", label: "Staff" },
-      SystemAdmin: { variant: "warning", label: "Admin" },
-    };
-    const roleInfo = roleMap[role] || { variant: "default", label: role };
-    return <Badge variant={roleInfo.variant}>{roleInfo.label}</Badge>;
+  const handleViewUser = async (user: User) => {
+    const userId = user.id || user.Id;
+    if (!userId) {
+      console.error("User ID not found");
+      return;
+    }
+
+    setSelectedUser(user);
+    setLoadingDetails(true);
+    setUserDetails(null);
+
+    try {
+      const response = await adminApi.getUserDetails(userId);
+      setUserDetails(response.data);
+    } catch (err) {
+      console.error("Error fetching user details:", err);
+      // If API fails, use the user data from the list
+      setUserDetails(user);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      Active: { variant: "success", label: "Active" },
-      Inactive: { variant: "warning", label: "Inactive" },
-      Suspended: { variant: "error", label: "Suspended" },
-    };
-    const statusInfo = statusMap[status] || {
-      variant: "default",
-      label: status,
-    };
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
-  };
-
-  const getKycBadge = (kycStatus) => {
-    const kycMap = {
-      Verified: { variant: "success", label: "Verified" },
-      Pending: { variant: "warning", label: "Pending" },
-      Rejected: { variant: "error", label: "Rejected" },
-      Unverified: { variant: "default", label: "Unverified" },
-    };
-    const kycInfo = kycMap[kycStatus] || {
-      variant: "default",
-      label: kycStatus,
-    };
-    return <Badge variant={kycInfo.variant}>{kycInfo.label}</Badge>;
+  const handleCloseModal = () => {
+    setSelectedUser(null);
+    setUserDetails(null);
   };
 
   // Show loading spinner only on initial load
@@ -139,13 +160,16 @@ const UserManagement = () => {
       <h1 className="text-2xl font-bold text-neutral-800">User Management</h1>
 
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
             label="Search"
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearch(e.target.value)
+            }
             placeholder="Search by name, email..."
+            error=""
           />
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -160,21 +184,6 @@ const UserManagement = () => {
               <option value="CoOwner">Co-Owner</option>
               <option value="Staff">Staff</option>
               <option value="SystemAdmin">System Admin</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-3 text-neutral-700 focus:outline-none focus:border-accent-blue"
-            >
-              <option value="">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Suspended">Suspended</option>
             </select>
           </div>
           <div className="flex items-end">
@@ -212,25 +221,28 @@ const UserManagement = () => {
               <thead>
                 <tr className="border-b border-neutral-200">
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    User
+                    User Name
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
                     Email
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    Phone
+                    Phone Number
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    Role
+                    Email Confirmed
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    KYC Status
+                    Phone Confirmed
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    Account Status
+                    Two Factor
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
-                    Joined
+                    Lockout Enabled
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-neutral-800">
+                    Access Failed
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-800">
                     Actions
@@ -240,32 +252,91 @@ const UserManagement = () => {
               <tbody>
                 {users.map((user) => (
                   <tr
-                    key={user.id}
+                    key={user.id || user.Id}
                     className="border-b border-neutral-200 hover:bg-neutral-50"
                   >
                     <td className="py-3 px-4">
                       <div>
                         <p className="font-medium text-neutral-800">
-                          {user.fullName}
+                          {user.userName ||
+                            user.UserName ||
+                            user.fullName ||
+                            "N/A"}
                         </p>
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-neutral-700">{user.email}</span>
+                      <span className="text-neutral-700">
+                        {user.email || user.Email || "N/A"}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-neutral-700">
-                        {user.phone || "N/A"}
+                        {user.phoneNumber ||
+                          user.PhoneNumber ||
+                          user.phone ||
+                          "N/A"}
                       </span>
                     </td>
-                    <td className="py-3 px-4">{getRoleBadge(user.role)}</td>
-                    <td className="py-3 px-4">{getKycBadge(user.kycStatus)}</td>
                     <td className="py-3 px-4">
-                      {getStatusBadge(user.accountStatus)}
+                      <Badge
+                        variant={
+                          user.emailConfirmed || user.EmailConfirmed
+                            ? "success"
+                            : "default"
+                        }
+                      >
+                        {user.emailConfirmed || user.EmailConfirmed
+                          ? "Yes"
+                          : "No"}
+                      </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-sm text-neutral-600">
-                        {new Date(user.createdAt).toLocaleDateString()}
+                      <Badge
+                        variant={
+                          user.phoneNumberConfirmed || user.PhoneNumberConfirmed
+                            ? "success"
+                            : "default"
+                        }
+                      >
+                        {user.phoneNumberConfirmed || user.PhoneNumberConfirmed
+                          ? "Yes"
+                          : "No"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={
+                          user.twoFactorEnabled || user.TwoFactorEnabled
+                            ? "primary"
+                            : "default"
+                        }
+                      >
+                        {user.twoFactorEnabled || user.TwoFactorEnabled
+                          ? "Yes"
+                          : "No"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={
+                          user.lockoutEnabled || user.LockoutEnabled
+                            ? "warning"
+                            : "default"
+                        }
+                      >
+                        {user.lockoutEnabled || user.LockoutEnabled
+                          ? "Yes"
+                          : "No"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="text-neutral-700">
+                        {user.accessFailedCount !== undefined
+                          ? user.accessFailedCount
+                          : user.AccessFailedCount !== undefined
+                          ? user.AccessFailedCount
+                          : 0}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -273,9 +344,7 @@ const UserManagement = () => {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => {
-                            // View user details
-                          }}
+                          onClick={() => handleViewUser(user)}
                         >
                           View
                         </Button>
@@ -333,6 +402,241 @@ const UserManagement = () => {
           </div>
         )}
       </Card>
+
+      {/* User Details Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-800">
+                User Details
+              </h2>
+              <button
+                onClick={handleCloseModal}
+                className="text-neutral-500 hover:text-neutral-700 text-2xl font-bold leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6">
+              {loadingDetails ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-neutral-200 border-t-accent-blue rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        User ID
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.id ||
+                          userDetails?.Id ||
+                          selectedUser?.id ||
+                          selectedUser?.Id ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        User Name
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.userName ||
+                          userDetails?.UserName ||
+                          selectedUser?.userName ||
+                          selectedUser?.UserName ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Normalized User Name
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.normalizedUserName ||
+                          userDetails?.NormalizedUserName ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Email
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.email ||
+                          userDetails?.Email ||
+                          selectedUser?.email ||
+                          selectedUser?.Email ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Normalized Email
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.normalizedEmail ||
+                          userDetails?.NormalizedEmail ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Phone Number
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.phoneNumber ||
+                          userDetails?.PhoneNumber ||
+                          selectedUser?.phoneNumber ||
+                          selectedUser?.PhoneNumber ||
+                          "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Email Confirmed
+                      </label>
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            userDetails?.emailConfirmed ||
+                            userDetails?.EmailConfirmed ||
+                            selectedUser?.emailConfirmed ||
+                            selectedUser?.EmailConfirmed
+                              ? "success"
+                              : "default"
+                          }
+                        >
+                          {userDetails?.emailConfirmed ||
+                          userDetails?.EmailConfirmed ||
+                          selectedUser?.emailConfirmed ||
+                          selectedUser?.EmailConfirmed
+                            ? "Yes"
+                            : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Phone Confirmed
+                      </label>
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            userDetails?.phoneNumberConfirmed ||
+                            userDetails?.PhoneNumberConfirmed ||
+                            selectedUser?.phoneNumberConfirmed ||
+                            selectedUser?.PhoneNumberConfirmed
+                              ? "success"
+                              : "default"
+                          }
+                        >
+                          {userDetails?.phoneNumberConfirmed ||
+                          userDetails?.PhoneNumberConfirmed ||
+                          selectedUser?.phoneNumberConfirmed ||
+                          selectedUser?.PhoneNumberConfirmed
+                            ? "Yes"
+                            : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Two Factor Enabled
+                      </label>
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            userDetails?.twoFactorEnabled ||
+                            userDetails?.TwoFactorEnabled ||
+                            selectedUser?.twoFactorEnabled ||
+                            selectedUser?.TwoFactorEnabled
+                              ? "primary"
+                              : "default"
+                          }
+                        >
+                          {userDetails?.twoFactorEnabled ||
+                          userDetails?.TwoFactorEnabled ||
+                          selectedUser?.twoFactorEnabled ||
+                          selectedUser?.TwoFactorEnabled
+                            ? "Yes"
+                            : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Lockout Enabled
+                      </label>
+                      <div className="mt-1">
+                        <Badge
+                          variant={
+                            userDetails?.lockoutEnabled ||
+                            userDetails?.LockoutEnabled ||
+                            selectedUser?.lockoutEnabled ||
+                            selectedUser?.LockoutEnabled
+                              ? "warning"
+                              : "default"
+                          }
+                        >
+                          {userDetails?.lockoutEnabled ||
+                          userDetails?.LockoutEnabled ||
+                          selectedUser?.lockoutEnabled ||
+                          selectedUser?.LockoutEnabled
+                            ? "Yes"
+                            : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-neutral-600">
+                        Access Failed Count
+                      </label>
+                      <p className="text-neutral-800 mt-1">
+                        {userDetails?.accessFailedCount !== undefined
+                          ? userDetails.accessFailedCount
+                          : userDetails?.AccessFailedCount !== undefined
+                          ? userDetails.AccessFailedCount
+                          : selectedUser?.accessFailedCount !== undefined
+                          ? selectedUser.accessFailedCount
+                          : selectedUser?.AccessFailedCount !== undefined
+                          ? selectedUser.AccessFailedCount
+                          : 0}
+                      </p>
+                    </div>
+                    {(userDetails?.lockoutEnd || userDetails?.LockoutEnd) && (
+                      <div>
+                        <label className="text-sm font-medium text-neutral-600">
+                          Lockout End
+                        </label>
+                        <p className="text-neutral-800 mt-1">
+                          {(() => {
+                            const lockoutDate =
+                              userDetails?.lockoutEnd ||
+                              userDetails?.LockoutEnd;
+                            return lockoutDate
+                              ? new Date(lockoutDate).toLocaleString()
+                              : "N/A";
+                          })()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-neutral-50 border-t border-neutral-200 px-6 py-4 flex justify-end">
+              <Button variant="secondary" onClick={handleCloseModal}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
