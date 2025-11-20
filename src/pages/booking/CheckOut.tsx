@@ -9,17 +9,7 @@ import {
   type CheckInDto,
   type CheckInPhotoInputDto,
 } from "@/models/booking";
-
-// Parse ISO-like strings returned by the server. If the string already
-// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
-// server returned a UTC timestamp without zone and append 'Z' so JS treats
-// it as a UTC instant.
-const parseServerIso = (iso?: string) =>
-  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
-    ? new Date(iso)
-    : iso
-    ? new Date(iso + "Z")
-    : new Date(NaN);
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
 const isCheckOutRecord = (record: CheckInDto) =>
   record.type === 0 || record.type === "CheckOut";
@@ -87,10 +77,7 @@ const CheckOut = () => {
     return !Number.isNaN(endTime) && endTime < Date.now();
   }, [booking]);
 
-  const isInactiveStatus = (status: BookingDto["status"]) => {
-    if (typeof status === "number") return status === 4 || status === 5;
-    return status === "Completed" || status === "Cancelled";
-  };
+  // use shared helper `isInactiveStatus` from utils
 
   const bookingIsReadOnly = useMemo(() => {
     if (!booking) return true;
@@ -122,8 +109,7 @@ const CheckOut = () => {
           parseServerIso(lastEnd?.checkInTime).getTime() >=
             parseServerIso(lastStart?.checkInTime).getTime());
       setTripCompleted(hasValidEnd);
-    } catch (error) {
-      console.error("Unable to load check-in history for checkout", error);
+    } catch {
       setHistoryMessage("Unable to load check-in history.");
     }
   }, [booking]);
@@ -175,8 +161,7 @@ const CheckOut = () => {
       setTripCompleted(false);
       setHistory([]);
       setHistoryMessage(null);
-    } catch (error) {
-      console.error("Failed to load booking for checkout", error);
+    } catch {
       setMessage("Unable to load booking. Check console for details.");
     } finally {
       setLoading(false);
@@ -223,9 +208,8 @@ const CheckOut = () => {
         if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
           await bookingApi.completeBooking(booking.id);
         }
-      } catch (err) {
-        // Non-fatal: log and continue UI flow
-        console.warn("Failed to auto-complete booking on server", err);
+      } catch {
+        // Non-fatal: continue UI flow
       }
       setEndOdometer(odo);
       setPhotos([]);
@@ -259,8 +243,7 @@ const CheckOut = () => {
           `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
         );
       }
-    } catch (error) {
-      console.error("Checkout failed", error);
+    } catch {
       setMessage("Unable to complete checkout.");
     }
   };

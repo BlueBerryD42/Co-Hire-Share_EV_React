@@ -10,17 +10,7 @@ import {
   type CheckInPhotoInputDto,
 } from "@/models/booking";
 import type { VehicleStatus } from "@/models/vehicle";
-
-// Parse ISO-like strings returned by the server. If the string already
-// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
-// server returned a UTC timestamp without zone and append 'Z' so JS treats
-// it as a UTC instant.
-const parseServerIso = (iso?: string) =>
-  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
-    ? new Date(iso)
-    : iso
-    ? new Date(iso + "Z")
-    : new Date(NaN);
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
 const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
 
@@ -101,10 +91,7 @@ const CheckIn = () => {
     return !Number.isNaN(endTime) && endTime < Date.now();
   }, [booking]);
 
-  const isInactiveStatus = (status: BookingDto["status"]) => {
-    if (typeof status === "number") return status === 4 || status === 5;
-    return status === "Completed" || status === "Cancelled";
-  };
+  // use shared helper `isInactiveStatus` from utils
 
   const bookingIsReadOnly = useMemo(() => {
     if (!booking) return true;
@@ -138,8 +125,7 @@ const CheckIn = () => {
         hasOpenTrip = lastEndBeforeStart;
       }
       setTripStarted(hasOpenTrip);
-    } catch (error) {
-      console.error("Failed to load check-in history", error);
+    } catch {
       setHistoryMessage("Unable to load check-in history.");
     }
   }, [booking]);
@@ -176,8 +162,8 @@ const CheckIn = () => {
     if (!booking) return;
     try {
       await bookingApi.updateVehicleStatus(booking.id, { status });
-    } catch (error) {
-      console.warn("Unable to update vehicle status", error);
+    } catch {
+      // Non-fatal: ignore vehicle status update failures
     }
   };
 
@@ -198,8 +184,7 @@ const CheckIn = () => {
       setTripStarted(false);
       setHistory([]);
       setHistoryMessage(null);
-    } catch (error) {
-      console.error("Failed to load booking for check-in", error);
+    } catch {
       setMessage("Unable to load booking. Check console for details.");
     } finally {
       setLoading(false);
@@ -245,9 +230,8 @@ const CheckIn = () => {
         if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
           await bookingApi.completeBooking(booking.id);
         }
-      } catch (err) {
-        // Non-fatal: log and continue UI flow
-        console.warn("Failed to auto-complete booking on server", err);
+      } catch {
+        // Non-fatal: continue UI flow
       }
       setTripStarted(true);
       setStartPhotos([]);
@@ -255,8 +239,7 @@ const CheckIn = () => {
         `Đã check-in lúc ${new Date().toLocaleString()} (ghi nhận cả phía FE lẫn BE).`
       );
       await refreshHistory();
-    } catch (error) {
-      console.error("StartTrip failed", error);
+    } catch {
       setMessage("Unable to start trip.");
     }
   };

@@ -1,104 +1,115 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { bookingApi } from '@/services/booking/api'
-import type { BookingDto } from '@/models/booking'
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { bookingApi } from "@/services/booking/api";
+import type { BookingDto } from "@/models/booking";
 
-const statusStyles: Record<BookingDto['status'], string> = {
-  Pending: 'bg-amber-50 text-black border border-slate-800',
-  PendingApproval: 'bg-amber-50 text-black border border-slate-800',
-  Confirmed: 'bg-amber-50 text-black border border-slate-800',
-  InProgress: 'bg-amber-50 text-black border border-emerald-500/40',
-  Completed: 'bg-amber-50 text-black border border-slate-800',
-  Cancelled: 'bg-amber-50 text-black border border-rose-500/40',
-  NoShow: 'bg-amber-50 text-black border border-rose-500/40',
-}
+const statusStyles: Record<BookingDto["status"], string> = {
+  Pending: "bg-amber-50 text-black border border-slate-800",
+  PendingApproval: "bg-amber-50 text-black border border-slate-800",
+  Confirmed: "bg-amber-50 text-black border border-slate-800",
+  InProgress: "bg-amber-50 text-black border border-emerald-500/40",
+  Completed: "bg-amber-50 text-black border border-slate-800",
+  Cancelled: "bg-amber-50 text-black border border-rose-500/40",
+  NoShow: "bg-amber-50 text-black border border-rose-500/40",
+};
 
 const formatCurrency = (value?: number | null) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A'
-  return `$${value.toFixed(2)}`
-}
+  if (typeof value !== "number" || Number.isNaN(value)) return "N/A";
+  return `$${value.toFixed(2)}`;
+};
 
 const formatDateLabel = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleDateString('vi-VN', {
-        month: 'short',
-        day: 'numeric',
+    ? new Date(iso).toLocaleDateString("vi-VN", {
+        month: "short",
+        day: "numeric",
       })
-    : 'N/A'
+    : "N/A";
 
 const ExpensesPayments = () => {
-  const [bookings, setBookings] = useState<BookingDto[]>([])
-  const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [bookings, setBookings] = useState<BookingDto[]>([]);
+  const [apiStatus, setApiStatus] = useState<
+    "idle" | "loading" | "loaded" | "error"
+  >("idle");
 
   useEffect(() => {
-    let mounted = true
-    setApiStatus('loading')
+    let mounted = true;
+    setApiStatus("loading");
     bookingApi
       .getMyBookings()
       .then((data) => {
-        if (!mounted) return
-        setBookings(Array.isArray(data) ? data : [])
-        setApiStatus('loaded')
+        if (!mounted) return;
+        setBookings(Array.isArray(data) ? data : []);
+        setApiStatus("loaded");
       })
-      .catch((error) => {
-        console.error('Failed to fetch bookings for expenses', error)
+      .catch(() => {
         if (mounted) {
-          setBookings([])
-          setApiStatus('error')
+          setBookings([]);
+          setApiStatus("error");
         }
-      })
+      });
     return () => {
-      mounted = false
-    }
-  }, [])
+      mounted = false;
+    };
+  }, []);
 
   const totalTripFee = useMemo(
-    () => bookings.reduce((sum, booking) => sum + (booking.tripFeeAmount ?? 0), 0),
-    [bookings],
-  )
+    () =>
+      bookings.reduce((sum, booking) => sum + (booking.tripFeeAmount ?? 0), 0),
+    [bookings]
+  );
   const pendingCount = useMemo(
     () =>
       bookings.filter(
-        (booking) => booking.status === 'Pending' || booking.status === 'PendingApproval',
+        (booking) =>
+          booking.status === "Pending" || booking.status === "PendingApproval"
       ).length,
-    [bookings],
-  )
+    [bookings]
+  );
   const activeCount = useMemo(
-    () => bookings.filter((booking) => booking.status === 'InProgress').length,
-    [bookings],
-  )
+    () => bookings.filter((booking) => booking.status === "InProgress").length,
+    [bookings]
+  );
 
   const summaryCards = [
     {
-      label: 'Total trip fee',
+      label: "Total trip fee",
       value: formatCurrency(totalTripFee),
-      sub: `${bookings.length} booking${bookings.length === 1 ? '' : 's'}`,
+      sub: `${bookings.length} booking${bookings.length === 1 ? "" : "s"}`,
     },
     {
-      label: 'Pending approvals',
+      label: "Pending approvals",
       value: `${pendingCount}`,
-      sub: 'Awaiting confirmation',
+      sub: "Awaiting confirmation",
     },
     {
-      label: 'Active trips',
+      label: "Active trips",
       value: `${activeCount}`,
-      sub: 'Currently in progress',
+      sub: "Currently in progress",
     },
-  ]
+  ];
 
-  const lateFeeMessage = 'Late return fee data requires the finance API and is not yet available.'
+  const lateFeeMessage =
+    "Late return fee data requires the finance API and is not yet available.";
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 18</p>
-        <h1 className="text-4xl font-semibold text-black">Expenses and payments</h1>
-        <p className="text-black">Financial snapshot plus table of shared costs.</p>
+        <h1 className="text-4xl font-semibold text-black">
+          Expenses and payments
+        </h1>
+        <p className="text-black">
+          Financial snapshot plus table of shared costs.
+        </p>
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-800 bg-amber-50 p-5">
+          <div
+            key={card.label}
+            className="rounded-2xl border border-slate-800 bg-amber-50 p-5"
+          >
             <p className="text-xs uppercase text-black">{card.label}</p>
             <p className="text-3xl font-semibold text-black">{card.value}</p>
             <p className="text-sm text-black">{card.sub}</p>
@@ -107,7 +118,7 @@ const ExpensesPayments = () => {
         <div className="rounded-2xl border border-slate-800 bg-amber-50 p-5">
           <p className="text-xs uppercase text-black">Bookings synced</p>
           <p className="text-3xl font-semibold text-black">
-            {apiStatus === 'loading' ? '...' : bookings.length}
+            {apiStatus === "loading" ? "..." : bookings.length}
           </p>
           <p className="text-sm text-black">From /api/booking/my-bookings</p>
         </div>
@@ -119,7 +130,7 @@ const ExpensesPayments = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        {['Date range', 'Category', 'Vehicle', 'Status'].map((label) => (
+        {["Date range", "Category", "Vehicle", "Status"].map((label) => (
           <label key={label} className="space-y-2 text-sm text-black">
             <span>{label}</span>
             <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
@@ -141,9 +152,9 @@ const ExpensesPayments = () => {
         </div>
         {bookings.length === 0 ? (
           <div className="px-6 py-4 text-sm text-black">
-            {apiStatus === 'loading'
-              ? 'Loading bookings from /api/booking/my-bookings...'
-              : 'No expense data available.'}
+            {apiStatus === "loading"
+              ? "Loading bookings from /api/booking/my-bookings..."
+              : "No expense data available."}
           </div>
         ) : (
           bookings.map((booking) => (
@@ -173,27 +184,42 @@ const ExpensesPayments = () => {
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm">
-        <button type="button" className="rounded-2xl bg-brand px-6 py-3 font-semibold text-black">
+        <button
+          type="button"
+          className="rounded-2xl bg-brand px-6 py-3 font-semibold text-black"
+        >
           Pay pending
         </button>
-        <button type="button" className="rounded-2xl border border-slate-800 px-6 py-3 text-black">
+        <button
+          type="button"
+          className="rounded-2xl border border-slate-800 px-6 py-3 text-black"
+        >
           Export PDF
         </button>
-        <button type="button" className="rounded-2xl border border-slate-800 px-6 py-3 text-black">
+        <button
+          type="button"
+          className="rounded-2xl border border-slate-800 px-6 py-3 text-black"
+        >
           Export CSV
         </button>
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm text-black">
-        <Link to="/booking" className="rounded-2xl border border-slate-700 px-4 py-2">
+        <Link
+          to="/booking"
+          className="rounded-2xl border border-slate-700 px-4 py-2"
+        >
           Back to Booking Suite
         </Link>
-        <Link to="/booking/calendar" className="rounded-2xl bg-brand px-4 py-2 font-semibold text-black">
+        <Link
+          to="/booking/calendar"
+          className="rounded-2xl bg-brand px-4 py-2 font-semibold text-black"
+        >
           Plan Next Booking (Screen 12)
         </Link>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default ExpensesPayments
+export default ExpensesPayments;

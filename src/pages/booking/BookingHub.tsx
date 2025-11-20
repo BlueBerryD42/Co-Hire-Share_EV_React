@@ -2,6 +2,7 @@ import { useCallback, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type { BookingDto, DateRangeQuery } from "@/models/booking";
+import { isInactiveStatus } from "@/utils/bookingHelpers";
 
 const bookingScreens = [
   {
@@ -65,7 +66,6 @@ const buildTripLink = (path: string, bookingId: string) => ({
   search: `?bookingId=${bookingId}`,
 });
 
-
 const tripActionLinks = [
   { label: "Trip history", path: "/booking/trip-history" },
   { label: "Check-in", path: "/booking/check-in" },
@@ -104,7 +104,6 @@ const BookingHub = () => {
       setMyBookings(Array.isArray(data) ? data : []);
       setIsUsingMockData(false);
     } catch (error) {
-      console.error("Failed to load my bookings", error);
       setFetchError("Unable to load bookings.");
       setMyBookings([]);
       setIsUsingMockData(false);
@@ -148,7 +147,6 @@ const BookingHub = () => {
       setActionMessage("Đã huỷ booking thành công.");
       await fetchBookings(activeRange);
     } catch (error) {
-      console.error("Failed to cancel booking", error);
       setActionMessage("Không thể huỷ booking. Vui lòng thử lại.");
     } finally {
       setCancellingId(null);
@@ -269,10 +267,7 @@ const BookingHub = () => {
               </thead>
               <tbody className="divide-y divide-[var(--neutral-200)]">
                 {myBookings.map((booking) => (
-                  <tr
-                    key={booking.id}
-                    className="transition hover:bg-amber-50"
-                  >
+                  <tr key={booking.id} className="transition hover:bg-amber-50">
                     <td>
                       <p className="font-medium text-[var(--neutral-900)]">
                         {booking.vehicleModel}
@@ -343,15 +338,21 @@ const BookingHub = () => {
                           )}
                         </div>
                         <div className="flex flex-wrap justify-end gap-2">
-                          {tripActionLinks.map((action) => (
-                            <Link
-                              key={`${booking.id}-${action.label}`}
-                              to={buildTripLink(action.path, booking.id)}
-                              className="action-chip"
-                            >
-                              {action.label}
-                            </Link>
-                          ))}
+                          {isInactiveStatus(booking.status) ? (
+                            <span className="text-xs text-[var(--neutral-900)]">
+                              No actions for completed/cancelled booking
+                            </span>
+                          ) : (
+                            tripActionLinks.map((action) => (
+                              <Link
+                                key={`${booking.id}-${action.label}`}
+                                to={buildTripLink(action.path, booking.id)}
+                                className="action-chip"
+                              >
+                                {action.label}
+                              </Link>
+                            ))
+                          )}
                         </div>
                       </div>
                     </td>

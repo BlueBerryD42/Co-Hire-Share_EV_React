@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import vehicleService from "@/services/vehicleService";
 import type {
@@ -64,8 +64,6 @@ const decodeUserIdFromToken = (token?: string | null) => {
 };
 
 const CreateBooking = () => {
-  console.log("Ngày hôm nay là:", new Date());
-  const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [purpose, setPurpose] = useState("Business");
   const [submissionStatus, setSubmissionStatus] = useState<
@@ -130,8 +128,7 @@ const CreateBooking = () => {
           setVehicles([]);
           setVehiclesError("No vehicles returned from the vehicle service.");
         }
-      } catch (error) {
-        console.warn("CreateBooking: unable to load vehicles", error);
+      } catch {
         if (!cancelled) {
           setVehicles([]);
           setVehiclesError("Unable to load vehicles at this time.");
@@ -307,8 +304,7 @@ const CreateBooking = () => {
         setSlots(data.slots ?? []);
         setSlotsError(null);
       })
-      .catch((err) => {
-        console.warn("CreateBooking: availability failed", err);
+      .catch(() => {
         setSlots([]);
         setSlotsError("Unable to load availability right now. Please retry.");
       })
@@ -483,8 +479,7 @@ const CreateBooking = () => {
         return;
       }
       setConflictMessage(null);
-    } catch (checkError) {
-      console.warn("Unable to check booking conflicts", checkError);
+    } catch {
       setConflictMessage(
         "Could not verify conflicts due to network error. Please try again."
       );
@@ -523,10 +518,9 @@ const CreateBooking = () => {
       setServerMessage(successMessage);
       setCreatedBookingId(booking.id);
       // setTimeout(() => navigate("/booking/calendar"), 800);
-    } catch (error) {
-      console.error("Failed to create booking", error);
+    } catch {
       setSubmissionStatus("error");
-      setServerMessage("Failed to create booking. Check console for details.");
+      setServerMessage("Failed to create booking. Please try again later.");
       setCreatedBookingId(null);
     }
   };

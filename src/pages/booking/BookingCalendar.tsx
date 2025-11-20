@@ -7,6 +7,11 @@ import type {
   BookingDto,
   CheckInDto,
 } from "@/models/booking";
+import {
+  parseServerIso,
+  localIso,
+  isInactiveStatus,
+} from "@/utils/bookingHelpers";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -62,20 +67,7 @@ const buildCalendar = (anchorDate: Date): CalendarCell[] => {
   return matrix;
 };
 
-const localIso = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(date.getDate()).padStart(2, "0")}`;
-
-// Parse ISO-like strings returned by the server. If the string already
-// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
-// server returned a UTC timestamp without zone and append 'Z' so JS treats
-// it as UTC instant.
-const parseServerIso = (iso: string) =>
-  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
-    ? new Date(iso)
-    : new Date(iso + "Z");
+// use shared helpers from utils/bookingHelpers
 
 const formatTimeRange = (startIso: string, endIso: string) => {
   const start = parseServerIso(startIso);
@@ -107,12 +99,7 @@ const expandBookingDates = (booking: BookingDto) => {
 const getVehicleOwner = (booking: BookingDto) =>
   `${booking.userFirstName} ${booking.userLastName}`;
 
-const isInactiveStatus = (status: BookingDto["status"]) => {
-  if (typeof status === "number") {
-    return status === 4 || status === 5;
-  }
-  return status === "Completed" || status === "Cancelled";
-};
+// isInactiveStatus provided by utils
 
 // const formatHistoryOdometer = (value?: number | null) =>
 //   typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
@@ -140,7 +127,6 @@ const isInactiveStatus = (status: BookingDto["status"]) => {
 //     .pop();
 
 const BookingCalendar = () => {
-  console.log("Ngày hôm nay trên trang Calendar là:", new Date());
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const calendarDays = useMemo(
     () => buildCalendar(currentMonth),
@@ -231,9 +217,8 @@ const BookingCalendar = () => {
             ? previous
             : null
         );
-      } catch (error) {
+      } catch {
         if (cancelled) return;
-        console.error("BookingCalendar: unable to fetch bookings", error);
       }
     };
 
@@ -255,8 +240,8 @@ const BookingCalendar = () => {
         .then((data) => {
           if (!cancelled) setCalendarData(data);
         })
-        .catch((error) => {
-          if (!cancelled) console.error("Failed to load calendar", error);
+        .catch(() => {
+          // ignore transient calendar load errors for now
         });
     };
 
@@ -366,11 +351,7 @@ const BookingCalendar = () => {
           }));
         }
       })
-      .catch((error) => {
-        console.error(
-          "BookingCalendar: unable to fetch check-in history",
-          error
-        );
+      .catch(() => {
         if (!cancelled) {
           setCheckInHistory((prev) => ({
             ...prev,

@@ -2,17 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type { BookingDto } from "@/models/booking";
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
-// Parse ISO-like strings returned by the server. If the string already
-// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
-// server returned a UTC timestamp without zone and append 'Z' so JS treats
-// it as a UTC instant.
-const parseServerIso = (iso?: string) =>
-  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
-    ? new Date(iso)
-    : iso
-    ? new Date(iso + "Z")
-    : new Date(NaN);
+// parseServerIso and isInactiveStatus taken from shared utils
 
 const statusStyles: Record<BookingDto["status"], string> = {
   Pending: "bg-amber-50 text-black border border-slate-800",
@@ -24,12 +16,7 @@ const statusStyles: Record<BookingDto["status"], string> = {
   NoShow: "bg-amber-50 text-black border border-rose-500/40",
 };
 
-const isInactiveStatus = (status: BookingDto["status"]) => {
-  if (typeof status === "number") {
-    return status === 4 || status === 5;
-  }
-  return status === "Completed" || status === "Cancelled";
-};
+// shared `isInactiveStatus` is imported from utils
 
 const formatCurrency = (value?: number | null) => {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -92,11 +79,10 @@ const BookingDetails = () => {
         setBooking(data);
         setError(null);
       })
-      .catch((err) => {
+      .catch(() => {
         if (mounted) {
           setError("Unable to load booking details from the API.");
         }
-        console.warn("Unable to fetch booking", err);
       })
       .finally(() => {
         if (mounted) {
