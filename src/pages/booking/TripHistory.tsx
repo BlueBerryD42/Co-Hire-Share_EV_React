@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { bookingApi } from "@/services/booking/api";
+import { parseServerIso } from "@/utils/bookingHelpers";
 import type {
   BookingDto,
   BookingHistoryEntryDto,
@@ -12,7 +13,7 @@ const normalizeStatus = (status: BookingDto["status"]): TripStatus => {
   if (typeof status === "number") {
     if (status === 4) return "Completed";
     if (status === 5) return "Cancelled";
-    return status.toString();
+    return String(status);
   }
   return status;
 };
@@ -25,7 +26,8 @@ const getLatestRecord = (
     .filter((record) => record.type === type)
     .sort(
       (a, b) =>
-        new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime()
+        parseServerIso(a.checkInTime).getTime() -
+        parseServerIso(b.checkInTime).getTime()
     )
     .pop();
 
@@ -33,7 +35,7 @@ const formatOdometer = (value?: number | null) =>
   typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
 
 const formatDateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString("vi-VN", {
+  parseServerIso(iso).toLocaleDateString("vi-VN", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -41,7 +43,7 @@ const formatDateLabel = (iso: string) =>
 
 const formatDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString("vi-VN", {
+    ? parseServerIso(iso).toLocaleString("vi-VN", {
         hour: "2-digit",
         minute: "2-digit",
         year: "numeric",
@@ -63,8 +65,8 @@ const buildHistoryCards = (entries: BookingHistoryEntryDto[]) =>
     const { booking, checkIns } = entry;
     const lastCheckOut = getLatestRecord(checkIns, "CheckOut");
     const lastCheckIn = getLatestRecord(checkIns, "CheckIn");
-    const start = new Date(booking.startAt);
-    const end = new Date(booking.endAt);
+    const start = parseServerIso(booking.startAt);
+    const end = parseServerIso(booking.endAt);
     const durationHours = Math.max(
       (end.getTime() - start.getTime()) / 3_600_000,
       0
@@ -118,8 +120,7 @@ const TripHistory = () => {
           setStatus("idle");
         }
       })
-      .catch((error) => {
-        console.error("TripHistory: unable to fetch booking history", error);
+      .catch(() => {
         if (mounted) setStatus("error");
       });
     return () => {

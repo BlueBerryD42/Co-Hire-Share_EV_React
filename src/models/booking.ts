@@ -120,6 +120,20 @@ export interface BookingSuggestionResponse {
   suggestions: BookingSuggestion[];
 }
 
+export interface AvailabilitySlotDto {
+  startAt: ISODate;
+  endAt: ISODate;
+}
+
+export interface AvailabilityResponseDto {
+  vehicleId: UUID;
+  from: ISODate;
+  to: ISODate;
+  durationMinutes: number;
+  bufferMinutes: number;
+  slots: AvailabilitySlotDto[];
+}
+
 export type DateRangeQuery = {
   from?: ISODate;
   to?: ISODate;

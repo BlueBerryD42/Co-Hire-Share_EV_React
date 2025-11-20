@@ -9,6 +9,7 @@ import {
   type CheckInDto,
   type CheckInPhotoInputDto,
 } from "@/models/booking";
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
 const isCheckOutRecord = (record: CheckInDto) =>
   record.type === 0 || record.type === "CheckOut";
@@ -40,7 +41,7 @@ const HistoryTable = ({
           {records.map((record) => (
             <tr key={record.id}>
               <td className="py-2">
-                {new Date(record.checkInTime).toLocaleString()}
+                {parseServerIso(record.checkInTime).toLocaleString()}
               </td>
               <td className="py-2">{record.odometer ?? "--"}</td>
               <td className="py-2">{record.notes ?? "--"}</td>
@@ -70,6 +71,19 @@ const CheckOut = () => {
     [history]
   );
 
+  const bookingExpired = useMemo(() => {
+    if (!booking) return false;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    return !Number.isNaN(endTime) && endTime < Date.now();
+  }, [booking]);
+
+  // use shared helper `isInactiveStatus` from utils
+
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    return bookingExpired || isInactiveStatus(booking.status);
+  }, [booking, bookingExpired]);
+
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
     try {
@@ -92,10 +106,10 @@ const CheckOut = () => {
       const hasValidEnd =
         Boolean(lastEnd) &&
         (!lastStart ||
-          new Date(lastEnd.checkInTime) >= new Date(lastStart.checkInTime));
+          parseServerIso(lastEnd?.checkInTime).getTime() >=
+            parseServerIso(lastStart?.checkInTime).getTime());
       setTripCompleted(hasValidEnd);
-    } catch (error) {
-      console.error("Unable to load check-in history for checkout", error);
+    } catch {
       setHistoryMessage("Unable to load check-in history.");
     }
   }, [booking]);
@@ -147,8 +161,7 @@ const CheckOut = () => {
       setTripCompleted(false);
       setHistory([]);
       setHistoryMessage(null);
-    } catch (error) {
-      console.error("Failed to load booking for checkout", error);
+    } catch {
       setMessage("Unable to load booking. Check console for details.");
     } finally {
       setLoading(false);
@@ -165,6 +178,10 @@ const CheckOut = () => {
 
   const handleCompleteTrip = async () => {
     if (!booking) return;
+    if (bookingIsReadOnly) {
+      setMessage("Booking đã hoàn tất hoặc bị hủy — chỉ có thể xem chi tiết.");
+      return;
+    }
     if (!endForm.odometer) {
       setMessage("Enter an odometer reading before completing the trip.");
       return;
@@ -185,16 +202,48 @@ const CheckOut = () => {
           distanceKm: odo - startOdometer,
         });
       }
+      // If the booking has already ended (endAt < now), tell the server to mark it Completed
+      try {
+        const bookingEndTime = parseServerIso(booking.endAt).getTime();
+        if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
+          await bookingApi.completeBooking(booking.id);
+        }
+      } catch {
+        // Non-fatal: continue UI flow
+      }
       setEndOdometer(odo);
       setPhotos([]);
       setTripCompleted(true);
-      const localTimestamp = new Date();
-      setMessage(
-        `Checkout captured at ${localTimestamp.toLocaleString()} (client + server timestamps stored).`
-      );
+      const clientTs = new Date();
+      // Refresh history and then fetch latest record to show server timestamp
       await refreshHistory();
-    } catch (error) {
-      console.error("Checkout failed", error);
+      try {
+        const records = await checkInApi.getHistory(booking.id);
+        const latest = [...records]
+          .sort(
+            (a, b) =>
+              parseServerIso(a.checkInTime).getTime() -
+              parseServerIso(b.checkInTime).getTime()
+          )
+          .pop();
+        if (latest) {
+          setMessage(
+            `Checkout recorded: client=${clientTs.toLocaleString()} server=${parseServerIso(
+              latest.checkInTime
+            ).toLocaleString()}`
+          );
+        } else {
+          setMessage(
+            `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
+          );
+        }
+      } catch {
+        // If fetching latest fails, at least show client timestamp
+        setMessage(
+          `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
+        );
+      }
+    } catch {
       setMessage("Unable to complete checkout.");
     }
   };
@@ -254,7 +303,7 @@ const CheckOut = () => {
         {booking && (
           <p className="mt-1 text-xs text-black">
             Vehicle: {booking.vehicleModel} ·{" "}
-            {new Date(booking.endAt).toLocaleString()}
+            {parseServerIso(booking.endAt).toLocaleString()}
           </p>
         )}
       </div>
@@ -308,19 +357,26 @@ const CheckOut = () => {
               tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"
             }
             onSubmit={handleCompleteTrip}
-            disabled={!booking || tripCompleted}
+            disabled={!booking || tripCompleted || bookingIsReadOnly}
             footerSlot={
-              <p className="text-xs text-black/80">
-                Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
-                thái xe và chi phí quãng đường.
-              </p>
+              bookingIsReadOnly ? (
+                <p className="text-sm text-rose-600">
+                  Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
+                  Check-out.
+                </p>
+              ) : (
+                <p className="text-xs text-black/80">
+                  Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
+                  thái xe và chi phí quãng đường.
+                </p>
+              )
             }
           />
         </div>
       </div>
 
       {booking && (
-        <HistoryTable title="Check-in history" records={checkInHistory} />
+        <HistoryTable title="Check-out history" records={checkInHistory} />
       )}
     </section>
   );
