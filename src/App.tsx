@@ -57,6 +57,12 @@ import {
   JoinGroupApplication,
   CreateGroup,
   MessageCenter,
+  Documents,
+  DocumentViewer,
+  DocumentSigning,
+  DocumentSigningDashboard,
+  SignDocument,
+  MyPendingSignatures,
 } from "@/pages/group";
 
 // Admin Pages
@@ -191,6 +197,7 @@ const App = () => {
               <Route index element={<GroupHub />} />
               <Route path="marketplace" element={<GroupMarketplace />} />
               <Route path="create" element={<CreateGroup />} />
+              <Route path="my-pending-signatures" element={<MyPendingSignatures />} />
               <Route path=":groupId" element={<GroupOverview />} />
               <Route
                 path=":groupId/members/:memberId"
@@ -213,6 +220,22 @@ const App = () => {
               <Route
                 path=":groupId/messages"
                 element={<MessageCenter />}
+              />
+              <Route
+                path=":groupId/documents"
+                element={<Documents />}
+              />
+              <Route
+                path=":groupId/documents/:documentId"
+                element={<DocumentViewer />}
+              />
+              <Route
+                path=":groupId/documents/:documentId/sign"
+                element={<SignDocument />}
+              />
+              <Route
+                path=":groupId/signing"
+                element={<DocumentSigningDashboard />}
               />
             </Route>
 
