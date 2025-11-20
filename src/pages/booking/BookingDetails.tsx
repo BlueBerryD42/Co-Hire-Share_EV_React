@@ -24,6 +24,13 @@ const statusStyles: Record<BookingDto["status"], string> = {
   NoShow: "bg-amber-50 text-black border border-rose-500/40",
 };
 
+const isInactiveStatus = (status: BookingDto["status"]) => {
+  if (typeof status === "number") {
+    return status === 4 || status === 5;
+  }
+  return status === "Completed" || status === "Cancelled";
+};
+
 const formatCurrency = (value?: number | null) => {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "N/A";
@@ -61,6 +68,14 @@ const BookingDetails = () => {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    const expired = !Number.isNaN(endTime) && endTime < Date.now();
+    const inactive = isInactiveStatus(booking.status);
+    return expired || inactive;
+  }, [booking]);
 
   useEffect(() => {
     if (!bookingKey) {
@@ -220,43 +235,52 @@ const BookingDetails = () => {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
-            <p className="text-xs uppercase text-black">Actions</p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {["/booking/check-in", "/booking/check-out"].map((path) => (
-                <Link
-                  key={path}
-                  to={`${path}?bookingId=${booking.id}`}
-                  className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+          {!bookingIsReadOnly ? (
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+              <p className="text-xs uppercase text-black">Actions</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {["/booking/check-in", "/booking/check-out"].map((path) => (
+                  <Link
+                    key={path}
+                    to={`${path}?bookingId=${booking.id}`}
+                    className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+                  >
+                    {path.replace("/booking/", "").split("-").join(" ")}
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 space-y-3">
+                <label className="text-xs text-black">
+                  Cancellation reason
+                  <textarea
+                    rows={2}
+                    value={cancelReason}
+                    onChange={(event) => setCancelReason(event.target.value)}
+                    className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-2 text-sm text-black"
+                    placeholder="Explain why you are cancelling"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isCancelling}
+                  className="rounded-2xl border border-rose-500/40 px-4 py-2 text-black disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {path.replace("/booking/", "").split("-").join(" ")}
-                </Link>
-              ))}
+                  {isCancelling ? "Cancelling..." : "Cancel booking"}
+                </button>
+                {actionMessage && (
+                  <p className="text-xs text-black">{actionMessage}</p>
+                )}
+              </div>
             </div>
-            <div className="mt-4 space-y-3">
-              <label className="text-xs text-black">
-                Cancellation reason
-                <textarea
-                  rows={2}
-                  value={cancelReason}
-                  onChange={(event) => setCancelReason(event.target.value)}
-                  className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-2 text-sm text-black"
-                  placeholder="Explain why you are cancelling"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={isCancelling}
-                className="rounded-2xl border border-rose-500/40 px-4 py-2 text-black disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCancelling ? "Cancelling..." : "Cancel booking"}
-              </button>
-              {actionMessage && (
-                <p className="text-xs text-black">{actionMessage}</p>
-              )}
+          ) : (
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+              <p className="text-xs uppercase text-black">Actions</p>
+              <p className="mt-3 text-sm text-black">
+                No actions available for this booking.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       )}
 

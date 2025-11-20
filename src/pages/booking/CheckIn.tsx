@@ -89,6 +89,28 @@ const CheckIn = () => {
     [history]
   );
 
+  const bookingStartsInFuture = useMemo(() => {
+    if (!booking) return false;
+    const startTime = parseServerIso(booking.startAt).getTime();
+    return !Number.isNaN(startTime) && startTime > Date.now();
+  }, [booking]);
+
+  const bookingExpired = useMemo(() => {
+    if (!booking) return false;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    return !Number.isNaN(endTime) && endTime < Date.now();
+  }, [booking]);
+
+  const isInactiveStatus = (status: BookingDto["status"]) => {
+    if (typeof status === "number") return status === 4 || status === 5;
+    return status === "Completed" || status === "Cancelled";
+  };
+
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    return bookingExpired || isInactiveStatus(booking.status);
+  }, [booking, bookingExpired]);
+
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
     try {
@@ -194,6 +216,14 @@ const CheckIn = () => {
 
   const handleStartTrip = async () => {
     if (!booking) return;
+    if (bookingIsReadOnly) {
+      setMessage("Booking đã hoàn tất hoặc bị hủy — chỉ có thể xem chi tiết.");
+      return;
+    }
+    if (bookingStartsInFuture) {
+      setMessage("Cannot start trip before the booking's start time.");
+      return;
+    }
     if (!startForm.odometer) {
       setMessage("Enter an odometer reading before starting.");
       return;
@@ -209,6 +239,16 @@ const CheckIn = () => {
         photos: startPhotos,
       });
       await updateVehicleStatus("InUse");
+      // If the booking has already ended (endAt < now), tell the server to mark it Completed
+      try {
+        const bookingEndTime = parseServerIso(booking.endAt).getTime();
+        if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
+          await bookingApi.completeBooking(booking.id);
+        }
+      } catch (err) {
+        // Non-fatal: log and continue UI flow
+        console.warn("Failed to auto-complete booking on server", err);
+      }
       setTripStarted(true);
       setStartPhotos([]);
       setMessage(
@@ -330,10 +370,25 @@ const CheckIn = () => {
               tripStarted ? "Đã check-in chuyến này" : "Xác nhận bắt đầu chuyến"
             }
             onSubmit={handleStartTrip}
-            disabled={!booking || tripStarted}
+            disabled={
+              !booking ||
+              tripStarted ||
+              bookingStartsInFuture ||
+              bookingIsReadOnly
+            }
             footerSlot={
               booking && (
                 <div className="rounded-2xl border border-dashed border-slate-500 bg-amber-50/80 p-3 text-xs text-black">
+                  {bookingIsReadOnly ? (
+                    <p className="text-sm text-rose-600">
+                      Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
+                      Check-out.
+                    </p>
+                  ) : bookingStartsInFuture ? (
+                    <p className="text-sm text-rose-600">
+                      Không thể check-in trước thời gian bắt đầu của booking.
+                    </p>
+                  ) : null}
                   <p>
                     Hoàn tất chuyến đi? Vào{" "}
                     <Link

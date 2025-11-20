@@ -114,6 +114,10 @@ export const bookingApi = {
     );
     return data;
   },
+  completeBooking: async (bookingId: string) => {
+    const { data } = await http.post<BookingDto>(`/${bookingId}/complete`);
+    return data;
+  },
   getCalendar: async (vehicleId: string, startDate?: string) => {
     const params: Record<string, string> = { vehicleId };
     if (startDate) params.startDate = startDate;

@@ -81,6 +81,22 @@ const CheckOut = () => {
     [history]
   );
 
+  const bookingExpired = useMemo(() => {
+    if (!booking) return false;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    return !Number.isNaN(endTime) && endTime < Date.now();
+  }, [booking]);
+
+  const isInactiveStatus = (status: BookingDto["status"]) => {
+    if (typeof status === "number") return status === 4 || status === 5;
+    return status === "Completed" || status === "Cancelled";
+  };
+
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    return bookingExpired || isInactiveStatus(booking.status);
+  }, [booking, bookingExpired]);
+
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
     try {
@@ -103,8 +119,8 @@ const CheckOut = () => {
       const hasValidEnd =
         Boolean(lastEnd) &&
         (!lastStart ||
-          parseServerIso(lastEnd.checkInTime).getTime() >=
-            parseServerIso(lastStart.checkInTime).getTime());
+          parseServerIso(lastEnd?.checkInTime).getTime() >=
+            parseServerIso(lastStart?.checkInTime).getTime());
       setTripCompleted(hasValidEnd);
     } catch (error) {
       console.error("Unable to load check-in history for checkout", error);
@@ -177,6 +193,10 @@ const CheckOut = () => {
 
   const handleCompleteTrip = async () => {
     if (!booking) return;
+    if (bookingIsReadOnly) {
+      setMessage("Booking đã hoàn tất hoặc bị hủy — chỉ có thể xem chi tiết.");
+      return;
+    }
     if (!endForm.odometer) {
       setMessage("Enter an odometer reading before completing the trip.");
       return;
@@ -196,6 +216,16 @@ const CheckOut = () => {
         await bookingApi.updateTripSummary(booking.id, {
           distanceKm: odo - startOdometer,
         });
+      }
+      // If the booking has already ended (endAt < now), tell the server to mark it Completed
+      try {
+        const bookingEndTime = parseServerIso(booking.endAt).getTime();
+        if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
+          await bookingApi.completeBooking(booking.id);
+        }
+      } catch (err) {
+        // Non-fatal: log and continue UI flow
+        console.warn("Failed to auto-complete booking on server", err);
       }
       setEndOdometer(odo);
       setPhotos([]);
@@ -344,12 +374,19 @@ const CheckOut = () => {
               tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"
             }
             onSubmit={handleCompleteTrip}
-            disabled={!booking || tripCompleted}
+            disabled={!booking || tripCompleted || bookingIsReadOnly}
             footerSlot={
-              <p className="text-xs text-black/80">
-                Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
-                thái xe và chi phí quãng đường.
-              </p>
+              bookingIsReadOnly ? (
+                <p className="text-sm text-rose-600">
+                  Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
+                  Check-out.
+                </p>
+              ) : (
+                <p className="text-xs text-black/80">
+                  Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
+                  thái xe và chi phí quãng đường.
+                </p>
+              )
             }
           />
         </div>

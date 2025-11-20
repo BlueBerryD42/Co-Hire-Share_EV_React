@@ -174,31 +174,67 @@ const BookingCalendar = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const loadBookings = () => {
-      bookingApi
-        .getMyBookings()
-        .then((data) => {
-          if (cancelled) return;
-          setMyBookings(data);
-          if (data.length > 0) {
-            setVehicleId((prev) => prev || data[0].vehicleId);
+    const loadBookings = async () => {
+      try {
+        const data = await bookingApi.getMyBookings();
+        if (cancelled) return;
+
+        // Auto-complete any of the user's bookings that have already ended
+        // but are not marked inactive (Completed/Cancelled). We call the
+        // server endpoint and merge any successful updates into the local
+        // booking list so the UI shows them as read-only immediately.
+        const now = Date.now();
+        const toComplete = data.filter(
+          (b) =>
+            !isInactiveStatus(b.status) &&
+            parseServerIso(b.endAt).getTime() < now
+        );
+
+        let merged = data;
+        if (toComplete.length > 0) {
+          try {
+            const results = await Promise.allSettled(
+              toComplete.map((b) => bookingApi.completeBooking(b.id))
+            );
+            const updatedMap: Record<string, BookingDto> = {};
+            results.forEach((r, idx) => {
+              if (r.status === "fulfilled") {
+                updatedMap[r.value.id] = r.value;
+              } else {
+                console.warn(
+                  "Auto-complete booking failed",
+                  toComplete[idx].id,
+                  r.reason
+                );
+              }
+            });
+            if (Object.keys(updatedMap).length > 0) {
+              merged = data.map((b) => updatedMap[b.id] ?? b);
+            }
+          } catch (err) {
+            console.warn("Error while auto-completing bookings", err);
           }
-          setSelectedBooking((previous) =>
-            previous && data.some((booking) => booking.id === previous.id)
-              ? previous
-              : null
-          );
-          setSelectedDate((previous) =>
-            previous &&
-            data.some((booking) => booking.startAt.slice(0, 10) === previous)
-              ? previous
-              : null
-          );
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          console.error("BookingCalendar: unable to fetch bookings", error);
-        });
+        }
+
+        setMyBookings(merged);
+        if (merged.length > 0) {
+          setVehicleId((prev) => prev || merged[0].vehicleId);
+        }
+        setSelectedBooking((previous) =>
+          previous && merged.some((booking) => booking.id === previous.id)
+            ? previous
+            : null
+        );
+        setSelectedDate((previous) =>
+          previous &&
+          merged.some((booking) => booking.startAt.slice(0, 10) === previous)
+            ? previous
+            : null
+        );
+      } catch (error) {
+        if (cancelled) return;
+        console.error("BookingCalendar: unable to fetch bookings", error);
+      }
     };
 
     loadBookings();
@@ -251,13 +287,21 @@ const BookingCalendar = () => {
       });
     };
 
-    myBookings
-      .filter((booking) => !isInactiveStatus(booking.status))
-      .forEach((booking) => addBookingEvent(booking, "mine"));
+    // Include user's bookings even if they are completed/cancelled so the
+    // calendar can show a read-only indicator. We still treat inactive
+    // bookings specially when rendering (they won't show check-in/out links).
+    myBookings.forEach((booking) => {
+      const type: CalendarStatus = isInactiveStatus(booking.status)
+        ? "idle"
+        : "mine";
+      addBookingEvent(booking, type);
+    });
     calendarData?.bookings?.forEach((booking) => {
       if (myBookingIds.has(booking.id)) return;
-      if (isInactiveStatus(booking.status)) return;
-      addBookingEvent(booking, "others");
+      const type: CalendarStatus = isInactiveStatus(booking.status)
+        ? "idle"
+        : "others";
+      addBookingEvent(booking, type);
     });
 
     return map;
@@ -533,24 +577,24 @@ const BookingCalendar = () => {
                   >
                     Details
                   </Link>
-                  <Link
-                    to={`/booking/check-in?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Check-In
-                  </Link>
-                  {/* <Link
-                    to={`/booking/active-trip?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Active Trip (17)
-                  </Link> */}
-                  <Link
-                    to={`/booking/check-out?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Check-Out
-                  </Link>
+                  {!isInactiveStatus(selectedBooking.status) &&
+                  parseServerIso(selectedBooking.endAt).getTime() >=
+                    Date.now() ? (
+                    <>
+                      <Link
+                        to={`/booking/check-in?bookingId=${selectedBooking.id}`}
+                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                      >
+                        Check-In
+                      </Link>
+                      <Link
+                        to={`/booking/check-out?bookingId=${selectedBooking.id}`}
+                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                      >
+                        Check-Out
+                      </Link>
+                    </>
+                  ) : null}
                 </div>
                 {/* <div className="space-y-2 border-t border-amber-200 pt-4">
                   <p className="text-xs uppercase tracking-wide text-black">
