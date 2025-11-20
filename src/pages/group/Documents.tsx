@@ -41,6 +41,7 @@ import {
   Edit as EditIcon,
   GetApp as GetAppIcon,
   Description as DescriptionIcon,
+  EditNote as EditNoteIcon,
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import UploadDocumentDialog from '@/components/group/UploadDocumentDialog'
@@ -464,7 +465,18 @@ export default function Documents() {
         <Typography variant="h4" sx={{ fontWeight: 600, color: '#7a9b76' }}>
           Documents & E-Contracts
         </Typography>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            variant="contained"
+            startIcon={<EditNoteIcon />}
+            onClick={() => navigate('/groups/my-pending-signatures')}
+            sx={{
+              bgcolor: '#d4a574',
+              '&:hover': { bgcolor: '#c49464' },
+            }}
+          >
+            My Pending Signatures
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -472,7 +484,6 @@ export default function Documents() {
             sx={{
               bgcolor: '#7a9b76',
               '&:hover': { bgcolor: '#6a8b66' },
-              mr: 2,
             }}
           >
             Upload Document
