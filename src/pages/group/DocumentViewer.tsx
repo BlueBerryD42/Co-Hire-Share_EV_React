@@ -26,6 +26,8 @@ import {
   LinearProgress,
   Tooltip,
   Avatar,
+  Menu,
+  MenuItem,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
@@ -43,9 +45,14 @@ import {
   History as HistoryIcon,
   Notifications as NotificationsIcon,
   EditNote as EditNoteIcon,
+  CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import SendForSigningDialog from '@/components/group/SendForSigningDialog'
+import DocumentVersionHistory from '@/components/group/DocumentVersionHistory'
+import UploadNewVersionDialog from '@/components/group/UploadNewVersionDialog'
 import {
   type DocumentDetailResponse,
   type DocumentSignatureStatusResponse,
@@ -79,6 +86,9 @@ export default function DocumentViewer() {
   // Dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
+  const [uploadVersionOpen, setUploadVersionOpen] = useState(false)
+  const [versionMenuAnchor, setVersionMenuAnchor] = useState<null | HTMLElement>(null)
 
   useEffect(() => {
     if (documentId) {
@@ -177,6 +187,41 @@ export default function DocumentViewer() {
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+  }
+
+  const handleVersionMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setVersionMenuAnchor(event.currentTarget)
+  }
+
+  const handleVersionMenuClose = () => {
+    setVersionMenuAnchor(null)
+  }
+
+  const handleViewVersionHistory = () => {
+    setVersionMenuAnchor(null)
+    setVersionHistoryOpen(true)
+  }
+
+  const handleUploadNewVersion = () => {
+    setVersionMenuAnchor(null)
+    setUploadVersionOpen(true)
+  }
+
+  const handleDeleteDocument = async () => {
+    if (!documentId) return
+
+    if (!window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await documentApi.deleteDocument(documentId as UUID)
+      setVersionMenuAnchor(null)
+      navigate(`/groups/${groupId}/documents`)
+    } catch (err: any) {
+      console.error('Error deleting document:', err)
+      setError(err.response?.data?.error || 'Failed to delete document')
+    }
   }
 
   const renderSignatureTimeline = () => {
@@ -423,25 +468,6 @@ export default function DocumentViewer() {
 
         <Divider sx={{ my: 3 }} />
 
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<HistoryIcon />}
-          sx={{ mb: 1, borderColor: '#7a9b76', color: '#7a9b76' }}
-        >
-          View Version History
-        </Button>
-
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<ShareIcon />}
-          onClick={() => setShareDialogOpen(true)}
-          sx={{ borderColor: '#7a9b76', color: '#7a9b76' }}
-        >
-          Share Document
-        </Button>
-
         {/* Sign Button - Show if current user has a pending signature */}
         {signatureStatus && (() => {
           const mySignature = signatureStatus.signatures.find(sig => sig.isCurrentSigner && sig.isPending)
@@ -544,13 +570,61 @@ export default function DocumentViewer() {
                 <PrintIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Share">
-              <IconButton onClick={() => setShareDialogOpen(true)}>
-                <ShareIcon />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+            {/* Version Control Button */}
+            <Tooltip title="Version Control">
+              <IconButton
+                onClick={handleVersionMenuClick}
+                sx={{
+                  bgcolor: versionMenuAnchor ? '#7a9b76' : 'transparent',
+                  color: versionMenuAnchor ? 'white' : 'inherit',
+                  '&:hover': {
+                    bgcolor: versionMenuAnchor ? '#6a8b66' : 'rgba(122, 155, 118, 0.1)',
+                  },
+                }}
+              >
+                <HistoryIcon />
               </IconButton>
             </Tooltip>
           </Box>
         </Paper>
+
+        {/* Version Control Menu */}
+        <Menu
+          anchorEl={versionMenuAnchor}
+          open={Boolean(versionMenuAnchor)}
+          onClose={handleVersionMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={handleViewVersionHistory}>
+            <ListItemIcon>
+              <HistoryIcon fontSize="small" sx={{ color: '#7a9b76' }} />
+            </ListItemIcon>
+            <ListItemText>View Version History</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleUploadNewVersion}>
+            <ListItemIcon>
+              <UploadIcon fontSize="small" sx={{ color: '#7a9b76' }} />
+            </ListItemIcon>
+            <ListItemText>Upload New Version</ListItemText>
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={handleDeleteDocument} sx={{ color: '#b87d6f' }}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" sx={{ color: '#b87d6f' }} />
+            </ListItemIcon>
+            <ListItemText>Delete Document</ListItemText>
+          </MenuItem>
+        </Menu>
 
         {/* PDF Display Area */}
         <Box
@@ -613,6 +687,30 @@ export default function DocumentViewer() {
           fetchSignatureStatus()
         }}
       />
+
+      {/* Version History Dialog */}
+      {documentId && (
+        <DocumentVersionHistory
+          documentId={documentId as UUID}
+          open={versionHistoryOpen}
+          onClose={() => setVersionHistoryOpen(false)}
+          allowDelete={true}
+        />
+      )}
+
+      {/* Upload New Version Dialog */}
+      {documentId && documentData && (
+        <UploadNewVersionDialog
+          documentId={documentId as UUID}
+          documentName={documentData.fileName}
+          open={uploadVersionOpen}
+          onClose={() => setUploadVersionOpen(false)}
+          onSuccess={() => {
+            fetchDocument()
+            loadPdfPreview()
+          }}
+        />
+      )}
 
       {/* TODO: Add Share Dialog */}
     </Box>

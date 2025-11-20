@@ -17,6 +17,8 @@ import {
   type DocumentQueryParameters,
   type PaginatedDocumentListResponse,
   type PendingSignatureResponse,
+  type DocumentVersionListResponse,
+  type DocumentVersionResponse,
 } from '@/models/document'
 
 const http = createApiClient('/api/document')
@@ -155,8 +157,8 @@ export const documentApi = {
   },
 
   // Get document version history
-  async getVersionHistory(documentId: UUID): Promise<DocumentListItemResponse[]> {
-    const { data } = await http.get<DocumentListItemResponse[]>(`/${documentId}/versions`)
+  async getVersionHistory(documentId: UUID): Promise<DocumentVersionListResponse> {
+    const { data} = await http.get<DocumentVersionListResponse>(`/${documentId}/versions`)
     return data
   },
 
@@ -164,24 +166,44 @@ export const documentApi = {
   async uploadNewVersion(
     documentId: UUID,
     file: File,
-    description?: string
-  ): Promise<DocumentUploadResponse> {
+    changeDescription?: string
+  ): Promise<DocumentVersionResponse> {
     const formData = new FormData()
-    formData.append('file', file)
-    if (description) {
-      formData.append('description', description)
+    formData.append('File', file)
+    if (changeDescription) {
+      formData.append('ChangeDescription', changeDescription)
     }
 
-    const { data } = await http.post<DocumentUploadResponse>(
-      `/${documentId}/new-version`,
+    // Get auth token
+    const cookieToken = Cookies.get('auth_token')
+    const localStorageToken = localStorage.getItem('accessToken')
+    const token = cookieToken || localStorageToken
+
+    // Use raw axios instance to avoid default Content-Type: application/json
+    const { data } = await axios.post<DocumentVersionResponse>(
+      `${API_GATEWAY_URL}/api/document/${documentId}/version`,
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          Authorization: token ? `Bearer ${token}` : '',
         },
+        timeout: 30000,
       }
     )
     return data
+  },
+
+  // Download a specific version
+  async downloadVersion(versionId: UUID): Promise<Blob> {
+    const { data } = await http.get<Blob>(`/version/${versionId}/download`, {
+      responseType: 'blob',
+    })
+    return data
+  },
+
+  // Delete a version
+  async deleteVersion(versionId: UUID): Promise<void> {
+    await http.delete(`/version/${versionId}`)
   },
 
   // Get audit trail

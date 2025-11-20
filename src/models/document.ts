@@ -186,6 +186,33 @@ export interface PendingSignatureResponse {
   isMyTurn: boolean
 }
 
+export interface DocumentVersionResponse {
+  id: UUID
+  documentId: UUID
+  versionNumber: number
+  fileName: string
+  fileSize: number
+  contentType: string
+  fileHash?: string
+  uploadedBy: UUID
+  uploaderName: string
+  uploadedAt: string
+  changeDescription?: string
+  isCurrent: boolean
+}
+
+export interface DocumentVersionListResponse {
+  documentId: UUID
+  documentName: string
+  totalVersions: number
+  versions: DocumentVersionResponse[]
+}
+
+export interface UploadDocumentVersionRequest {
+  file: File
+  changeDescription?: string
+}
+
 // Helper functions
 export const getDocumentTypeName = (type: DocumentType): string => {
   const names: Record<DocumentType, string> = {
