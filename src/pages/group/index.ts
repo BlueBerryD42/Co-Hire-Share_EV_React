@@ -2,7 +2,7 @@
 export { default as GroupHub } from './GroupHub'
 export { default as GroupOverview } from './GroupOverview'
 export { default as MemberDetails } from './MemberDetails'
-export { default as SharedFund } from './SharedFund'
+export { default as SharedFund } from './SharedFund'    
 export { default as Proposals } from './Proposals'
 export { default as ProposalDetails } from './ProposalDetails'
 export { default as CreateProposal } from './CreateProposal'

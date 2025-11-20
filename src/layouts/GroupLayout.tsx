@@ -8,6 +8,7 @@ import {
   Storefront,
   Add,
   PeopleAlt,
+  EditNote,
 } from '@mui/icons-material'
 import { useGroups } from '@/hooks/useGroups'
 
@@ -73,6 +74,11 @@ const GroupLayout = () => {
       label: 'Marketplace',
       icon: Storefront,
       to: '/groups/marketplace',
+    },
+    {
+      label: 'Chờ ký',
+      icon: EditNote,
+      to: '/groups/my-pending-signatures',
     },
     {
       label: 'Tạo nhóm mới',

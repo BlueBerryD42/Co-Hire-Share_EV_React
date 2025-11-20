@@ -42,6 +42,7 @@ import {
   Cancel as CancelIcon,
   History as HistoryIcon,
   Notifications as NotificationsIcon,
+  EditNote as EditNoteIcon,
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import SendForSigningDialog from '@/components/group/SendForSigningDialog'
@@ -440,6 +441,29 @@ export default function DocumentViewer() {
         >
           Share Document
         </Button>
+
+        {/* Sign Button - Show if current user has a pending signature */}
+        {signatureStatus && (() => {
+          const mySignature = signatureStatus.signatures.find(sig => sig.isCurrentSigner && sig.isPending)
+          if (mySignature && mySignature.signingToken) {
+            return (
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<EditNoteIcon />}
+                onClick={() => navigate(`/groups/${groupId}/documents/${documentId}/sign?token=${mySignature.signingToken}`)}
+                sx={{
+                  mt: 2,
+                  bgcolor: '#d4a574',
+                  '&:hover': { bgcolor: '#c49564' },
+                }}
+              >
+                Sign This Document
+              </Button>
+            )
+          }
+          return null
+        })()}
       </Box>
     )
   }

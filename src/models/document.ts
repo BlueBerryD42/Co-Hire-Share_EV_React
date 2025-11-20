@@ -127,6 +127,7 @@ export interface SignatureDetailResponse {
   signatureOrder: number
   signedAt?: string
   signatureData?: string
+  signingToken?: string
   ipAddress?: string
   deviceInfo?: string
   isCurrentSigner: boolean

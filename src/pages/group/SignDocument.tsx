@@ -16,6 +16,7 @@ import {
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
   NatureOutlined as SignatureIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material'
 import SignatureCanvas from 'react-signature-canvas'
 import { documentApi } from '@/services/group/documents'
@@ -35,6 +36,7 @@ export default function SignDocument() {
   const [success, setSuccess] = useState(false)
   const [tokenValid, setTokenValid] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState(false)
 
   const signingToken = searchParams.get('token')
 
@@ -72,10 +74,31 @@ export default function SignDocument() {
       const blob = await documentApi.previewDocument(documentId as UUID)
       const url = URL.createObjectURL(blob)
       setPreviewUrl(url)
+      setPreviewError(false)
     } catch (err: any) {
       // Preview might not be available for all file types or backend might have issues - this is not critical
       console.log('Preview not available:', err.response?.status === 500 ? 'Backend error generating preview' : err.message)
+      setPreviewError(true)
       // Don't set error as preview is optional for signing
+    }
+  }
+
+  const handleDownloadDocument = async () => {
+    if (!documentId || !document) return
+
+    try {
+      const blob = await documentApi.downloadDocument(documentId as UUID)
+      const url = window.URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = document.fileName
+      window.document.body.appendChild(link)
+      link.click()
+      window.document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error('Error downloading document:', err)
+      setError('Failed to download document. Please try again.')
     }
   }
 
@@ -238,6 +261,42 @@ export default function SignDocument() {
                     title="Document Preview"
                   />
                 </Box>
+              ) : previewError ? (
+                <Box
+                  sx={{
+                    width: '100%',
+                    minHeight: '400px',
+                    bgcolor: 'white',
+                    borderRadius: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 2,
+                    p: 4,
+                  }}
+                >
+                  <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                    Preview Not Available
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 2 }}>
+                    The document preview could not be loaded. You can download the document to review it before signing.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleDownloadDocument}
+                    sx={{
+                      bgcolor: '#7a9b76',
+                      '&:hover': { bgcolor: '#6a8b66' },
+                    }}
+                  >
+                    Download Document
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
+                    You can still sign this document below
+                  </Typography>
+                </Box>
               ) : (
                 <Box
                   sx={{
@@ -250,9 +309,7 @@ export default function SignDocument() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Typography variant="body1" color="text.secondary">
-                    Loading preview...
-                  </Typography>
+                  <CircularProgress sx={{ color: '#7a9b76' }} />
                 </Box>
               )}
             </CardContent>
