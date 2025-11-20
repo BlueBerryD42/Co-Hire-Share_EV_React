@@ -5,8 +5,17 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/ui/Loading";
+import { useAppSelector } from "@/store/hooks";
+import { isSystemAdmin } from "@/utils/roles";
+import Unauthorized from "@/components/auth/Unauthorized";
 
 const AuditLog = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Role check - SystemAdmin only
+  if (!isSystemAdmin(user)) {
+    return <Unauthorized requiredRole="SystemAdmin" />;
+  }
   const [logs, setLogs] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);

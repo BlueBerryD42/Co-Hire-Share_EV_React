@@ -4,8 +4,17 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/Loading";
+import { useAppSelector } from "@/store/hooks";
+import { isSystemAdmin } from "@/utils/roles";
+import Unauthorized from "@/components/auth/Unauthorized";
 
 const AnalyticsDashboard = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Role check - SystemAdmin only
+  if (!isSystemAdmin(user)) {
+    return <Unauthorized requiredRole="SystemAdmin" />;
+  }
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

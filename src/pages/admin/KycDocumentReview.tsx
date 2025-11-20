@@ -7,6 +7,9 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/Loading";
 import DocumentViewer from "@/components/admin/DocumentViewer";
 import KycReviewModal from "@/components/admin/KycReviewModal";
+import { useAppSelector } from "@/store/hooks";
+import { isSystemAdmin } from "@/utils/roles";
+import Unauthorized from "@/components/auth/Unauthorized";
 
 interface Document {
   id: string;
@@ -45,6 +48,13 @@ interface FilterParams extends Record<string, unknown> {
 }
 
 const KycDocumentReview = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Role check - SystemAdmin only
+  if (!isSystemAdmin(user)) {
+    return <Unauthorized requiredRole="SystemAdmin" />;
+  }
+
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);

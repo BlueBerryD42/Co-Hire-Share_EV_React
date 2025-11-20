@@ -6,6 +6,7 @@ import maintenanceService from '@/services/maintenanceService'
 import vehicleService from '@/services/vehicleService'
 import { ServiceType, MaintenancePriority, type ScheduleMaintenanceRequest } from '@/models/maintenance'
 import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/utils/roles'
 
 const ScheduleMaintenance = () => {
   const { id: vehicleId } = useParams<{ id: string }>()
@@ -105,7 +106,7 @@ const ScheduleMaintenance = () => {
       value: value,
     }));
 
-  const isAdmin = user?.role === 0 || user?.role === 2; // SystemAdmin or GroupAdmin
+  const isAdmin = user?.role === UserRole.SystemAdmin || user?.role === UserRole.GroupAdmin
 
 
   return (

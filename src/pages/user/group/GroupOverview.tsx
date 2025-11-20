@@ -10,13 +10,17 @@ import {
   Assignment,
   HowToReg,
 } from '@mui/icons-material'
+import { Alert, Button, Snackbar, Tooltip } from '@mui/material'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import type { GroupStatus } from '@/models/group'
 import type { UUID } from '@/models/booking'
-import { useGroups } from '@/hooks/useGroups'
+import { useGroups, useGroup } from '@/hooks/useGroups'
 import { useFundBalance } from '@/hooks/useFund'
 import { useProposals } from '@/hooks/useProposals'
 import { EmptyState } from '@/components/shared'
+import StatusBadge from '@/components/shared/StatusBadge'
 import { documentApi } from '@/services/group/documents'
+import { groupApi } from '@/services/group/groups'
 import { DocumentType, SignatureStatus, type DocumentListItemResponse } from '@/models/document'
 
 const currency = new Intl.NumberFormat("vi-VN", {
@@ -33,6 +37,14 @@ const statusMap: Record<GroupStatus, { label: string; className: string }> = {
   Inactive: { label: "Tạm nghỉ", className: "bg-neutral-200 text-neutral-600" },
   Dissolved: {
     label: "Giải thể",
+    className: "bg-accent-terracotta/20 text-accent-terracotta",
+  },
+  PendingApproval: {
+    label: "Chờ phê duyệt",
+    className: "bg-accent-gold/20 text-accent-gold",
+  },
+  Rejected: {
+    label: "Bị từ chối",
     className: "bg-accent-terracotta/20 text-accent-terracotta",
   },
 };
@@ -61,6 +73,7 @@ type QuickAction = {
   description: string;
   icon: React.ComponentType;
   to: ((groupId: UUID) => string) | (() => string) | null;
+  disabled?: (group: any) => boolean;
 };
 
 const quickActions: QuickAction[] = [
@@ -69,44 +82,92 @@ const quickActions: QuickAction[] = [
     description: "View balance & request withdrawal",
     icon: SavingsOutlined,
     to: (groupId: UUID) => `/groups/${groupId}/fund`,
+    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
   {
     label: "Proposals",
     description: "Vote on decisions & track status",
     icon: HowToVote,
     to: (groupId: UUID) => `/groups/${groupId}/proposals`,
+    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
   {
     label: "Create proposal",
     description: "Start a new rule or budget change",
     icon: EventAvailable,
     to: (groupId: UUID) => `/groups/${groupId}/proposals/create`,
+    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
   {
     label: "E-Contract",
     description: "View, manage & sign documents",
     icon: Description,
     to: (groupId: UUID) => `/groups/${groupId}/documents`,
+    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
   {
     label: "Booking calendar",
     description: "Jump to shared vehicle scheduling",
     icon: CalendarMonth,
     to: () => "/booking/calendar",
+    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
 ];
 
 const GroupOverview = () => {
   const { groupId } = useParams<{ groupId: UUID }>()
-  const { data: groups, loading, error, reload } = useGroups();
+  // Fetch the specific group directly to ensure fresh data
+  const { data: selectedGroupData, loading: groupLoading, error: groupError, reload: reloadGroup } = useGroup(groupId);
+  // Also fetch all groups for navigation/context
+  const { data: groups, reload: reloadGroups } = useGroups();
   const [pendingDocuments, setPendingDocuments] = useState<DocumentListItemResponse[]>([])
   const [recentContracts, setRecentContracts] = useState<DocumentListItemResponse[]>([])
   const [loadingDocuments, setLoadingDocuments] = useState(false)
+  const [resubmitting, setResubmitting] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
 
-  const selectedGroup = useMemo(() => {
+  // Use the directly fetched group data, or fallback to finding it in the groups list
+  // All hooks must be called unconditionally, so useMemo is called at top level
+  const fallbackGroup = useMemo(() => {
     if (!groups?.length || !groupId) return undefined;
     return groups.find((g) => g.id === groupId);
   }, [groups, groupId]);
+  
+  const selectedGroup = selectedGroupData || fallbackGroup
+  const loading = groupLoading
+  const error = groupError
+
+  const isPendingOrRejected = selectedGroup?.status === 'PendingApproval' || selectedGroup?.status === 'Rejected'
+
+  const handleResubmit = async () => {
+    if (!selectedGroup?.id) return
+    
+    try {
+      setResubmitting(true)
+      await groupApi.resubmitGroup(selectedGroup.id)
+      setSnackbar({
+        open: true,
+        message: 'Đã gửi lại yêu cầu phê duyệt thành công',
+        severity: 'success',
+      })
+      // Refresh group data
+      await reloadGroup()
+      await reloadGroups()
+    } catch (error: any) {
+      console.error('Error resubmitting group:', error)
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Không thể gửi lại yêu cầu',
+        severity: 'error',
+      })
+    } finally {
+      setResubmitting(false)
+    }
+  }
 
   const activeFilter = useMemo(() => ({ status: "Active" }), []);
   const { data: fundBalance, loading: fundLoading } = useFundBalance(
@@ -116,6 +177,13 @@ const GroupOverview = () => {
     selectedGroup?.id,
     activeFilter
   );
+
+  // Reload group when groupId changes
+  useEffect(() => {
+    if (groupId) {
+      reloadGroup()
+    }
+  }, [groupId, reloadGroup])
 
   // Fetch pending signatures and recent contracts
   useEffect(() => {
@@ -172,7 +240,7 @@ const GroupOverview = () => {
         <p className="text-neutral-600">{error.message}</p>
         <button
           type="button"
-          onClick={() => reload()}
+          onClick={() => reloadGroup()}
           className="btn-primary inline-flex items-center justify-center"
         >
           Thử lại
@@ -241,15 +309,69 @@ const GroupOverview = () => {
     <section className="space-y-8">
       <header className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-semibold text-neutral-900">
-              {selectedGroup?.name || 'Tổng quan nhóm'}
-            </h1>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-semibold text-neutral-900">
+                {selectedGroup?.name || 'Tổng quan nhóm'}
+              </h1>
+              {selectedGroup && <StatusBadge status={selectedGroup.status} size="medium" />}
+            </div>
             <p className="max-w-2xl text-neutral-600">
               {selectedGroup?.description || 'Quản lý thành viên, quỹ chung, và đề xuất của nhóm.'}
             </p>
           </div>
+          {selectedGroup?.status === 'Rejected' && (
+            <Button
+              variant="outlined"
+              startIcon={<RefreshCw />}
+              onClick={handleResubmit}
+              disabled={resubmitting}
+              sx={{ borderColor: '#7a9b76', color: '#7a9b76' }}
+            >
+              {resubmitting ? 'Đang gửi...' : 'Gửi lại phê duyệt'}
+            </Button>
+          )}
         </div>
+
+        {/* Rejection Reason Alert */}
+        {selectedGroup?.status === 'Rejected' && selectedGroup.rejectionReason && (
+          <Alert 
+            severity="error" 
+            icon={<AlertCircle />}
+            action={
+              <Button
+                size="small"
+                onClick={handleResubmit}
+                disabled={resubmitting}
+                startIcon={<RefreshCw />}
+              >
+                Gửi lại
+              </Button>
+            }
+          >
+            <div>
+              <strong>Nhóm đã bị từ chối:</strong>
+              <p className="mt-1">{selectedGroup.rejectionReason}</p>
+              {selectedGroup.reviewedAt && (
+                <p className="text-xs mt-1 opacity-75">
+                  Ngày xem xét: {new Date(selectedGroup.reviewedAt).toLocaleDateString('vi-VN')}
+                </p>
+              )}
+            </div>
+          </Alert>
+        )}
+
+        {/* Pending Approval Alert */}
+        {selectedGroup?.status === 'PendingApproval' && (
+          <Alert severity="warning">
+            Nhóm của bạn đang chờ được phê duyệt bởi nhân viên. Bạn sẽ nhận được thông báo khi có kết quả.
+            {selectedGroup.submittedAt && (
+              <p className="text-xs mt-1 opacity-75">
+                Đã gửi: {new Date(selectedGroup.submittedAt).toLocaleDateString('vi-VN')}
+              </p>
+            )}
+          </Alert>
+        )}
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -352,21 +474,48 @@ const GroupOverview = () => {
               : (action.to as () => string)()
             : action.to;
           
+          const isDisabled = action.disabled ? action.disabled(selectedGroup) : false;
+          
+          const actionContent = (
+            <div className={`group flex items-center gap-4 rounded-2xl border p-5 transition ${
+              isDisabled 
+                ? 'border-neutral-200 bg-neutral-50 cursor-not-allowed opacity-60' 
+                : 'border-neutral-200 bg-white hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg'
+            }`}>
+              <span className={`rounded-2xl p-3 ${
+                isDisabled ? 'bg-neutral-200 text-neutral-400' : 'bg-neutral-100 text-accent-blue'
+              }`}>
+                <Icon />
+              </span>
+              <div>
+                <p className={`text-lg font-semibold ${
+                  isDisabled ? 'text-neutral-400' : 'text-neutral-900'
+                }`}>
+                  {action.label}
+                </p>
+                <p className={`text-sm ${
+                  isDisabled ? 'text-neutral-400' : 'text-neutral-600'
+                }`}>
+                  {isDisabled ? 'Không khả dụng khi nhóm đang chờ phê duyệt hoặc bị từ chối' : action.description}
+                </p>
+              </div>
+            </div>
+          );
+
+          if (isDisabled) {
+            return (
+              <Tooltip key={action.label} title="Nhóm đang chờ phê duyệt hoặc bị từ chối">
+                <div>{actionContent}</div>
+              </Tooltip>
+            );
+          }
+
           return (
             <Link
               key={action.label}
               to={linkTo}
-              className="group flex items-center gap-4 rounded-2xl border border-neutral-200 bg-white p-5 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
             >
-              <span className="rounded-2xl bg-neutral-100 p-3 text-accent-blue">
-                <Icon />
-              </span>
-              <div>
-                <p className="text-lg font-semibold text-neutral-900">
-                  {action.label}
-                </p>
-                <p className="text-sm text-neutral-600">{action.description}</p>
-              </div>
+              {actionContent}
             </Link>
           );
         })}
@@ -381,13 +530,18 @@ const GroupOverview = () => {
               Quản lý hợp đồng điện tử, theo dõi trạng thái chữ ký và tài liệu nhóm
             </p>
           </div>
-          {selectedGroup?.id && (
+          {selectedGroup?.id && !isPendingOrRejected && (
             <Link
               to={`/groups/${selectedGroup.id}/documents`}
               className="text-sm font-semibold text-accent-blue"
             >
               Xem tất cả →
             </Link>
+          )}
+          {isPendingOrRejected && (
+            <span className="text-sm text-neutral-400 cursor-not-allowed">
+              Xem tất cả →
+            </span>
           )}
         </div>
 
@@ -415,34 +569,61 @@ const GroupOverview = () => {
             ) : pendingDocuments.length > 0 ? (
               <div className="space-y-2">
                 {pendingDocuments.slice(0, 3).map((doc) => (
-                  <Link
-                    key={doc.id}
-                    to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
-                    className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-gold hover:bg-accent-gold/5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{doc.fileName.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '📝'}</span>
-                      <div>
-                        <p className="text-sm font-medium text-neutral-900 line-clamp-1">
-                          {doc.fileName}
-                        </p>
-                        <p className="text-xs text-neutral-500">
-                          {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
-                        </p>
+                  isPendingOrRejected ? (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 cursor-not-allowed opacity-60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{doc.fileName.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '📝'}</span>
+                        <div>
+                          <p className="text-sm font-medium text-neutral-400 line-clamp-1">
+                            {doc.fileName}
+                          </p>
+                          <p className="text-xs text-neutral-400">
+                            {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
                       </div>
+                      <span className="rounded-full bg-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-400">
+                        Ký ngay
+                      </span>
                     </div>
-                    <span className="rounded-full bg-accent-gold/20 px-2 py-1 text-xs font-semibold text-accent-gold">
-                      Ký ngay
-                    </span>
-                  </Link>
+                  ) : (
+                    <Link
+                      key={doc.id}
+                      to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-gold hover:bg-accent-gold/5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{doc.fileName.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '📝'}</span>
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900 line-clamp-1">
+                            {doc.fileName}
+                          </p>
+                          <p className="text-xs text-neutral-500">
+                            {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-accent-gold/20 px-2 py-1 text-xs font-semibold text-accent-gold">
+                        Ký ngay
+                      </span>
+                    </Link>
+                  )
                 ))}
-                {pendingDocuments.length > 3 && (
+                {pendingDocuments.length > 3 && !isPendingOrRejected && (
                   <Link
                     to={`/groups/${selectedGroup?.id}/documents?status=pending`}
                     className="block text-center text-sm font-semibold text-accent-blue"
                   >
                     Xem thêm {pendingDocuments.length - 3} tài liệu →
                   </Link>
+                )}
+                {pendingDocuments.length > 3 && isPendingOrRejected && (
+                  <div className="block text-center text-sm text-neutral-400 cursor-not-allowed">
+                    Xem thêm {pendingDocuments.length - 3} tài liệu →
+                  </div>
                 )}
               </div>
             ) : (
@@ -475,42 +656,72 @@ const GroupOverview = () => {
             ) : recentContracts.length > 0 ? (
               <div className="space-y-2">
                 {recentContracts.map((doc) => (
-                  <Link
-                    key={doc.id}
-                    to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
-                    className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-blue hover:bg-accent-blue/5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📄</span>
-                      <div>
-                        <p className="text-sm font-medium text-neutral-900 line-clamp-1">
-                          {doc.fileName}
-                        </p>
-                        <p className="text-xs text-neutral-500">
-                          {doc.signatureStatus === SignatureStatus.FullySigned
-                            ? 'Đã ký hoàn tất'
-                            : doc.signatureStatus === SignatureStatus.PartiallySigned
-                              ? 'Đang ký'
-                              : 'Nháp'}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        doc.signatureStatus === SignatureStatus.FullySigned
-                          ? 'bg-accent-green/20 text-accent-green'
-                          : doc.signatureStatus === SignatureStatus.PartiallySigned
-                            ? 'bg-accent-gold/20 text-accent-gold'
-                            : 'bg-neutral-200 text-neutral-600'
-                      }`}
+                  isPendingOrRejected ? (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 cursor-not-allowed opacity-60"
                     >
-                      {doc.signatureStatus === SignatureStatus.FullySigned
-                        ? 'Hoàn tất'
-                        : doc.signatureStatus === SignatureStatus.PartiallySigned
-                          ? 'Đang ký'
-                          : 'Nháp'}
-                    </span>
-                  </Link>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">📄</span>
+                        <div>
+                          <p className="text-sm font-medium text-neutral-400 line-clamp-1">
+                            {doc.fileName}
+                          </p>
+                          <p className="text-xs text-neutral-400">
+                            {doc.signatureStatus === SignatureStatus.FullySigned
+                              ? 'Đã ký hoàn tất'
+                              : doc.signatureStatus === SignatureStatus.PartiallySigned
+                                ? 'Đang ký'
+                                : 'Nháp'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-400">
+                        {doc.signatureStatus === SignatureStatus.FullySigned
+                          ? 'Hoàn tất'
+                          : doc.signatureStatus === SignatureStatus.PartiallySigned
+                            ? 'Đang ký'
+                            : 'Nháp'}
+                      </span>
+                    </div>
+                  ) : (
+                    <Link
+                      key={doc.id}
+                      to={`/groups/${selectedGroup?.id}/documents/${doc.id}`}
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition hover:border-accent-blue hover:bg-accent-blue/5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">📄</span>
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900 line-clamp-1">
+                            {doc.fileName}
+                          </p>
+                          <p className="text-xs text-neutral-500">
+                            {doc.signatureStatus === SignatureStatus.FullySigned
+                              ? 'Đã ký hoàn tất'
+                              : doc.signatureStatus === SignatureStatus.PartiallySigned
+                                ? 'Đang ký'
+                                : 'Nháp'}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          doc.signatureStatus === SignatureStatus.FullySigned
+                            ? 'bg-accent-green/20 text-accent-green'
+                            : doc.signatureStatus === SignatureStatus.PartiallySigned
+                              ? 'bg-accent-gold/20 text-accent-gold'
+                              : 'bg-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {doc.signatureStatus === SignatureStatus.FullySigned
+                          ? 'Hoàn tất'
+                          : doc.signatureStatus === SignatureStatus.PartiallySigned
+                            ? 'Đang ký'
+                            : 'Nháp'}
+                      </span>
+                    </Link>
+                  )
                 ))}
               </div>
             ) : (
@@ -524,44 +735,86 @@ const GroupOverview = () => {
         {/* Quick Actions */}
         {selectedGroup?.id && (
           <div className="grid gap-4 md:grid-cols-3">
-            <Link
-              to={`/groups/${selectedGroup.id}/documents`}
-              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
-            >
-              <span className="rounded-2xl bg-accent-blue/10 p-2 text-accent-blue">
-                <Description fontSize="small" />
-              </span>
-              <div>
-                <p className="font-semibold text-neutral-900">Xem tất cả tài liệu</p>
-                <p className="text-sm text-neutral-600">Quản lý và xem tài liệu nhóm</p>
-              </div>
-            </Link>
+            {isPendingOrRejected ? (
+              <>
+                <Tooltip title="Nhóm đang chờ phê duyệt hoặc bị từ chối">
+                  <div className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-neutral-50 p-4 cursor-not-allowed opacity-60">
+                    <span className="rounded-2xl bg-neutral-200 p-2 text-neutral-400">
+                      <Description fontSize="small" />
+                    </span>
+                    <div>
+                      <p className="font-semibold text-neutral-400">Xem tất cả tài liệu</p>
+                      <p className="text-sm text-neutral-400">Không khả dụng khi nhóm đang chờ phê duyệt</p>
+                    </div>
+                  </div>
+                </Tooltip>
 
-            <Link
-              to={`/groups/${selectedGroup.id}/documents?status=pending`}
-              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-gold hover:shadow-lg"
-            >
-              <span className="rounded-2xl bg-accent-gold/10 p-2 text-accent-gold">
-                <Assignment fontSize="small" />
-              </span>
-              <div>
-                <p className="font-semibold text-neutral-900">Chữ ký đang chờ</p>
-                <p className="text-sm text-neutral-600">Xem tài liệu cần ký</p>
-              </div>
-            </Link>
+                <Tooltip title="Nhóm đang chờ phê duyệt hoặc bị từ chối">
+                  <div className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-neutral-50 p-4 cursor-not-allowed opacity-60">
+                    <span className="rounded-2xl bg-neutral-200 p-2 text-neutral-400">
+                      <Assignment fontSize="small" />
+                    </span>
+                    <div>
+                      <p className="font-semibold text-neutral-400">Chữ ký đang chờ</p>
+                      <p className="text-sm text-neutral-400">Không khả dụng khi nhóm đang chờ phê duyệt</p>
+                    </div>
+                  </div>
+                </Tooltip>
 
-            <Link
-              to={`/groups/${selectedGroup.id}/documents?type=contract`}
-              className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-green hover:shadow-lg"
-            >
-              <span className="rounded-2xl bg-accent-green/10 p-2 text-accent-green">
-                <HowToReg fontSize="small" />
-              </span>
-              <div>
-                <p className="font-semibold text-neutral-900">Hợp đồng sở hữu</p>
-                <p className="text-sm text-neutral-600">Xem hợp đồng điện tử</p>
-              </div>
-            </Link>
+                <Tooltip title="Nhóm đang chờ phê duyệt hoặc bị từ chối">
+                  <div className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-neutral-50 p-4 cursor-not-allowed opacity-60">
+                    <span className="rounded-2xl bg-neutral-200 p-2 text-neutral-400">
+                      <HowToReg fontSize="small" />
+                    </span>
+                    <div>
+                      <p className="font-semibold text-neutral-400">Hợp đồng sở hữu</p>
+                      <p className="text-sm text-neutral-400">Không khả dụng khi nhóm đang chờ phê duyệt</p>
+                    </div>
+                  </div>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                <Link
+                  to={`/groups/${selectedGroup.id}/documents`}
+                  className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
+                >
+                  <span className="rounded-2xl bg-accent-blue/10 p-2 text-accent-blue">
+                    <Description fontSize="small" />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-neutral-900">Xem tất cả tài liệu</p>
+                    <p className="text-sm text-neutral-600">Quản lý và xem tài liệu nhóm</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to={`/groups/${selectedGroup.id}/documents?status=pending`}
+                  className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-gold hover:shadow-lg"
+                >
+                  <span className="rounded-2xl bg-accent-gold/10 p-2 text-accent-gold">
+                    <Assignment fontSize="small" />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-neutral-900">Chữ ký đang chờ</p>
+                    <p className="text-sm text-neutral-600">Xem tài liệu cần ký</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to={`/groups/${selectedGroup.id}/documents?type=contract`}
+                  className="group flex items-center gap-4 rounded-3xl border border-neutral-200 bg-white p-4 transition hover:-translate-y-1 hover:border-accent-green hover:shadow-lg"
+                >
+                  <span className="rounded-2xl bg-accent-green/10 p-2 text-accent-green">
+                    <HowToReg fontSize="small" />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-neutral-900">Hợp đồng sở hữu</p>
+                    <p className="text-sm text-neutral-600">Xem hợp đồng điện tử</p>
+                  </div>
+                </Link>
+              </>
+            )}
           </div>
         )}
       </section>

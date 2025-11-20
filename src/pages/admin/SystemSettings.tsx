@@ -3,8 +3,17 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Tabs, Tab, Box } from "@mui/material";
+import { useAppSelector } from "@/store/hooks";
+import { isSystemAdmin } from "@/utils/roles";
+import Unauthorized from "@/components/auth/Unauthorized";
 
 const SystemSettings = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Role check - SystemAdmin only
+  if (!isSystemAdmin(user)) {
+    return <Unauthorized requiredRole="SystemAdmin" />;
+  }
   const [activeTab, setActiveTab] = useState("general");
   const [settings, setSettings] = useState({
     appName: "EV Co-Ownership Platform",

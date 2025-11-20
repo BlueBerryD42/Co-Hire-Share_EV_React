@@ -1,10 +1,21 @@
+/**
+ * User role enum matching backend values
+ * SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
+ */
+export enum UserRole {
+  SystemAdmin = 0,
+  Staff = 1,
+  GroupAdmin = 2,
+  CoOwner = 3,
+}
+
 export interface User {
   id: string
   email: string
   firstName: string      // Backend uses firstName/lastName
   lastName: string
   phone: string          
-  role: number           
+  role: number           // UserRole enum value
   kycStatus: number      
   createdAt: string
 }

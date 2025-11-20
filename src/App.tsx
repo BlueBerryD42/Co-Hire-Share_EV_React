@@ -13,8 +13,10 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import MainLayout from "@/layouts/MainLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import GroupLayout from "@/layouts/GroupLayout";
-import Home from "@/pages/Home";
-import Landing from "@/pages/Landing";
+import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
+import { UserRole } from "@/utils/roles";
+import Home from "@/pages/user/Home";
+import Landing from "@/pages/public/Landing";
 
 // Auth Pages
 import {
@@ -25,7 +27,7 @@ import {
   ForgotPassword,
   ResetPassword,
   KycVerification,
-} from "@/pages/auth";
+} from "@/pages/public/auth";
 
 // Vehicle Pages
 import {
@@ -42,7 +44,7 @@ import {
   MaintenanceDetails,
   EditMaintenance,
   CompleteMaintenance,
-} from "@/pages/vehicle";
+} from "@/pages/user/vehicle";
 
 // Booking Pages
 import {
@@ -57,7 +59,7 @@ import {
   ReportIssue,
   AiRecommendations,
   SuccessFeedback,
-} from "@/pages/booking";
+} from "@/pages/user/booking";
 
 // Group Pages
 import {
@@ -78,26 +80,30 @@ import {
   DocumentSigningDashboard,
   SignDocument,
   MyPendingSignatures,
-} from "@/pages/group";
+} from "@/pages/user/group";
 
-// Admin Pages
-import StaffDashboard from "@/pages/admin/StaffDashboard";
-import ManageGroups from "@/pages/admin/ManageGroups";
-import ManageVehicles from "@/pages/admin/ManageVehicles";
-import VehicleMaintenance from "@/pages/admin/VehicleMaintenance";
-import CheckInOutManagement from "@/pages/admin/CheckInOutManagement";
-import DisputeManagement from "@/pages/admin/DisputeManagement";
-import FinancialReports from "@/pages/admin/FinancialReports";
+// Staff Pages
+import StaffDashboard from "@/pages/staff/StaffDashboard";
+import ManageGroups from "@/pages/staff/ManageGroups";
+import ManageVehicles from "@/pages/staff/ManageVehicles";
+import PendingGroups from "@/pages/staff/PendingGroups";
+import PendingVehicles from "@/pages/staff/PendingVehicles";
+import VehicleMaintenance from "@/pages/staff/VehicleMaintenance";
+import CheckInOutManagement from "@/pages/staff/CheckInOutManagement";
+import DisputeManagement from "@/pages/staff/DisputeManagement";
+import FinancialReports from "@/pages/staff/FinancialReports";
+import EContractTemplates from "@/pages/staff/EContractTemplates";
+import AiFairnessScore from "@/pages/staff/AiFairnessScore";
+import AiBookingRecommendations from "@/pages/staff/AiBookingRecommendations";
+import PredictiveMaintenance from "@/pages/staff/PredictiveMaintenance";
+import CostOptimizationInsights from "@/pages/staff/CostOptimizationInsights";
+
+// Admin Pages (SystemAdmin only)
 import UserManagement from "@/pages/admin/UserManagement";
 import KycDocumentReview from "@/pages/admin/KycDocumentReview";
-import EContractTemplates from "@/pages/admin/EContractTemplates";
 import SystemSettings from "@/pages/admin/SystemSettings";
 import AnalyticsDashboard from "@/pages/admin/AnalyticsDashboard";
 import AuditLog from "@/pages/admin/AuditLog";
-import AiFairnessScore from "@/pages/admin/AiFairnessScore";
-import AiBookingRecommendations from "@/pages/admin/AiBookingRecommendations";
-import PredictiveMaintenance from "@/pages/admin/PredictiveMaintenance";
-import CostOptimizationInsights from "@/pages/admin/CostOptimizationInsights";
 
 /**
  * Component để load user data khi app khởi động và redirect admins
@@ -125,8 +131,8 @@ const AuthInitializer = () => {
   useEffect(() => {
     if (isAuthenticated && user && location.pathname === "/") {
       // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
-      if (user.role === 0 || user.role === 1) {
-        navigate("/admin/dashboard", { replace: true });
+      if (user.role === UserRole.SystemAdmin || user.role === UserRole.Staff) {
+        navigate('/admin/dashboard', { replace: true });
       }
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
@@ -263,58 +269,84 @@ const App = () => {
               />
             </Route>
 
-            {/* Catch all - redirect to home */}
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Route>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<StaffDashboard />} />
-            <Route path="groups" element={<ManageGroups />} />
-            <Route path="vehicles" element={<ManageVehicles />} />
-            <Route path="maintenance" element={<VehicleMaintenance />} />
-            <Route path="checkins" element={<CheckInOutManagement />} />
-            <Route path="disputes" element={<DisputeManagement />} />
-            <Route path="financial-reports" element={<FinancialReports />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="kyc" element={<KycDocumentReview />} />
-            <Route path="contracts" element={<EContractTemplates />} />
-            <Route path="settings" element={<SystemSettings />} />
-            <Route path="analytics" element={<AnalyticsDashboard />} />
-            <Route path="audit" element={<AuditLog />} />
-          </Route>
-          <Route path="/admin/ai" element={<AdminLayout />}>
-            <Route
-              index
-              element={
-                <Navigate to="/admin/ai/booking-recommendations" replace />
-              }
-            />
-            <Route
-              path="booking-recommendations"
-              element={<AiBookingRecommendations />}
-            />
-            <Route path="fairness-score" element={<AiFairnessScore />} />
-            <Route
-              path="fairness-score/:groupId"
-              element={<AiFairnessScore />}
-            />
-            <Route
-              path="predictive-maintenance"
-              element={<PredictiveMaintenance />}
-            />
-            <Route
-              path="predictive-maintenance/:vehicleId"
-              element={<PredictiveMaintenance />}
-            />
-            <Route
-              path="cost-optimization"
-              element={<CostOptimizationInsights />}
-            />
-            <Route
-              path="cost-optimization/:groupId"
-              element={<CostOptimizationInsights />}
-            />
-          </Route>
+          {/* Catch all - redirect to home */}
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Route>
+        
+        {/* Admin Routes - Protected by Role (SystemAdmin and Staff only) */}
+        <Route
+          path="/admin"
+          element={
+            <RoleProtectedRoute
+              allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
+              redirectTo="/home"
+            >
+              <AdminLayout />
+            </RoleProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<StaffDashboard />} />
+          <Route path="groups/pending" element={<PendingGroups />} />
+          <Route path="groups" element={<ManageGroups />} />
+          <Route path="vehicles/pending" element={<PendingVehicles />} />
+          <Route path="vehicles" element={<ManageVehicles />} />
+          <Route path="maintenance" element={<VehicleMaintenance />} />
+          <Route path="checkins" element={<CheckInOutManagement />} />
+          <Route path="disputes" element={<DisputeManagement />} />
+          <Route path="financial-reports" element={<FinancialReports />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="kyc" element={<KycDocumentReview />} />
+          <Route path="contracts" element={<EContractTemplates />} />
+          <Route path="settings" element={<SystemSettings />} />
+          <Route path="analytics" element={<AnalyticsDashboard />} />
+          <Route path="audit" element={<AuditLog />} />
+        </Route>
+        
+        {/* Admin AI Routes - Protected by Role (SystemAdmin and Staff only) */}
+        <Route
+          path="/admin/ai"
+          element={
+            <RoleProtectedRoute
+              allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
+              redirectTo="/home"
+            >
+              <AdminLayout />
+            </RoleProtectedRoute>
+          }
+        >
+          <Route
+            index
+            element={
+              <Navigate to="/admin/ai/booking-recommendations" replace />
+            }
+          />
+          <Route
+            path="booking-recommendations"
+            element={<AiBookingRecommendations />}
+          />
+          <Route path="fairness-score" element={<AiFairnessScore />} />
+          <Route
+            path="fairness-score/:groupId"
+            element={<AiFairnessScore />}
+          />
+          <Route
+            path="predictive-maintenance"
+            element={<PredictiveMaintenance />}
+          />
+          <Route
+            path="predictive-maintenance/:vehicleId"
+            element={<PredictiveMaintenance />}
+          />
+          <Route
+            path="cost-optimization"
+            element={<CostOptimizationInsights />}
+          />
+          <Route
+            path="cost-optimization/:groupId"
+            element={<CostOptimizationInsights />}
+          />
+        </Route>
         </Routes>
       </ErrorBoundary>
     </BrowserRouter>

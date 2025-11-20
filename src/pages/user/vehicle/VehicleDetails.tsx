@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button } from '@/components/shared'
 import { StatCard } from '@/components/vehicle'
@@ -16,9 +16,19 @@ import {
   TrendingUp,
   Users, // Make sure Users is imported
   MapPin, // Make sure MapPin is imported
+  Upload,
+  Download,
+  Eye,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import vehicleService from '@/services/vehicleService';
 import maintenanceService from '@/services/maintenanceService';
+import vehicleDocumentService from '@/services/vehicle/vehicleDocuments';
+import UploadVehicleDocumentDialog from '@/components/vehicle/UploadVehicleDocumentDialog';
+import { Chip, IconButton, Alert, Snackbar } from '@mui/material';
+import { formatFileSize } from '@/models/document';
+import StatusBadge from '@/components/shared/StatusBadge';
 
 /**
  * VehicleDetails Page - Màn hình 11: Vehicle Details
@@ -35,6 +45,12 @@ const VehicleDetails = () => {
   const [activeTab, setActiveTab] = useState('overview') // overview, stats, maintenance, documents, bookings
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [resubmitting, setResubmitting] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
 
   const { user } = useAppSelector((state) => state.auth);
   const [ownershipPercentage, setOwnershipPercentage] = useState(0);
@@ -45,12 +61,15 @@ const VehicleDetails = () => {
     }
   }, [id])
 
+  const [groupStatus, setGroupStatus] = useState<string | null>(null);
+
   // New useEffect to fetch group details and find ownership
   useEffect(() => {
     const fetchOwnership = async () => {
       if (vehicle?.groupId && user?.id) {
         try {
           const group = await groupApi.getGroup(vehicle.groupId);
+          setGroupStatus(group.status); // Store group status
           const currentUserMember = group.members.find(m => m.userId === user.id);
           if (currentUserMember) {
             // Backend provides sharePercentage as a decimal (e.g., 0.25 for 25%)
@@ -154,15 +173,34 @@ const VehicleDetails = () => {
     'https://placehold.co/800x500/e5e7eb/6b7280?text=Vehicle+Right',
   ]
 
-  const getStatusVariant = (status) => {
-    const statusMap = {
-      Available: 'success',
-      InUse: 'primary',
-      Maintenance: 'warning',
-      Unavailable: 'error',
+  const handleResubmit = async () => {
+    if (!vehicle?.id) return
+    
+    try {
+      setResubmitting(true)
+      await vehicleService.resubmitVehicle(vehicle.id)
+      setSnackbar({
+        open: true,
+        message: 'Đã gửi lại yêu cầu phê duyệt thành công',
+        severity: 'success',
+      })
+      // Refresh vehicle data
+      await fetchVehicleDetails()
+    } catch (error: any) {
+      console.error('Error resubmitting vehicle:', error)
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Không thể gửi lại yêu cầu',
+        severity: 'error',
+      })
+    } finally {
+      setResubmitting(false)
     }
-    return statusMap[status] || 'default'
   }
+
+  const isPendingOrRejected = vehicle?.status === 'PendingApproval' || vehicle?.status === 'Rejected'
+  const isGroupInactive = groupStatus && groupStatus !== 'Active'
+  const canBook = vehicle?.status === 'Available' && !isGroupInactive && !isPendingOrRejected
 
   const getHealthScoreColor = (score) => {
     if (score >= 80) return 'text-success'
@@ -204,12 +242,7 @@ const VehicleDetails = () => {
 
               {/* Status Badge Overlay */}
               <div className="absolute top-4 right-4">
-                <Badge variant={getStatusVariant(vehicle.status)} size="lg">
-                  {vehicle.status === 'Available' && 'Sẵn sàng'}
-                  {vehicle.status === 'InUse' && 'Đang sử dụng'}
-                  {vehicle.status === 'Maintenance' && 'Đang bảo trì'}
-                  {vehicle.status === 'Unavailable' && 'Không khả dụng'}
-                </Badge>
+                <StatusBadge status={vehicle.status} size="medium" />
               </div>
 
               {/* Navigation Arrows */}
@@ -266,16 +299,96 @@ const VehicleDetails = () => {
                     )}
                   </div>
                 </div>
-                <Button
-                  className="bg-black text-white hover:bg-neutral-800"
-                  onClick={() => navigate(`/booking/create?vehicleId=${id}`)}
-                >
-                  Đặt lịch ngay
-                </Button>
+                <div className="flex gap-2">
+                  {vehicle.status === 'Rejected' && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<RefreshCw />}
+                      onClick={handleResubmit}
+                      disabled={resubmitting}
+                      sx={{ borderColor: '#7a9b76', color: '#7a9b76' }}
+                    >
+                      {resubmitting ? 'Đang gửi...' : 'Gửi lại phê duyệt'}
+                    </Button>
+                  )}
+                  <Button
+                    className="bg-black text-white hover:bg-neutral-800"
+                    onClick={() => navigate(`/booking/create?vehicleId=${id}`)}
+                    disabled={!canBook}
+                    title={
+                      !canBook 
+                        ? isGroupInactive 
+                          ? 'Nhóm của xe này chưa được phê duyệt hoặc không hoạt động. Không thể đặt lịch.'
+                          : isPendingOrRejected
+                            ? 'Xe này đang chờ phê duyệt hoặc đã bị từ chối. Không thể đặt lịch.'
+                            : 'Chỉ có thể đặt lịch cho xe sẵn sàng'
+                        : ''
+                    }
+                  >
+                    Đặt lịch ngay
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </Card>
+
+        {/* Rejection Reason Alert */}
+        {vehicle.status === 'Rejected' && vehicle.rejectionReason && (
+          <Alert 
+            severity="error" 
+            icon={<AlertCircle />}
+            sx={{ mb: 4 }}
+            action={
+              <Button
+                size="small"
+                onClick={handleResubmit}
+                disabled={resubmitting}
+                startIcon={<RefreshCw />}
+              >
+                Gửi lại
+              </Button>
+            }
+          >
+            <div>
+              <strong>Xe đã bị từ chối:</strong>
+              <p className="mt-1">{vehicle.rejectionReason}</p>
+              {vehicle.reviewedAt && (
+                <p className="text-xs mt-1 opacity-75">
+                  Ngày xem xét: {new Date(vehicle.reviewedAt).toLocaleDateString('vi-VN')}
+                </p>
+              )}
+            </div>
+          </Alert>
+        )}
+
+        {/* Pending Approval Alert */}
+        {vehicle.status === 'PendingApproval' && (
+          <Alert severity="warning" sx={{ mb: 4 }}>
+            Xe của bạn đang chờ được phê duyệt bởi nhân viên. Bạn sẽ nhận được thông báo khi có kết quả.
+            {vehicle.submittedAt && (
+              <p className="text-xs mt-1 opacity-75">
+                Đã gửi: {new Date(vehicle.submittedAt).toLocaleDateString('vi-VN')}
+              </p>
+            )}
+          </Alert>
+        )}
+
+        {/* Group Inactive Alert */}
+        {isGroupInactive && (
+          <Alert severity="warning" sx={{ mb: 4 }}>
+            <div>
+              <strong>Nhóm của xe này chưa được phê duyệt hoặc không hoạt động:</strong>
+              <p className="mt-1">
+                {groupStatus === 'PendingApproval' && 'Nhóm đang chờ được phê duyệt bởi nhân viên.'}
+                {groupStatus === 'Rejected' && 'Nhóm đã bị từ chối.'}
+                {groupStatus === 'Inactive' && 'Nhóm đã tạm ngưng hoạt động.'}
+                {groupStatus === 'Dissolved' && 'Nhóm đã giải thể.'}
+                {' '}Xe không thể được đặt lịch cho đến khi nhóm được phê duyệt và hoạt động.
+              </p>
+            </div>
+          </Alert>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -295,11 +408,12 @@ const VehicleDetails = () => {
           <StatCard
             icon={Battery}
             label="Điểm sức khỏe"
-            value={healthScore?.overallScore || 0}
+            value={healthScore?.overallScore ?? 'N/A'}
             variant={
-              healthScore?.overallScore >= 80 ? 'success' :
-                healthScore?.overallScore >= 60 ? 'primary' :
-                  healthScore?.overallScore >= 40 ? 'warning' : 'error'
+              !healthScore ? 'default' :
+                healthScore.overallScore >= 80 ? 'success' :
+                  healthScore.overallScore >= 60 ? 'primary' :
+                    healthScore.overallScore >= 40 ? 'warning' : 'error'
             }
           />
           <StatCard
@@ -366,8 +480,8 @@ const VehicleDetails = () => {
         <div>
           {activeTab === 'overview' && <OverviewTab vehicle={vehicle} healthScore={healthScore} />}
           {activeTab === 'stats' && <StatsTab statistics={statistics} />}
-          {activeTab === 'maintenance' && <MaintenanceTab vehicleId={id} />}
-          {activeTab === 'documents' && <DocumentsTab vehicleId={id} />}
+          {activeTab === 'maintenance' && <MaintenanceTab vehicleId={id} groupStatus={groupStatus} />}
+          {activeTab === 'documents' && <DocumentsTab vehicleId={id} groupId={vehicle?.groupId} />}
           {activeTab === 'bookings' && <BookingsTab vehicleId={id} />}
         </div>
       </div>
@@ -470,7 +584,14 @@ const OverviewTab = ({ vehicle, healthScore }) => (
           )}
         </div>
       ) : (
-        <p className="text-neutral-600">Đang tải thông tin sức khỏe xe...</p>
+        <div className="text-center py-8">
+          <Battery className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+          <p className="text-lg font-semibold text-neutral-600 mb-1">N/A</p>
+          <p className="text-sm text-neutral-500">Chưa có dữ liệu</p>
+          <p className="text-xs text-neutral-400 mt-2">
+            Điểm sức khỏe sẽ được tính sau khi xe có dữ liệu bảo trì và sử dụng
+          </p>
+        </div>
       )}
     </Card>
   </div>
@@ -508,12 +629,14 @@ const StatsTab = ({ statistics }) => (
 )
 
 // Maintenance Tab Component
-const MaintenanceTab = ({ vehicleId }) => {
+const MaintenanceTab = ({ vehicleId, groupStatus }) => {
   const navigate = useNavigate()
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([])
   const [records, setRecords] = useState<MaintenanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null); // Add error state
+  
+  const isGroupInactive = groupStatus && groupStatus !== 'Active'
 
   const fetchMaintenanceData = async () => {
     try {
@@ -613,8 +736,16 @@ const MaintenanceTab = ({ vehicleId }) => {
     <div className="space-y-8">
       {/* Action Button */}
       <div className="flex justify-end">
-        <Button onClick={() => navigate(`/vehicles/${vehicleId}/maintenance/create`)}>
-          <Wrench className="w-4 h-4 mr-2" />+ Lên lịch bảo trì mới
+        <Button 
+          onClick={() => navigate(`/vehicles/${vehicleId}/maintenance/create`)}
+          disabled={isGroupInactive}
+          title={
+            isGroupInactive 
+              ? 'Nhóm của xe này chưa được phê duyệt hoặc không hoạt động. Không thể lên lịch bảo trì.'
+              : ''
+          }
+        >
+          <Wrench className="w-4 h-4 mr-2" />Lên lịch bảo trì mới
         </Button>
       </div>
 
@@ -685,12 +816,319 @@ const MaintenanceTab = ({ vehicleId }) => {
 }
 
 // Documents Tab Component
-const DocumentsTab = ({ vehicleId }) => (
-  <Card>
-    <h3 className="text-xl font-semibold text-neutral-800 mb-4">Tài liệu xe</h3>
-    <p className="text-neutral-600">Đang phát triển...</p>
-  </Card>
-)
+const DocumentsTab = ({ vehicleId, groupId }) => {
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
+
+  const fetchDocuments = useCallback(async () => {
+    if (!vehicleId || !groupId) {
+      setLoading(false)
+      setError('Thiếu thông tin xe hoặc nhóm')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      console.log('Fetching vehicle documents:', { vehicleId, groupId })
+      const docs = await vehicleDocumentService.getVehicleDocuments(groupId, vehicleId)
+      console.log('Fetched documents:', docs)
+      setDocuments(docs || [])
+    } catch (error: any) {
+      console.error('Error fetching vehicle documents:', error)
+      setError(error?.response?.data?.message || 'Không thể tải tài liệu xe')
+      setDocuments([])
+    } finally {
+      setLoading(false)
+    }
+  }, [vehicleId, groupId])
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [fetchDocuments])
+
+  const handleDownload = async (documentId) => {
+    try {
+      const blob = await vehicleDocumentService.downloadVehicleDocument(documentId)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = documents.find(d => d.id === documentId)?.fileName || 'document'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      setSnackbar({
+        open: true,
+        message: 'Đã tải xuống tài liệu thành công',
+        severity: 'success',
+      })
+    } catch (error: any) {
+      console.error('Error downloading document:', error)
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Không thể tải xuống tài liệu',
+        severity: 'error',
+      })
+    }
+  }
+
+  const handleView = async (documentId) => {
+    try {
+      const doc = documents.find(d => d.id === documentId)
+      if (!doc) {
+        throw new Error('Document not found')
+      }
+
+      // Try preview first, fallback to download if preview fails
+      try {
+        const blob = await vehicleDocumentService.previewVehicleDocument(documentId)
+        const url = window.URL.createObjectURL(blob)
+        
+        // Check file type
+        const fileExtension = doc.fileName.split('.').pop()?.toLowerCase()
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension || '')
+        const isPDF = fileExtension === 'pdf'
+
+        if (isImage || isPDF) {
+          // Open in new tab for images and PDFs
+          const newWindow = window.open(url, '_blank')
+          if (!newWindow) {
+            // Popup blocked, try download instead
+            const a = document.createElement('a')
+            a.href = url
+            a.download = doc.fileName
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            window.URL.revokeObjectURL(url)
+            setSnackbar({
+              open: true,
+              message: 'Đã tải xuống tài liệu (popup bị chặn)',
+              severity: 'warning',
+            })
+          } else {
+            setSnackbar({
+              open: true,
+              message: 'Đang mở tài liệu...',
+              severity: 'success',
+            })
+            // Clean up URL after a delay
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+          }
+        } else {
+          // For other file types, download instead
+          const a = document.createElement('a')
+          a.href = url
+          a.download = doc.fileName
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+          setSnackbar({
+            open: true,
+            message: 'Đã tải xuống tài liệu',
+            severity: 'success',
+          })
+        }
+      } catch (previewError) {
+        // If preview fails, try download instead
+        console.warn('Preview failed, trying download:', previewError)
+        await handleDownload(documentId)
+      }
+    } catch (error: any) {
+      console.error('Error viewing document:', error)
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || error?.message || 'Không thể xem tài liệu. Vui lòng thử tải xuống.',
+        severity: 'error',
+      })
+    }
+  }
+
+  const getDocumentTypeLabel = (doc) => {
+    const type = vehicleDocumentService.getVehicleDocumentType(doc)
+    switch (type) {
+      case 'Registration':
+        return 'Giấy đăng ký xe'
+      case 'Insurance':
+        return 'Bảo hiểm xe'
+      case 'Image':
+        return 'Hình ảnh xe'
+      default:
+        return 'Khác'
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <div className="p-8 text-center">
+          <p className="text-neutral-600">Đang tải tài liệu...</p>
+        </div>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <div className="p-8 text-center">
+          <AlertCircle className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+          <p className="text-neutral-600 mb-4">{error}</p>
+          {groupId && vehicleId && (
+            <Button
+              variant="outlined"
+              onClick={fetchDocuments}
+            >
+              Thử lại
+            </Button>
+          )}
+          {!groupId && (
+            <p className="text-sm text-neutral-500 mt-2">
+              Xe này chưa được gán vào nhóm. Vui lòng liên hệ quản trị viên.
+            </p>
+          )}
+        </div>
+      </Card>
+    )
+  }
+
+  if (!groupId) {
+    return (
+      <Card>
+        <div className="p-8 text-center">
+          <FileText className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+          <p className="text-neutral-600 mb-2">Xe này chưa được gán vào nhóm</p>
+          <p className="text-sm text-neutral-500">
+            Không thể hiển thị tài liệu vì xe chưa thuộc nhóm nào.
+          </p>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-neutral-800">Tài liệu xe</h3>
+          {groupId && (
+            <Button
+              variant="contained"
+              startIcon={<Upload />}
+              onClick={() => setUploadDialogOpen(true)}
+              sx={{ bgcolor: '#7a9b76', '&:hover': { bgcolor: '#6a8b66' } }}
+            >
+              Tải lên tài liệu
+            </Button>
+          )}
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="text-center py-8">
+            <FileText className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+            <p className="text-neutral-600 mb-4">Chưa có tài liệu nào</p>
+            {groupId && (
+              <Button
+                variant="outlined"
+                onClick={() => setUploadDialogOpen(true)}
+              >
+                Tải lên tài liệu đầu tiên
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg hover:bg-neutral-50"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <FileText className="w-8 h-8 text-primary" />
+                  <div className="flex-1">
+                    <p className="font-medium text-neutral-800">{doc.fileName}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <Chip
+                        label={getDocumentTypeLabel(doc)}
+                        size="small"
+                        sx={{ height: 20, fontSize: '0.75rem' }}
+                      />
+                      <span className="text-sm text-neutral-500">
+                        {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                      <span className="text-sm text-neutral-500">
+                        {formatFileSize(doc.fileSize)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleView(doc.id)}
+                    title="Xem"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDownload(doc.id)}
+                    title="Tải xuống"
+                  >
+                    <Download className="w-5 h-5" />
+                  </IconButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {groupId && (
+          <UploadVehicleDocumentDialog
+            open={uploadDialogOpen}
+            onClose={() => setUploadDialogOpen(false)}
+            groupId={groupId}
+            vehicleId={vehicleId}
+            onSuccess={() => {
+              fetchDocuments()
+              setUploadDialogOpen(false)
+              setSnackbar({
+                open: true,
+                message: 'Đã tải lên tài liệu thành công',
+                severity: 'success',
+              })
+            }}
+          />
+        )}
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </div>
+    </Card>
+  )
+}
 
 // Bookings Tab Component
 const BookingsTab = ({ vehicleId }) => (

@@ -19,10 +19,12 @@ import {
   Lightbulb,
   Gavel,
   Search as SearchIcon,
+  PendingActions,
 } from "@mui/icons-material";
 import GlobalSearch from "@/components/shared/GlobalSearch";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/authSlice";
+import { UserRole, isSystemAdmin } from "@/utils/roles";
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -35,25 +37,36 @@ const AdminLayout = () => {
   const ACTIVE_CLASSES = "bg-neutral-900 text-neutral-50 shadow-sm";
   const INACTIVE_CLASSES = "text-neutral-700 hover:bg-neutral-200";
 
-  const menuItems = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: Dashboard },
-    { path: "/admin/groups", label: "Manage Groups", icon: Groups },
-    { path: "/admin/vehicles", label: "Manage Vehicles", icon: DirectionsCar },
-    { path: "/admin/maintenance", label: "Maintenance", icon: Build },
-    { path: "/admin/checkins", label: "Check-In/Out", icon: CheckCircle },
-    { path: "/admin/disputes", label: "Disputes", icon: Gavel },
+  // All menu items
+  const allMenuItems = [
+    { path: "/admin/dashboard", label: "Dashboard", icon: Dashboard, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/groups/pending", label: "Pending Groups", icon: PendingActions, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/groups", label: "Manage Groups", icon: Groups, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/vehicles/pending", label: "Pending Vehicles", icon: PendingActions, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/vehicles", label: "Manage Vehicles", icon: DirectionsCar, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/maintenance", label: "Maintenance", icon: Build, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/checkins", label: "Check-In/Out", icon: CheckCircle, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    { path: "/admin/disputes", label: "Disputes", icon: Gavel, roles: [UserRole.SystemAdmin, UserRole.Staff] },
     {
       path: "/admin/financial-reports",
       label: "Financial Reports",
       icon: Assessment,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
-    { path: "/admin/users", label: "User Management", icon: People },
-    { path: "/admin/kyc", label: "KYC Review", icon: Description },
-    { path: "/admin/contracts", label: "E-Contracts", icon: Article },
-    { path: "/admin/analytics", label: "Analytics", icon: Analytics },
-    { path: "/admin/audit", label: "Audit Log", icon: History },
-    { path: "/admin/settings", label: "Settings", icon: Settings },
+    { path: "/admin/contracts", label: "E-Contracts", icon: Article, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    // System Admin only items
+    { path: "/admin/users", label: "User Management", icon: People, roles: [UserRole.SystemAdmin] },
+    { path: "/admin/kyc", label: "KYC Review", icon: Description, roles: [UserRole.SystemAdmin] },
+    { path: "/admin/analytics", label: "Analytics", icon: Analytics, roles: [UserRole.SystemAdmin] },
+    { path: "/admin/audit", label: "Audit Log", icon: History, roles: [UserRole.SystemAdmin] },
+    { path: "/admin/settings", label: "Settings", icon: Settings, roles: [UserRole.SystemAdmin] },
   ];
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter((item) => {
+    if (!user) return false;
+    return item.roles.includes(user.role);
+  });
 
   const aiMenuItems = [
     {
@@ -143,7 +156,7 @@ const AdminLayout = () => {
                 !sidebarOpen && "hidden"
               }`}
             >
-              Main
+              {isSystemAdmin(user) ? "Main" : "Operations"}
             </h2>
             <ul className="space-y-1">
               {menuItems.map((item) => (

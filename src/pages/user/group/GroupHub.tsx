@@ -2,10 +2,16 @@ import { Link } from 'react-router-dom'
 import { Insights, Map, Message, PeopleAlt, PlaylistAdd } from '@mui/icons-material'
 import { useGroups } from '@/hooks/useGroups'
 import { useGroupMarketplace } from '@/hooks/useMarketplace'
+import StatusBadge from '@/components/shared/StatusBadge'
 
 const GroupHub = () => {
   const { data: groups, loading } = useGroups()
   const marketplace = useGroupMarketplace({ limit: 6 })
+
+  // Filter groups by status
+  const activeGroups = groups?.filter(g => g.status === 'Active') || []
+  const pendingGroups = groups?.filter(g => g.status === 'PendingApproval') || []
+  const rejectedGroups = groups?.filter(g => g.status === 'Rejected') || []
 
   const quickStats = [
     {
@@ -15,21 +21,21 @@ const GroupHub = () => {
       icon: PeopleAlt,
     },
     {
-      label: 'Nhóm đang mở',
-      value: marketplace.filtered.filter((group) => group.activeMembers < group.totalMembers).length,
-      helper: 'Sẵn sàng nhận thành viên mới',
+      label: 'Đang hoạt động',
+      value: activeGroups.length,
+      helper: 'Nhóm đã được phê duyệt',
+      icon: PeopleAlt,
+    },
+    {
+      label: 'Chờ phê duyệt',
+      value: pendingGroups.length,
+      helper: 'Đang chờ nhân viên xem xét',
       icon: Map,
     },
     {
-      label: 'Hiệu suất trung bình',
-      value:
-        marketplace.filtered.length > 0
-          ? `${Math.round(
-              marketplace.filtered.reduce((sum, g) => sum + g.utilizationRate, 0) /
-                marketplace.filtered.length,
-            )}%`
-          : '—',
-      helper: 'Theo báo cáo analytics',
+      label: 'Bị từ chối',
+      value: rejectedGroups.length,
+      helper: 'Cần gửi lại',
       icon: Insights,
     },
   ]
@@ -71,7 +77,7 @@ const GroupHub = () => {
         </p>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {quickStats.map((stat) => {
           const Icon = stat.icon
           return (
@@ -90,6 +96,120 @@ const GroupHub = () => {
           )
         })}
       </section>
+
+      {/* User's Groups List */}
+      {groups && groups.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-neutral-900">Nhóm của tôi</h2>
+              <p className="text-sm text-neutral-600">
+                Quản lý các nhóm bạn đang tham gia
+              </p>
+            </div>
+          </div>
+          
+          {/* Active Groups */}
+          {activeGroups.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-neutral-700">Đang hoạt động</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {activeGroups.map((group) => (
+                  <Link
+                    key={group.id}
+                    to={`/groups/${group.id}`}
+                    className="group rounded-3xl border border-neutral-200 bg-white p-6 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h4 className="text-xl font-semibold text-neutral-900 mb-2">{group.name}</h4>
+                        <p className="text-sm text-neutral-600 line-clamp-2">{group.description}</p>
+                      </div>
+                      <StatusBadge status={group.status} />
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-neutral-600">
+                      <span>{group.members?.length || 0} thành viên</span>
+                      <span>{group.vehicles?.length || 0} xe</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pending Groups */}
+          {pendingGroups.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-neutral-700">Chờ phê duyệt</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {pendingGroups.map((group) => (
+                  <Link
+                    key={group.id}
+                    to={`/groups/${group.id}`}
+                    className="group rounded-3xl border border-warning bg-warning/5 p-6 transition hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h4 className="text-xl font-semibold text-neutral-900 mb-2">{group.name}</h4>
+                        <p className="text-sm text-neutral-600 line-clamp-2">{group.description}</p>
+                        {group.submittedAt && (
+                          <p className="text-xs text-neutral-500 mt-2">
+                            Đã gửi: {new Date(group.submittedAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        )}
+                      </div>
+                      <StatusBadge status={group.status} />
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-neutral-600">
+                      <span>{group.members?.length || 0} thành viên</span>
+                      <span>{group.vehicles?.length || 0} xe</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rejected Groups */}
+          {rejectedGroups.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-neutral-700">Bị từ chối</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {rejectedGroups.map((group) => (
+                  <Link
+                    key={group.id}
+                    to={`/groups/${group.id}`}
+                    className="group rounded-3xl border border-error bg-error/5 p-6 transition hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h4 className="text-xl font-semibold text-neutral-900 mb-2">{group.name}</h4>
+                        <p className="text-sm text-neutral-600 line-clamp-2">{group.description}</p>
+                        {group.rejectionReason && (
+                          <p className="text-xs text-error mt-2 line-clamp-2">
+                            Lý do: {group.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+                      <StatusBadge status={group.status} />
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-neutral-600">
+                      <span>{group.members?.length || 0} thành viên</span>
+                      <span>{group.vehicles?.length || 0} xe</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {groups.length === 0 && !loading && (
+            <div className="rounded-3xl border border-dashed border-neutral-200 bg-neutral-50 p-10 text-center text-neutral-500">
+              Bạn chưa tham gia nhóm nào. Hãy tạo nhóm mới hoặc tham gia từ marketplace.
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="grid gap-4 md:grid-cols-2">
         {actionCards.map((card) => (

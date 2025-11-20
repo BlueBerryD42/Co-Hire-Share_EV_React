@@ -21,6 +21,9 @@ import type {
   MaintenanceRecord,
   ScheduleMaintenanceRequest,
   CompleteMaintenanceRequest,
+  ApproveVehicleDto,
+  RejectVehicleDto,
+  PendingVehicleDto,
 } from '@/models/vehicle'
 
 /**
@@ -276,6 +279,52 @@ const vehicleService = {
     const response = await apiClient.get<Blob>(`/maintenance/records/${recordId}/pdf`, {
       responseType: 'blob',
     })
+    return response.data
+  },
+
+  // ============ APPROVAL WORKFLOW ============
+
+  /**
+   * GET /api/Vehicle/pending
+   * Get pending vehicles (Staff/Admin only)
+   */
+  getPendingVehicles: async (): Promise<PendingVehicleDto[]> => {
+    const response = await apiClient.get<PendingVehicleDto[]>('/Vehicle/pending')
+    return response.data
+  },
+
+  /**
+   * POST /api/Vehicle/{id}/approve
+   * Approve a vehicle (Staff/Admin only)
+   */
+  approveVehicle: async (id: string, payload?: ApproveVehicleDto): Promise<{ message: string; vehicleId: string }> => {
+    const response = await apiClient.post<{ message: string; vehicleId: string }>(
+      `/Vehicle/${id}/approve`,
+      payload || {}
+    )
+    return response.data
+  },
+
+  /**
+   * POST /api/Vehicle/{id}/reject
+   * Reject a vehicle (Staff/Admin only)
+   */
+  rejectVehicle: async (id: string, payload: RejectVehicleDto): Promise<{ message: string; vehicleId: string }> => {
+    const response = await apiClient.post<{ message: string; vehicleId: string }>(
+      `/Vehicle/${id}/reject`,
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * PUT /api/Vehicle/{id}/resubmit
+   * Resubmit a rejected vehicle
+   */
+  resubmitVehicle: async (id: string): Promise<{ message: string; vehicleId: string }> => {
+    const response = await apiClient.put<{ message: string; vehicleId: string }>(
+      `/Vehicle/${id}/resubmit`
+    )
     return response.data
   },
 }

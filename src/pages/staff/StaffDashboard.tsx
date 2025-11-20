@@ -15,6 +15,9 @@ import {
   CheckCircle,
 } from "@mui/icons-material";
 import { Alert, AlertTitle } from "@mui/material";
+import { useAppSelector } from "@/store/hooks";
+import { isStaffOrAdmin } from "@/utils/roles";
+import Unauthorized from "@/components/auth/Unauthorized";
 
 interface DashboardData {
   users?: {
@@ -65,6 +68,13 @@ interface DashboardData {
 }
 
 const StaffDashboard = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Role check - Staff or Admin only
+  if (!isStaffOrAdmin(user)) {
+    return <Unauthorized requiredRole="Staff or SystemAdmin" />;
+  }
+
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

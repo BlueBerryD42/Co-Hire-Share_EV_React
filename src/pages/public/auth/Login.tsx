@@ -16,6 +16,7 @@ import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { login, clearError, setRememberMe } from '@/store/slices/authSlice'
 import type { LoginRequest } from '@/models/auth'
+import { UserRole } from '@/utils/roles'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -39,8 +40,7 @@ const Login = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       // Redirect SystemAdmin and Staff to admin dashboard
-      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
-      if (user.role === 0 || user.role === 1) {
+      if (user.role === UserRole.SystemAdmin || user.role === UserRole.Staff) {
         navigate('/admin/dashboard')
       } else {
         navigate('/home')
@@ -133,8 +133,7 @@ const Login = () => {
     if (login.fulfilled.match(result)) {
       // Login successful, check user role and redirect accordingly
       const loggedInUser = result.payload.user
-      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
-      if (loggedInUser?.role === 0 || loggedInUser?.role === 1) {
+      if (loggedInUser?.role === UserRole.SystemAdmin || loggedInUser?.role === UserRole.Staff) {
         navigate('/admin/dashboard')
       } else {
         navigate('/home')

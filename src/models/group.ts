@@ -1,6 +1,6 @@
 import type { ISODate, UUID } from '@/models/booking'
 
-export type GroupStatus = 'Active' | 'Inactive' | 'Dissolved'
+export type GroupStatus = 'PendingApproval' | 'Active' | 'Inactive' | 'Dissolved' | 'Rejected'
 export type GroupRole = 'Member' | 'Admin'
 
 export interface GroupMemberDto {
@@ -39,6 +39,10 @@ export interface GroupDto {
   status: GroupStatus
   createdBy: UUID
   createdAt: ISODate
+  rejectionReason?: string | null
+  submittedAt?: ISODate | null
+  reviewedBy?: UUID | null
+  reviewedAt?: ISODate | null
   members: GroupMemberDto[]
   vehicles: GroupVehicleDto[]
 }
@@ -62,5 +66,20 @@ export interface UpdateGroupMemberShareDto {
 
 export interface UpdateGroupSharesDto {
   members: UpdateGroupMemberShareDto[]
+}
+
+export interface ApproveGroupDto {
+  notes?: string
+}
+
+export interface RejectGroupDto {
+  reason: string
+}
+
+export interface PendingGroupDto extends GroupDto {
+  memberCount: number
+  pendingKycCount: number
+  totalOwnershipPercentage: number
+  hasGroupAdmin: boolean
 }
 

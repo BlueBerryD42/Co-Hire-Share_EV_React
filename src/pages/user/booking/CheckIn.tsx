@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import { checkInApi } from "@/services/booking/checkIn";
-import TripStageCard from "@/pages/booking/components/TripStageCard";
+import TripStageCard from "@/pages/user/booking/components/TripStageCard";
 import {
   PhotoTypeValue,
   type BookingDto,
   type CheckInDto,
   type CheckInPhotoInputDto,
 } from "@/models/booking";
+import type { VehicleStatus } from "@/models/vehicle";
 import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
+const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
+
+const normalizeCheckRecordType = (type: CheckInDto["type"] | number) => {
+  if (typeof type === "number") {
+    return type === 0 ? "CheckOut" : "CheckIn";
+  }
+  return type;
+};
+
 const isCheckOutRecord = (record: CheckInDto) =>
-  record.type === 0 || record.type === "CheckOut";
+  normalizeCheckRecordType(record.type) === "CheckOut";
 
 const isCheckInRecord = (record: CheckInDto) =>
-  record.type === 1 || record.type === "CheckIn";
+  normalizeCheckRecordType(record.type) === "CheckIn";
 
 const HistoryTable = ({
   title,
@@ -53,7 +63,7 @@ const HistoryTable = ({
   </div>
 );
 
-const CheckOut = () => {
+const CheckIn = () => {
   const [searchParams] = useSearchParams();
   const [bookingId, setBookingId] = useState("");
   const [booking, setBooking] = useState<BookingDto | null>(null);
@@ -61,15 +71,19 @@ const CheckOut = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<CheckInDto[]>([]);
   const [historyMessage, setHistoryMessage] = useState<string | null>(null);
-  const [endForm, setEndForm] = useState({ odometer: "", notes: "" });
-  const [photos, setPhotos] = useState<CheckInPhotoInputDto[]>([]);
-  const [startOdometer, setStartOdometer] = useState<number | null>(null);
-  const [endOdometer, setEndOdometer] = useState<number | null>(null);
-  const [tripCompleted, setTripCompleted] = useState(false);
-  const checkInHistory = useMemo(
-    () => history.filter(isCheckInRecord),
+  const [startForm, setStartForm] = useState({ odometer: "", notes: "" });
+  const [startPhotos, setStartPhotos] = useState<CheckInPhotoInputDto[]>([]);
+  const [tripStarted, setTripStarted] = useState(false);
+  const checkOutHistory = useMemo(
+    () => history.filter(isCheckOutRecord),
     [history]
   );
+
+  const bookingStartsInFuture = useMemo(() => {
+    if (!booking) return false;
+    const startTime = parseServerIso(booking.startAt).getTime();
+    return !Number.isNaN(startTime) && startTime > Date.now();
+  }, [booking]);
 
   const bookingExpired = useMemo(() => {
     if (!booking) return false;
@@ -90,25 +104,27 @@ const CheckOut = () => {
       const records = await checkInApi.getHistory(booking.id);
       setHistory(records);
       setHistoryMessage(
-        `Loaded ${records.length} trip record(s) for booking ${booking.id.slice(
-          0,
-          8
-        )}.`
+        `Fetched ${
+          records.length
+        } check-in record(s) for booking ${booking.id.slice(0, 8)}.`
       );
+
       const lastStart = [...records]
         .reverse()
         .find((record) => isCheckOutRecord(record));
       const lastEnd = [...records]
         .reverse()
         .find((record) => isCheckInRecord(record));
-      setStartOdometer(lastStart?.odometer ?? null);
-      setEndOdometer(lastEnd?.odometer ?? null);
-      const hasValidEnd =
-        Boolean(lastEnd) &&
-        (!lastStart ||
-          parseServerIso(lastEnd?.checkInTime).getTime() >=
-            parseServerIso(lastStart?.checkInTime).getTime());
-      setTripCompleted(hasValidEnd);
+
+      let hasOpenTrip = false;
+      if (lastStart) {
+        const lastEndBeforeStart =
+          !lastEnd ||
+          parseServerIso(lastEnd.checkInTime).getTime() <
+            parseServerIso(lastStart.checkInTime).getTime();
+        hasOpenTrip = lastEndBeforeStart;
+      }
+      setTripStarted(hasOpenTrip);
     } catch {
       setHistoryMessage("Unable to load check-in history.");
     }
@@ -142,6 +158,15 @@ const CheckOut = () => {
     return [...existing, ...newPhotos];
   };
 
+  const updateVehicleStatus = async (status: VehicleStatus) => {
+    if (!booking) return;
+    try {
+      await bookingApi.updateVehicleStatus(booking.id, { status });
+    } catch {
+      // Non-fatal: ignore vehicle status update failures
+    }
+  };
+
   const handleLoadBookingById = useCallback(async (id: string) => {
     if (!id) {
       setMessage("Enter a booking id before loading.");
@@ -154,11 +179,9 @@ const CheckOut = () => {
       const data = await bookingApi.getBooking(id);
       setBooking(data);
       setMessage(`Loaded ${data.vehicleModel}`);
-      setEndForm({ odometer: "", notes: "" });
-      setPhotos([]);
-      setStartOdometer(null);
-      setEndOdometer(null);
-      setTripCompleted(false);
+      setStartForm({ odometer: "", notes: "" });
+      setStartPhotos([]);
+      setTripStarted(false);
       setHistory([]);
       setHistoryMessage(null);
     } catch {
@@ -176,32 +199,31 @@ const CheckOut = () => {
     }
   }, [handleLoadBookingById, searchParams]);
 
-  const handleCompleteTrip = async () => {
+  const handleStartTrip = async () => {
     if (!booking) return;
     if (bookingIsReadOnly) {
       setMessage("Booking đã hoàn tất hoặc bị hủy — chỉ có thể xem chi tiết.");
       return;
     }
-    if (!endForm.odometer) {
-      setMessage("Enter an odometer reading before completing the trip.");
+    if (bookingStartsInFuture) {
+      setMessage("Cannot start trip before the booking's start time.");
       return;
     }
-    setMessage("Submitting checkout payload...");
+    if (!startForm.odometer) {
+      setMessage("Enter an odometer reading before starting.");
+      return;
+    }
+    setMessage("Submitting start-trip payload...");
     try {
-      const odo = Number(endForm.odometer);
-      await checkInApi.endTrip({
+      const odo = Number(startForm.odometer);
+      await checkInApi.startTrip({
         bookingId: booking.id,
         odometerReading: odo,
-        notes: endForm.notes || undefined,
+        notes: startForm.notes || undefined,
         clientTimestamp: new Date().toISOString(),
-        photos,
+        photos: startPhotos,
       });
-      await bookingApi.updateVehicleStatus(booking.id, { status: "Available" });
-      if (startOdometer != null && odo > startOdometer) {
-        await bookingApi.updateTripSummary(booking.id, {
-          distanceKm: odo - startOdometer,
-        });
-      }
+      await updateVehicleStatus("InUse");
       // If the booking has already ended (endAt < now), tell the server to mark it Completed
       try {
         const bookingEndTime = parseServerIso(booking.endAt).getTime();
@@ -211,40 +233,14 @@ const CheckOut = () => {
       } catch {
         // Non-fatal: continue UI flow
       }
-      setEndOdometer(odo);
-      setPhotos([]);
-      setTripCompleted(true);
-      const clientTs = new Date();
-      // Refresh history and then fetch latest record to show server timestamp
+      setTripStarted(true);
+      setStartPhotos([]);
+      setMessage(
+        `Đã check-in lúc ${new Date().toLocaleString()} (ghi nhận cả phía FE lẫn BE).`
+      );
       await refreshHistory();
-      try {
-        const records = await checkInApi.getHistory(booking.id);
-        const latest = [...records]
-          .sort(
-            (a, b) =>
-              parseServerIso(a.checkInTime).getTime() -
-              parseServerIso(b.checkInTime).getTime()
-          )
-          .pop();
-        if (latest) {
-          setMessage(
-            `Checkout recorded: client=${clientTs.toLocaleString()} server=${parseServerIso(
-              latest.checkInTime
-            ).toLocaleString()}`
-          );
-        } else {
-          setMessage(
-            `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
-          );
-        }
-      } catch {
-        // If fetching latest fails, at least show client timestamp
-        setMessage(
-          `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
-        );
-      }
     } catch {
-      setMessage("Unable to complete checkout.");
+      setMessage("Unable to start trip.");
     }
   };
 
@@ -256,33 +252,40 @@ const CheckOut = () => {
     await handleLoadBookingById(bookingId);
   };
 
-  const handlePhotoSelection = async (files: FileList) => {
-    const updated = await convertFilesToPhotos(files, photos);
-    setPhotos(updated);
+  const handleStartFiles = async (files: FileList) => {
+    const updated = await convertFilesToPhotos(files, startPhotos);
+    setStartPhotos(updated);
   };
 
-  const distanceKm = useMemo(() => {
-    if (startOdometer != null && endOdometer != null) {
-      return Math.max(0, endOdometer - startOdometer);
+  const resolveStepStatus = (index: number) => {
+    if (index === 0) {
+      return booking ? "done" : "pending";
     }
-    if (booking?.distanceKm != null) {
-      return booking.distanceKm;
+    if (index === 1) {
+      if (!booking) return "pending";
+      return tripStarted ? "done" : "current";
     }
-    return null;
-  }, [booking?.distanceKm, endOdometer, startOdometer]);
+    if (index === 2) {
+      if (!booking) return "pending";
+      return tripStarted ? "done" : "current";
+    }
+    return "pending";
+  };
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Trip tools</p>
-        <h1 className="text-4xl font-semibold text-black">Vehicle check-out</h1>
+        <h1 className="text-4xl font-semibold text-black">Vehicle check-in</h1>
         <p className="text-black">
-          Record ending odometer, upload post-trip photos, and wrap up fees.
+          Capture pre-trip details, photos, and update the vehicle status.
         </p>
       </header>
 
       <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-black">Select booking</p>
+        <p className="text-sm font-semibold text-black">
+          Sync booking from API
+        </p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           <input
             value={bookingId}
@@ -302,73 +305,84 @@ const CheckOut = () => {
         {message && <p className="mt-2 text-xs text-black">{message}</p>}
         {booking && (
           <p className="mt-1 text-xs text-black">
-            Vehicle: {booking.vehicleModel} ·{" "}
-            {parseServerIso(booking.endAt).toLocaleString()}
+            Vehicle: {booking.vehicleModel} (
+            {parseServerIso(booking.startAt).toLocaleString()})
           </p>
         )}
       </div>
       {historyMessage && <p className="text-xs text-black">{historyMessage}</p>}
 
       <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
-        <div className="grid gap-4 text-sm text-black md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
-            <p className="text-xs uppercase text-black">Start odometer</p>
-            <p className="text-xl font-semibold text-black">
-              {startOdometer ?? "--"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
-            <p className="text-xs uppercase text-black">End odometer</p>
-            <p className="text-xl font-semibold text-black">
-              {endOdometer ?? "--"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
-            <p className="text-xs uppercase text-black">Distance (km)</p>
-            <p className="text-xl font-semibold text-black">
-              {distanceKm ?? "--"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
-            <p className="text-xs uppercase text-black">Trip fee</p>
-            <p className="text-xl font-semibold text-black">
-              {booking ? `$${booking.tripFeeAmount.toFixed(2)}` : "--"}
-            </p>
-          </div>
+        <div className="flex flex-wrap gap-3 text-xs uppercase tracking-wide text-black">
+          {stepLabels.map((label, index) => {
+            const status = resolveStepStatus(index);
+            const badgeClass =
+              status === "done"
+                ? "bg-amber-100 text-black border border-slate-700"
+                : status === "current"
+                ? "bg-brand/30 text-black border border-brand"
+                : "bg-amber-50 text-black border border-slate-400";
+            return (
+              <span
+                key={label}
+                className={`rounded-full px-4 py-1 ${badgeClass}`}
+              >
+                {index + 1}. {label}
+              </span>
+            );
+          })}
         </div>
 
-        <div className="mt-6">
+        <div className="mt-8 grid gap-4">
           <TripStageCard
-            title="Check-out xe"
-            subtitle="Hoàn tất chuyến đi và trả xe về trạng thái Available"
-            odometerLabel="Ending odometer (km)"
-            notesLabel="Ghi chú sau chuyến"
-            notesPlaceholder="Tình trạng pin, vệ sinh, hư hỏng..."
-            form={endForm}
+            title="Check-in xe"
+            subtitle="Ghi nhận tình trạng trước khi khởi hành"
+            odometerLabel="Odometer (km)"
+            notesLabel="Tình trạng xe / ghi chú"
+            notesPlaceholder="Ảnh đã chụp, mức pin, hỏng hóc..."
+            form={startForm}
             onChange={(field, value) =>
-              setEndForm((prev) => ({ ...prev, [field]: value }))
+              setStartForm((prev) => ({ ...prev, [field]: value }))
             }
-            photos={photos}
-            onFilesSelected={handlePhotoSelection}
+            photos={startPhotos}
+            onFilesSelected={handleStartFiles}
             onRemovePhoto={(index) =>
-              setPhotos((prev) => prev.filter((_, idx) => idx !== index))
+              setStartPhotos((prev) => prev.filter((_, idx) => idx !== index))
             }
             buttonLabel={
-              tripCompleted ? "Đã checkout chuyến này" : "Xác nhận trả xe"
+              tripStarted ? "Đã check-in chuyến này" : "Xác nhận bắt đầu chuyến"
             }
-            onSubmit={handleCompleteTrip}
-            disabled={!booking || tripCompleted || bookingIsReadOnly}
+            onSubmit={handleStartTrip}
+            disabled={
+              !booking ||
+              tripStarted ||
+              bookingStartsInFuture ||
+              bookingIsReadOnly
+            }
             footerSlot={
-              bookingIsReadOnly ? (
-                <p className="text-sm text-rose-600">
-                  Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
-                  Check-out.
-                </p>
-              ) : (
-                <p className="text-xs text-black/80">
-                  Dữ liệu sẽ gửi tới backend để cập nhật lịch sử chuyến, trạng
-                  thái xe và chi phí quãng đường.
-                </p>
+              booking && (
+                <div className="rounded-2xl border border-dashed border-slate-500 bg-amber-50/80 p-3 text-xs text-black">
+                  {bookingIsReadOnly ? (
+                    <p className="text-sm text-rose-600">
+                      Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
+                      Check-out.
+                    </p>
+                  ) : bookingStartsInFuture ? (
+                    <p className="text-sm text-rose-600">
+                      Không thể check-in trước thời gian bắt đầu của booking.
+                    </p>
+                  ) : null}
+                  <p>
+                    Hoàn tất chuyến đi? Vào{" "}
+                    <Link
+                      to={`/booking/check-out?bookingId=${booking?.id ?? ""}`}
+                      className="font-semibold underline"
+                    >
+                      màn Check-out
+                    </Link>{" "}
+                    để cập nhật số km và ảnh trả xe.
+                  </p>
+                </div>
               )
             }
           />
@@ -376,10 +390,10 @@ const CheckOut = () => {
       </div>
 
       {booking && (
-        <HistoryTable title="Check-out history" records={checkInHistory} />
+        <HistoryTable title="Check-in history" records={checkOutHistory} />
       )}
     </section>
   );
 };
 
-export default CheckOut;
+export default CheckIn;

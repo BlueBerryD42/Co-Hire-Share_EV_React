@@ -147,35 +147,68 @@ const CreateBooking = () => {
   );
 
   const availableVehicles = useMemo(() => {
-    const groupVehicles =
-      selectedGroup?.vehicles?.map((vehicle) => ({
-        id: vehicle.id,
-        vin: vehicle.vin ?? "",
-        plateNumber: vehicle.plateNumber ?? "",
-        model: vehicle.model ?? vehicle.id,
-        year: vehicle.year ?? new Date().getFullYear(),
-        color: vehicle.color ?? null,
-        status: vehicle.status ?? "Available",
-        lastServiceDate: vehicle.lastServiceDate ?? null,
-        odometer: vehicle.odometer ?? 0,
-        groupId: vehicle.groupId ?? selectedGroup?.id ?? null,
-        createdAt: vehicle.createdAt ?? new Date().toISOString(),
-        updatedAt: vehicle.updatedAt ?? new Date().toISOString(),
-        healthScore: null,
-      })) ?? [];
-    if (groupVehicles.length > 0) {
-      return groupVehicles;
+    // Filter out pending/rejected vehicles - only show Available, InUse, Maintenance, Unavailable
+    const validStatuses = ['Available', 'InUse', 'Maintenance', 'Unavailable']
+    
+    // Create a map of groupId -> group for quick lookup
+    const groupsMap = new Map(groups?.map(g => [g.id, g]) || [])
+    
+    // Filter vehicles: must have valid vehicle status AND belong to an Active group
+    const filterVehicles = (vehicleList: VehicleListItem[]) => {
+      return vehicleList.filter((vehicle) => {
+        // Check vehicle status
+        if (!validStatuses.includes(vehicle.status ?? 'Available')) {
+          return false
+        }
+        
+        // Check group status - vehicle must belong to an Active group
+        if (vehicle.groupId) {
+          const group = groupsMap.get(vehicle.groupId)
+          if (!group || group.status !== 'Active') {
+            return false // Group not found or not Active
+          }
+        } else {
+          return false // Vehicle has no group
+        }
+        
+        return true
+      })
     }
+    
+    const groupVehicles =
+      selectedGroup?.vehicles
+        ?.filter((vehicle) => validStatuses.includes(vehicle.status ?? 'Available'))
+        ?.map((vehicle) => ({
+          id: vehicle.id,
+          vin: vehicle.vin ?? "",
+          plateNumber: vehicle.plateNumber ?? "",
+          model: vehicle.model ?? vehicle.id,
+          year: vehicle.year ?? new Date().getFullYear(),
+          color: vehicle.color ?? null,
+          status: vehicle.status ?? "Available",
+          lastServiceDate: vehicle.lastServiceDate ?? null,
+          odometer: vehicle.odometer ?? 0,
+          groupId: vehicle.groupId ?? selectedGroup?.id ?? null,
+          createdAt: vehicle.createdAt ?? new Date().toISOString(),
+          updatedAt: vehicle.updatedAt ?? new Date().toISOString(),
+          healthScore: null,
+        })) ?? [];
+    
+    // Filter group vehicles by group status
+    const filteredGroupVehicles = filterVehicles(groupVehicles)
+    if (filteredGroupVehicles.length > 0) {
+      return filteredGroupVehicles;
+    }
+    
     if (groupId) {
-      const filtered = vehicles.filter(
-        (vehicle) => vehicle.groupId === groupId
-      );
+      const filtered = filterVehicles(vehicles.filter((vehicle) => vehicle.groupId === groupId))
       if (filtered.length > 0) {
         return filtered;
       }
     }
-    return vehicles;
-  }, [groupId, selectedGroup, vehicles]);
+    
+    return filterVehicles(vehicles);
+  }, [groupId, selectedGroup, vehicles, groups]);
 
   useEffect(() => {
     if (availableVehicles.length === 0) {
@@ -536,15 +569,25 @@ const CreateBooking = () => {
                 value={vehicleId}
                 onChange={(e) => handleVehicleSelect(e.target.value)}
                 className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                disabled={availableVehicles.length === 0}
               >
-                {availableVehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.model}
-                  </option>
-                ))}
+                {availableVehicles.length === 0 ? (
+                  <option value="">Không có xe khả dụng</option>
+                ) : (
+                  availableVehicles.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.model}
+                    </option>
+                  ))
+                )}
               </select>
               {vehiclesError && (
                 <p className="text-xs text-amber-800">{vehiclesError}</p>
+              )}
+              {availableVehicles.length === 0 && !vehiclesError && (
+                <p className="text-xs text-amber-800">
+                  Không có xe nào khả dụng để đặt lịch. Vui lòng chọn nhóm khác hoặc đợi nhóm/xe được phê duyệt và hoạt động.
+                </p>
               )}
             </label>
             <div className="sm:col-span-2">
@@ -783,12 +826,16 @@ const CreateBooking = () => {
             disabled={
               submissionStatus === "submitting" ||
               slotsLoading ||
-              !isSelectionAvailable
+              !isSelectionAvailable ||
+              availableVehicles.length === 0 ||
+              !vehicleId
             }
             className="w-full rounded-2xl bg-brand/90 px-6 py-3 text-center text-sm font-semibold text-black transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submissionStatus === "submitting"
               ? "Creating..."
+              : availableVehicles.length === 0
+              ? "Không có xe khả dụng"
               : "Create booking"}
           </button>
           {serverMessage && (

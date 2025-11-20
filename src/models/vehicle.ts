@@ -4,7 +4,7 @@
  */
 
 // Vehicle Status Enum
-export type VehicleStatus = 'Available' | 'InUse' | 'Maintenance' | 'Unavailable'
+export type VehicleStatus = 'PendingApproval' | 'Available' | 'InUse' | 'Maintenance' | 'Unavailable' | 'Rejected'
 
 // Health Category Enum
 export type HealthCategory = 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical'
@@ -58,6 +58,10 @@ export interface Vehicle {
   groupId: string
   createdAt: string
   updatedAt: string
+  rejectionReason?: string | null
+  submittedAt?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
   ownershipPercentage?: number
   usagePercentage?: number
   imageUrl?: string
@@ -653,5 +657,24 @@ export interface VehicleListItem {
   groupId: string | null
   createdAt: string
   updatedAt: string
+  rejectionReason?: string | null
+  submittedAt?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
   healthScore: VehicleHealthSummary | null
+}
+
+export interface ApproveVehicleDto {
+  notes?: string
+}
+
+export interface RejectVehicleDto {
+  reason: string
+}
+
+export interface PendingVehicleDto extends Vehicle {
+  groupStatus?: string | null
+  hasDocuments: boolean
+  isVinValid: boolean
+  isPlateUnique: boolean
 }

@@ -46,10 +46,10 @@ const VehicleList = ({ vehicles, loading, onSelectVehicle }) => {
         </p>
         <div className="flex gap-4">
           <button
-            onClick={() => navigate('/groups/browse')}
-            className="px-6 py-3 bg-primary text-white font-semibold rounded-md hover:bg-accent-blue transition-colors"
+            onClick={() => navigate('/groups/marketplace')}
+            className="px-6 py-3 bg-primary text-neutral-900 font-semibold rounded-md hover:bg-neutral-800 hover:text-white transition-colors"
           >
-            Duyệt nhóm
+            Khám phá nhóm
           </button>
           <button
             onClick={() => navigate('/groups/create')}

@@ -4,6 +4,7 @@ import useToggle from '@/hooks/useToggle'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import { type NavLink, NAV_LINKS } from '@/utils/navigation'
+import { isStaffOrAdmin } from '@/utils/roles'
 
 const DEFAULT_ANCHOR = "#overview";
 
@@ -160,6 +161,14 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-3 flex-shrink-0">
           {isAuthenticated ? (
             <>
+              {isStaffOrAdmin(user) && (
+                <Link
+                  to="/admin/dashboard"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900 whitespace-nowrap"
+                >
+                  Admin Panel
+                </Link>
+              )}
               <span className="text-sm text-neutral-700 whitespace-nowrap">
                 {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
               </span>
@@ -236,6 +245,15 @@ const Header = () => {
           <div className="mt-4 space-y-2 border-t border-neutral-200 pt-4">
             {isAuthenticated ? (
               <>
+                {isStaffOrAdmin(user) && (
+                  <Link
+                    to="/admin/dashboard"
+                    className="block w-full rounded-lg border border-neutral-300 px-4 py-2 text-center text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-200"
+                    onClick={handleRouteClick}
+                  >
+                    Admin Panel
+                  </Link>
+                )}
                 <div className="px-3 py-2 text-sm text-neutral-700">
                   {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
                 </div>

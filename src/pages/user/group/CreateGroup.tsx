@@ -16,7 +16,7 @@ import { Add, Delete } from '@mui/icons-material'
 import { groupApi } from '@/services/group/groups'
 import { userApi } from '@/services/user/api'
 
-const steps = ['Thông tin nhóm', 'Tỷ lệ sở hữu', 'Quy tắc & xuất bản']
+const steps = ['Thông tin nhóm', 'Tỷ lệ sở hữu', 'Quy tắc & xuất bản', 'Thêm xe (Tùy chọn)']
 
 type MemberDraft = {
   email: string
@@ -188,7 +188,11 @@ const CreateGroup = () => {
     setSubmitting(true)
     try {
       const created = await groupApi.createGroup(payload as any)
-      setSnackbar({ open: true, message: 'Đã tạo nhóm thành công', severity: 'success' })
+      setSnackbar({
+        open: true,
+        message: 'Đã gửi yêu cầu tạo nhóm. Nhóm của bạn đang chờ phê duyệt từ nhân viên.',
+        severity: 'success',
+      })
       navigate(`/groups/${created.id}`)
     } catch (submitError) {
       setSnackbar({
@@ -339,6 +343,31 @@ const CreateGroup = () => {
             </Alert>
           </div>
         )}
+
+        {activeStep === 3 && (
+          <div className="space-y-4">
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Bạn có thể thêm xe vào nhóm ngay bây giờ hoặc thêm sau khi nhóm được phê duyệt. 
+              Không có giới hạn số lượng xe trong một nhóm.
+            </Alert>
+            <Button
+              variant="outlined"
+              startIcon={<Car />}
+              onClick={() => {
+                // After group is created, navigate to vehicle creation with groupId
+                // For now, just show info - vehicle creation will happen after group is created
+              }}
+              disabled
+              fullWidth
+              sx={{ py: 2 }}
+            >
+              Thêm xe sẽ có sẵn sau khi nhóm được tạo
+            </Button>
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Sau khi nhóm được phê duyệt, bạn có thể thêm xe từ trang "Xe của tôi" hoặc trang chi tiết nhóm.
+            </Alert>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -362,7 +391,7 @@ const CreateGroup = () => {
             }
             onClick={handleNextStep}
           >
-            Tiếp tục
+            {activeStep === 2 ? 'Bỏ qua và tạo nhóm' : 'Tiếp tục'}
           </Button>
         )}
       </div>

@@ -1,7 +1,9 @@
 import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
-import { Card, Badge } from '@/components/shared'
-import { Car, Battery, Gauge } from 'lucide-react'
+import { Tooltip } from '@mui/material'
+import { Card } from '@/components/shared'
+import StatusBadge from '@/components/shared/StatusBadge'
+import { Car, Battery, Gauge, AlertCircle } from 'lucide-react'
 
 /**
  * VehicleCard Component - Hiển thị thông tin tóm tắt của một xe
@@ -9,16 +11,69 @@ import { Car, Battery, Gauge } from 'lucide-react'
  */
 const VehicleCard = ({ vehicle, onSelect }) => {
   const navigate = useNavigate()
-  // Xác định màu status badge
-  const getStatusVariant = (status) => {
-    const statusMap = {
-      Available: 'success',
-      InUse: 'primary',
-      Maintenance: 'warning',
-      Unavailable: 'error',
+  // Check if vehicle is pending/rejected (disable actions)
+  const isPendingOrRejected = vehicle.status === 'PendingApproval' || vehicle.status === 'Rejected'
+  
+  // Check if group is inactive (show warning but don't hide)
+  const isGroupInactive = vehicle.groupStatus && vehicle.groupStatus !== 'Active'
+  
+  // Get combined status tooltip text
+  const getCombinedStatusTooltip = () => {
+    const parts = []
+    
+    // Vehicle status
+    if (vehicle.status === 'PendingApproval') {
+      parts.push('Xe đang chờ phê duyệt từ nhân viên.')
+    } else if (vehicle.status === 'Rejected') {
+      parts.push('Xe đã bị từ chối.')
     }
-    return statusMap[status] || 'default'
+    
+    // Group status
+    if (isGroupInactive) {
+      const groupStatusMap = {
+        'PendingApproval': 'Nhóm đang chờ phê duyệt.',
+        'Rejected': 'Nhóm đã bị từ chối.',
+        'Inactive': 'Nhóm đã tạm ngưng hoạt động.',
+        'Dissolved': 'Nhóm đã giải thể.',
+      }
+      parts.push(groupStatusMap[vehicle.groupStatus] || 'Nhóm không hoạt động.')
+    }
+    
+    if (parts.length === 0) return ''
+    
+    const message = parts.join(' ')
+    return isGroupInactive || isPendingOrRejected 
+      ? `${message} Xe không thể sử dụng cho đến khi được giải quyết.`
+      : message
   }
+  
+  // Get combined status badge info
+  const getCombinedStatusBadge = () => {
+    // Priority: Group status > Vehicle status (if group is inactive, that's the blocker)
+    if (isGroupInactive) {
+      const groupStatusMap = {
+        'PendingApproval': { label: 'Chờ duyệt nhóm', color: 'bg-amber-100 text-amber-800' },
+        'Rejected': { label: 'Nhóm bị từ chối', color: 'bg-red-100 text-red-800' },
+        'Inactive': { label: 'Nhóm tạm ngưng', color: 'bg-gray-100 text-gray-800' },
+        'Dissolved': { label: 'Nhóm đã giải thể', color: 'bg-gray-100 text-gray-800' },
+      }
+      return groupStatusMap[vehicle.groupStatus] || { label: 'Nhóm không hoạt động', color: 'bg-gray-100 text-gray-800' }
+    }
+    
+    // Vehicle status (if group is active)
+    if (isPendingOrRejected) {
+      const vehicleStatusMap = {
+        'PendingApproval': { label: 'Chờ phê duyệt', color: 'bg-amber-100 text-amber-800' },
+        'Rejected': { label: 'Bị từ chối', color: 'bg-red-100 text-red-800' },
+      }
+      return vehicleStatusMap[vehicle.status] || { label: vehicle.status, color: 'bg-neutral-200 text-neutral-600' }
+    }
+    
+    // Normal status (use StatusBadge component)
+    return null
+  }
+  
+  const combinedStatus = getCombinedStatusBadge()
 
   // Xác định màu health score
   const getHealthScoreColor = (score) => {
@@ -60,14 +115,22 @@ const VehicleCard = ({ vehicle, onSelect }) => {
           </div>
         )}
 
-        {/* Status Badge - Position: Top Right */}
+        {/* Combined Status Badge - Position: Top Right */}
         <div className="absolute top-3 right-3">
-          <Badge variant={getStatusVariant(vehicle.status)}>
-            {vehicle.status === 'Available' && 'Sẵn sàng'}
-            {vehicle.status === 'InUse' && 'Đang dùng'}
-            {vehicle.status === 'Maintenance' && 'Bảo trì'}
-            {vehicle.status === 'Unavailable' && 'Không khả dụng'}
-          </Badge>
+          {combinedStatus ? (
+            <Tooltip 
+              title={getCombinedStatusTooltip()}
+              arrow
+              placement="left"
+            >
+              <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${combinedStatus.color}`}>
+                <AlertCircle className="w-3 h-3" />
+                {combinedStatus.label}
+              </div>
+            </Tooltip>
+          ) : (
+            <StatusBadge status={vehicle.status} />
+          )}
         </div>
       </div>
 
@@ -106,15 +169,31 @@ const VehicleCard = ({ vehicle, onSelect }) => {
 
           {/* Health Score */}
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1">
-              <Battery className="w-4 h-4 text-neutral-600" />
-              <span className={`text-sm font-semibold ${getHealthScoreColor(vehicle.healthScore?.overallScore || 0)}`}>
-                {vehicle.healthScore?.overallScore || 0}
-              </span>
-            </div>
-            <div className="text-xs text-neutral-600 mt-1">
-              {getHealthCategoryText(vehicle.healthScore?.category)}
-            </div>
+            {vehicle.healthScore && vehicle.healthScore.overallScore != null ? (
+              <>
+                <div className="flex items-center justify-center gap-1">
+                  <Battery className="w-4 h-4 text-neutral-600" />
+                  <span className={`text-sm font-semibold ${getHealthScoreColor(vehicle.healthScore.overallScore)}`}>
+                    {vehicle.healthScore.overallScore}
+                  </span>
+                </div>
+                <div className="text-xs text-neutral-600 mt-1">
+                  {getHealthCategoryText(vehicle.healthScore.category)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-1">
+                  <Battery className="w-4 h-4 text-neutral-400" />
+                  <span className="text-sm font-semibold text-neutral-400">
+                    N/A
+                  </span>
+                </div>
+                <div className="text-xs text-neutral-400 mt-1">
+                  Chưa có dữ liệu
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -134,15 +213,33 @@ const VehicleCard = ({ vehicle, onSelect }) => {
 
         {/* Quick Actions */}
         <div className="flex gap-2 pt-2">
-          <button
-            className="flex-1 px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation()
-              navigate(`/booking/create?vehicleId=${vehicle.id}`)
-            }}
+          <Tooltip
+            title={
+              isPendingOrRejected || isGroupInactive
+                ? getCombinedStatusTooltip() || 'Không thể đặt lịch cho xe này'
+                : ''
+            }
+            arrow
           >
-            Đặt lịch
-          </button>
+            <span className="flex-1">
+              <button
+                className={`w-full px-4 py-2 text-sm font-medium border rounded-md transition-colors ${
+                  isPendingOrRejected || isGroupInactive
+                    ? 'text-neutral-400 border-neutral-200 cursor-not-allowed'
+                    : 'text-primary border-primary hover:bg-primary hover:text-white'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!isPendingOrRejected && !isGroupInactive) {
+                    navigate(`/booking/create?vehicleId=${vehicle.id}`)
+                  }
+                }}
+                disabled={isPendingOrRejected || isGroupInactive}
+              >
+                Đặt lịch
+              </button>
+            </span>
+          </Tooltip>
           <button
             className="flex-1 px-4 py-2 text-sm font-medium text-neutral-700 border border-neutral-300 rounded-md hover:bg-neutral-100 transition-colors"
             onClick={(e) => {
@@ -168,6 +265,8 @@ VehicleCard.propTypes = {
     odometer: PropTypes.number,
     ownershipPercentage: PropTypes.number,
     imageUrl: PropTypes.string,
+    groupStatus: PropTypes.string,
+    groupName: PropTypes.string,
     healthScore: PropTypes.shape({
       overallScore: PropTypes.number,
       category: PropTypes.string,
