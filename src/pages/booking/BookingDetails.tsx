@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type { BookingDto } from "@/models/booking";
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
+
+// parseServerIso and isInactiveStatus taken from shared utils
 
 const statusStyles: Record<BookingDto["status"], string> = {
   Pending: "bg-amber-50 text-black border border-slate-800",
@@ -13,6 +16,8 @@ const statusStyles: Record<BookingDto["status"], string> = {
   NoShow: "bg-amber-50 text-black border border-rose-500/40",
 };
 
+// shared `isInactiveStatus` is imported from utils
+
 const formatCurrency = (value?: number | null) => {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "N/A";
@@ -22,7 +27,7 @@ const formatCurrency = (value?: number | null) => {
 
 const formatDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString("vi-VN", {
+    ? parseServerIso(iso).toLocaleString("vi-VN", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -33,8 +38,8 @@ const formatDateTime = (iso?: string) =>
 
 const formatDuration = (start?: string, end?: string) => {
   if (!start || !end) return "N/A";
-  const startTime = new Date(start).getTime();
-  const endTime = new Date(end).getTime();
+  const startTime = parseServerIso(start).getTime();
+  const endTime = parseServerIso(end).getTime();
   if (Number.isNaN(startTime) || Number.isNaN(endTime)) return "N/A";
   const hours = Math.max((endTime - startTime) / 3_600_000, 0);
   return `${hours.toFixed(1)}h`;
@@ -51,6 +56,14 @@ const BookingDetails = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    const expired = !Number.isNaN(endTime) && endTime < Date.now();
+    const inactive = isInactiveStatus(booking.status);
+    return expired || inactive;
+  }, [booking]);
+
   useEffect(() => {
     if (!bookingKey) {
       setBooking(null);
@@ -66,11 +79,10 @@ const BookingDetails = () => {
         setBooking(data);
         setError(null);
       })
-      .catch((err) => {
+      .catch(() => {
         if (mounted) {
           setError("Unable to load booking details from the API.");
         }
-        console.warn("Unable to fetch booking", err);
       })
       .finally(() => {
         if (mounted) {
@@ -209,43 +221,52 @@ const BookingDetails = () => {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
-            <p className="text-xs uppercase text-black">Actions</p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {["/booking/check-in", "/booking/check-out"].map((path) => (
-                <Link
-                  key={path}
-                  to={`${path}?bookingId=${booking.id}`}
-                  className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+          {!bookingIsReadOnly ? (
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+              <p className="text-xs uppercase text-black">Actions</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {["/booking/check-in", "/booking/check-out"].map((path) => (
+                  <Link
+                    key={path}
+                    to={`${path}?bookingId=${booking.id}`}
+                    className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+                  >
+                    {path.replace("/booking/", "").split("-").join(" ")}
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 space-y-3">
+                <label className="text-xs text-black">
+                  Cancellation reason
+                  <textarea
+                    rows={2}
+                    value={cancelReason}
+                    onChange={(event) => setCancelReason(event.target.value)}
+                    className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-2 text-sm text-black"
+                    placeholder="Explain why you are cancelling"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isCancelling}
+                  className="rounded-2xl border border-rose-500/40 px-4 py-2 text-black disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {path.replace("/booking/", "").split("-").join(" ")}
-                </Link>
-              ))}
+                  {isCancelling ? "Cancelling..." : "Cancel booking"}
+                </button>
+                {actionMessage && (
+                  <p className="text-xs text-black">{actionMessage}</p>
+                )}
+              </div>
             </div>
-            <div className="mt-4 space-y-3">
-              <label className="text-xs text-black">
-                Cancellation reason
-                <textarea
-                  rows={2}
-                  value={cancelReason}
-                  onChange={(event) => setCancelReason(event.target.value)}
-                  className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-2 text-sm text-black"
-                  placeholder="Explain why you are cancelling"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={isCancelling}
-                className="rounded-2xl border border-rose-500/40 px-4 py-2 text-black disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCancelling ? "Cancelling..." : "Cancel booking"}
-              </button>
-              {actionMessage && (
-                <p className="text-xs text-black">{actionMessage}</p>
-              )}
+          ) : (
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+              <p className="text-xs uppercase text-black">Actions</p>
+              <p className="mt-3 text-sm text-black">
+                No actions available for this booking.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       )}
 

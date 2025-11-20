@@ -23,6 +23,10 @@ import {
   PaymentScreen,
   PaymentHistory,
   CostAnalytics,
+  ScheduleMaintenance,
+  MaintenanceDetails,
+  EditMaintenance,
+  CompleteMaintenance,
 } from "@/pages/vehicle";
 
 // Booking Pages
@@ -144,6 +148,10 @@ const App = () => {
               <Route index element={<MyVehicles />} />
               <Route path="create" element={<CreateVehicle />} />
               <Route path=":id" element={<VehicleDetails />} />
+              <Route path=":id/maintenance/create" element={<ScheduleMaintenance />} />
+              <Route path=":id/maintenance/:scheduleId" element={<MaintenanceDetails />} />
+              <Route path=":id/maintenance/:scheduleId/edit" element={<EditMaintenance />} />
+              <Route path=":id/maintenance/:scheduleId/complete" element={<CompleteMaintenance />} />
 
               {/* Expenses & Payments */}
               <Route path=":vehicleId/expenses">

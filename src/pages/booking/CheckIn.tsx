@@ -10,6 +10,7 @@ import {
   type CheckInPhotoInputDto,
 } from "@/models/booking";
 import type { VehicleStatus } from "@/models/vehicle";
+import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 
 const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
 
@@ -50,7 +51,7 @@ const HistoryTable = ({
           {records.map((record) => (
             <tr key={record.id}>
               <td className="py-2">
-                {new Date(record.checkInTime).toLocaleString()}
+                {parseServerIso(record.checkInTime).toLocaleString()}
               </td>
               <td className="py-2">{record.odometer ?? "--"}</td>
               <td className="py-2">{record.notes ?? "--"}</td>
@@ -78,6 +79,25 @@ const CheckIn = () => {
     [history]
   );
 
+  const bookingStartsInFuture = useMemo(() => {
+    if (!booking) return false;
+    const startTime = parseServerIso(booking.startAt).getTime();
+    return !Number.isNaN(startTime) && startTime > Date.now();
+  }, [booking]);
+
+  const bookingExpired = useMemo(() => {
+    if (!booking) return false;
+    const endTime = parseServerIso(booking.endAt).getTime();
+    return !Number.isNaN(endTime) && endTime < Date.now();
+  }, [booking]);
+
+  // use shared helper `isInactiveStatus` from utils
+
+  const bookingIsReadOnly = useMemo(() => {
+    if (!booking) return true;
+    return bookingExpired || isInactiveStatus(booking.status);
+  }, [booking, bookingExpired]);
+
   const refreshHistory = useCallback(async () => {
     if (!booking) return;
     try {
@@ -100,12 +120,12 @@ const CheckIn = () => {
       if (lastStart) {
         const lastEndBeforeStart =
           !lastEnd ||
-          new Date(lastEnd.checkInTime) < new Date(lastStart.checkInTime);
+          parseServerIso(lastEnd.checkInTime).getTime() <
+            parseServerIso(lastStart.checkInTime).getTime();
         hasOpenTrip = lastEndBeforeStart;
       }
       setTripStarted(hasOpenTrip);
-    } catch (error) {
-      console.error("Failed to load check-in history", error);
+    } catch {
       setHistoryMessage("Unable to load check-in history.");
     }
   }, [booking]);
@@ -142,8 +162,8 @@ const CheckIn = () => {
     if (!booking) return;
     try {
       await bookingApi.updateVehicleStatus(booking.id, { status });
-    } catch (error) {
-      console.warn("Unable to update vehicle status", error);
+    } catch {
+      // Non-fatal: ignore vehicle status update failures
     }
   };
 
@@ -164,8 +184,7 @@ const CheckIn = () => {
       setTripStarted(false);
       setHistory([]);
       setHistoryMessage(null);
-    } catch (error) {
-      console.error("Failed to load booking for check-in", error);
+    } catch {
       setMessage("Unable to load booking. Check console for details.");
     } finally {
       setLoading(false);
@@ -182,6 +201,14 @@ const CheckIn = () => {
 
   const handleStartTrip = async () => {
     if (!booking) return;
+    if (bookingIsReadOnly) {
+      setMessage("Booking đã hoàn tất hoặc bị hủy — chỉ có thể xem chi tiết.");
+      return;
+    }
+    if (bookingStartsInFuture) {
+      setMessage("Cannot start trip before the booking's start time.");
+      return;
+    }
     if (!startForm.odometer) {
       setMessage("Enter an odometer reading before starting.");
       return;
@@ -197,14 +224,22 @@ const CheckIn = () => {
         photos: startPhotos,
       });
       await updateVehicleStatus("InUse");
+      // If the booking has already ended (endAt < now), tell the server to mark it Completed
+      try {
+        const bookingEndTime = parseServerIso(booking.endAt).getTime();
+        if (!Number.isNaN(bookingEndTime) && bookingEndTime < Date.now()) {
+          await bookingApi.completeBooking(booking.id);
+        }
+      } catch {
+        // Non-fatal: continue UI flow
+      }
       setTripStarted(true);
       setStartPhotos([]);
       setMessage(
         `Đã check-in lúc ${new Date().toLocaleString()} (ghi nhận cả phía FE lẫn BE).`
       );
       await refreshHistory();
-    } catch (error) {
-      console.error("StartTrip failed", error);
+    } catch {
       setMessage("Unable to start trip.");
     }
   };
@@ -271,7 +306,7 @@ const CheckIn = () => {
         {booking && (
           <p className="mt-1 text-xs text-black">
             Vehicle: {booking.vehicleModel} (
-            {new Date(booking.startAt).toLocaleString()})
+            {parseServerIso(booking.startAt).toLocaleString()})
           </p>
         )}
       </div>
@@ -318,10 +353,25 @@ const CheckIn = () => {
               tripStarted ? "Đã check-in chuyến này" : "Xác nhận bắt đầu chuyến"
             }
             onSubmit={handleStartTrip}
-            disabled={!booking || tripStarted}
+            disabled={
+              !booking ||
+              tripStarted ||
+              bookingStartsInFuture ||
+              bookingIsReadOnly
+            }
             footerSlot={
               booking && (
                 <div className="rounded-2xl border border-dashed border-slate-500 bg-amber-50/80 p-3 text-xs text-black">
+                  {bookingIsReadOnly ? (
+                    <p className="text-sm text-rose-600">
+                      Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc
+                      Check-out.
+                    </p>
+                  ) : bookingStartsInFuture ? (
+                    <p className="text-sm text-rose-600">
+                      Không thể check-in trước thời gian bắt đầu của booking.
+                    </p>
+                  ) : null}
                   <p>
                     Hoàn tất chuyến đi? Vào{" "}
                     <Link
@@ -340,7 +390,7 @@ const CheckIn = () => {
       </div>
 
       {booking && (
-        <HistoryTable title="Check-out history" records={checkOutHistory} />
+        <HistoryTable title="Check-in history" records={checkOutHistory} />
       )}
     </section>
   );

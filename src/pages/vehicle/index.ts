@@ -1,4 +1,7 @@
-// Export tất cả vehicle pages
+export { default as ScheduleMaintenance } from './ScheduleMaintenance'
+export { default as MaintenanceDetails } from './MaintenanceDetails'
+export { default as EditMaintenance } from './EditMaintenance'
+export { default as CompleteMaintenance } from './CompleteMaintenance'
 export { default as MyVehicles } from './MyVehicles'
 export { default as CreateVehicle } from './CreateVehicle'
 export { default as VehicleDetails } from './VehicleDetails'

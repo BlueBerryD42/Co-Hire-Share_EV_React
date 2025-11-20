@@ -7,6 +7,11 @@ import type {
   BookingDto,
   CheckInDto,
 } from "@/models/booking";
+import {
+  parseServerIso,
+  localIso,
+  isInactiveStatus,
+} from "@/utils/bookingHelpers";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -41,7 +46,10 @@ const buildCalendar = (anchorDate: Date): CalendarCell[] => {
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(firstVisibleDate);
     date.setDate(firstVisibleDate.getDate() + i);
-    const iso = date.toISOString().slice(0, 10);
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
     const monthType: CalendarCell["monthType"] =
       date.getMonth() < month
         ? "previous"
@@ -59,9 +67,11 @@ const buildCalendar = (anchorDate: Date): CalendarCell[] => {
   return matrix;
 };
 
+// use shared helpers from utils/bookingHelpers
+
 const formatTimeRange = (startIso: string, endIso: string) => {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
+  const start = parseServerIso(startIso);
+  const end = parseServerIso(endIso);
   return `${start.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -73,12 +83,14 @@ const formatTimeRange = (startIso: string, endIso: string) => {
 
 const expandBookingDates = (booking: BookingDto) => {
   const dates: string[] = [];
-  const start = new Date(booking.startAt);
-  const end = new Date(booking.endAt);
+  const start = parseServerIso(booking.startAt);
+  const end = parseServerIso(booking.endAt);
   const cursor = new Date(start);
   cursor.setHours(0, 0, 0, 0);
   while (cursor <= end) {
-    dates.push(cursor.toISOString().slice(0, 10));
+    // Use local ISO (yyyy-mm-dd) instead of UTC-based toISOString()
+    // to ensure the calendar shows the correct local day for bookings.
+    dates.push(localIso(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
@@ -87,12 +99,7 @@ const expandBookingDates = (booking: BookingDto) => {
 const getVehicleOwner = (booking: BookingDto) =>
   `${booking.userFirstName} ${booking.userLastName}`;
 
-const isInactiveStatus = (status: BookingDto["status"]) => {
-  if (typeof status === "number") {
-    return status === 4 || status === 5;
-  }
-  return status === "Completed" || status === "Cancelled";
-};
+// isInactiveStatus provided by utils
 
 // const formatHistoryOdometer = (value?: number | null) =>
 //   typeof value === "number" ? `${value.toLocaleString("vi-VN")} km` : "N/A";
@@ -148,36 +155,71 @@ const BookingCalendar = () => {
     const start = new Date(currentMonth);
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
-    return start.toISOString().slice(0, 10);
+    return localIso(start);
   }, [currentMonth]);
 
   useEffect(() => {
     let cancelled = false;
-    const loadBookings = () => {
-      bookingApi
-        .getMyBookings()
-        .then((data) => {
-          if (cancelled) return;
-          setMyBookings(data);
-          if (data.length > 0) {
-            setVehicleId((prev) => prev || data[0].vehicleId);
+    const loadBookings = async () => {
+      try {
+        const data = await bookingApi.getMyBookings();
+        if (cancelled) return;
+
+        // Auto-complete any of the user's bookings that have already ended
+        // but are not marked inactive (Completed/Cancelled). We call the
+        // server endpoint and merge any successful updates into the local
+        // booking list so the UI shows them as read-only immediately.
+        const now = Date.now();
+        const toComplete = data.filter(
+          (b) =>
+            !isInactiveStatus(b.status) &&
+            parseServerIso(b.endAt).getTime() < now
+        );
+
+        let merged = data;
+        if (toComplete.length > 0) {
+          try {
+            const results = await Promise.allSettled(
+              toComplete.map((b) => bookingApi.completeBooking(b.id))
+            );
+            const updatedMap: Record<string, BookingDto> = {};
+            results.forEach((r, idx) => {
+              if (r.status === "fulfilled") {
+                updatedMap[r.value.id] = r.value;
+              } else {
+                console.warn(
+                  "Auto-complete booking failed",
+                  toComplete[idx].id,
+                  r.reason
+                );
+              }
+            });
+            if (Object.keys(updatedMap).length > 0) {
+              merged = data.map((b) => updatedMap[b.id] ?? b);
+            }
+          } catch (err) {
+            console.warn("Error while auto-completing bookings", err);
           }
-          setSelectedBooking((previous) =>
-            previous && data.some((booking) => booking.id === previous.id)
-              ? previous
-              : null
-          );
-          setSelectedDate((previous) =>
-            previous &&
-            data.some((booking) => booking.startAt.slice(0, 10) === previous)
-              ? previous
-              : null
-          );
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          console.error("BookingCalendar: unable to fetch bookings", error);
-        });
+        }
+
+        setMyBookings(merged);
+        if (merged.length > 0) {
+          setVehicleId((prev) => prev || merged[0].vehicleId);
+        }
+        setSelectedBooking((previous) =>
+          previous && merged.some((booking) => booking.id === previous.id)
+            ? previous
+            : null
+        );
+        setSelectedDate((previous) =>
+          previous &&
+          merged.some((booking) => booking.startAt.slice(0, 10) === previous)
+            ? previous
+            : null
+        );
+      } catch {
+        if (cancelled) return;
+      }
     };
 
     loadBookings();
@@ -198,8 +240,8 @@ const BookingCalendar = () => {
         .then((data) => {
           if (!cancelled) setCalendarData(data);
         })
-        .catch((error) => {
-          if (!cancelled) console.error("Failed to load calendar", error);
+        .catch(() => {
+          // ignore transient calendar load errors for now
         });
     };
 
@@ -230,13 +272,21 @@ const BookingCalendar = () => {
       });
     };
 
-    myBookings
-      .filter((booking) => !isInactiveStatus(booking.status))
-      .forEach((booking) => addBookingEvent(booking, "mine"));
+    // Include user's bookings even if they are completed/cancelled so the
+    // calendar can show a read-only indicator. We still treat inactive
+    // bookings specially when rendering (they won't show check-in/out links).
+    myBookings.forEach((booking) => {
+      const type: CalendarStatus = isInactiveStatus(booking.status)
+        ? "idle"
+        : "mine";
+      addBookingEvent(booking, type);
+    });
     calendarData?.bookings?.forEach((booking) => {
       if (myBookingIds.has(booking.id)) return;
-      if (isInactiveStatus(booking.status)) return;
-      addBookingEvent(booking, "others");
+      const type: CalendarStatus = isInactiveStatus(booking.status)
+        ? "idle"
+        : "others";
+      addBookingEvent(booking, type);
     });
 
     return map;
@@ -301,11 +351,7 @@ const BookingCalendar = () => {
           }));
         }
       })
-      .catch((error) => {
-        console.error(
-          "BookingCalendar: unable to fetch check-in history",
-          error
-        );
+      .catch(() => {
         if (!cancelled) {
           setCheckInHistory((prev) => ({
             ...prev,
@@ -402,78 +448,88 @@ const BookingCalendar = () => {
               ))}
             </div>
 
-            <div className="mt-2 grid grid-cols-7 gap-2 text-sm">
-              {calendarDays.map((day) => {
-                const events = eventsByDate[day.iso] ?? [];
-                const isToday =
-                  day.iso === new Date().toISOString().slice(0, 10);
-                const hasMine = events.some((event) => event.type === "mine");
-                const containerClasses = [
-                  "flex",
-                  "min-h-[120px]",
-                  "flex-col",
-                  "rounded-2xl",
-                  "border",
-                  "p-2",
-                  "transition",
-                  "hover:border-brand/60",
-                  "hover:bg-amber-50",
-                ];
-                if (hasMine)
-                  containerClasses.push("border-brand/60 bg-brand/10");
-                else containerClasses.push("border-amber-200 bg-amber-50");
-                if (day.monthType !== "current")
-                  containerClasses.push("opacity-60");
-                if (isToday) containerClasses.push("ring-1 ring-brand/60");
+            {(() => {
+              const today = new Date();
+              const todayIso = localIso(today);
 
-                return (
-                  <div key={day.iso} className={containerClasses.join(" ")}>
-                    <button
-                      type="button"
-                      className="flex items-center justify-between text-xs text-black"
-                      onClick={() => handleDaySelect(day.iso)}
-                    >
-                      <span>{day.label}</span>
-                      {events.length > 0 && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-black">
-                          {events.length}
-                        </span>
-                      )}
-                    </button>
-                    <div className="mt-2 space-y-2">
-                      {events.map((event) => {
-                        const isSelected =
-                          selectedBooking?.id &&
-                          event.booking?.id === selectedBooking.id;
-                        return (
-                          <button
-                            type="button"
-                            key={`${day.iso}-${event.label}-${event.time}`}
-                            onClick={() => handleEventClick(event)}
-                            className={`w-full rounded-xl border px-2 py-1 text-left text-xs ${
-                              isSelected
-                                ? "border-brand bg-brand/10 text-black"
-                                : "border-amber-200 bg-amber-50 text-black"
-                            }`}
-                          >
-                            <p className="font-semibold">{event.label}</p>
+              return (
+                <div className="mt-2 grid grid-cols-7 gap-2 text-sm">
+                  {calendarDays.map((day) => {
+                    const events = eventsByDate[day.iso] ?? [];
+                    const isToday = day.iso === todayIso;
+                    const hasMine = events.some(
+                      (event) => event.type === "mine"
+                    );
+                    const containerClasses = [
+                      "flex",
+                      "min-h-[120px]",
+                      "flex-col",
+                      "rounded-2xl",
+                      "border",
+                      "p-2",
+                      "transition",
+                      "hover:border-brand/60",
+                      "hover:bg-amber-50",
+                    ];
+                    if (hasMine)
+                      containerClasses.push("border-brand/60 bg-brand/10");
+                    else containerClasses.push("border-amber-200 bg-amber-50");
+                    if (day.monthType !== "current")
+                      containerClasses.push("opacity-60");
+                    if (isToday) containerClasses.push("ring-1 ring-brand/60");
+
+                    return (
+                      <div key={day.iso} className={containerClasses.join(" ")}>
+                        <button
+                          type="button"
+                          className="flex items-center justify-between text-xs text-black"
+                          onClick={() => handleDaySelect(day.iso)}
+                        >
+                          <span>{day.label}</span>
+                          {events.length > 0 && (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-black">
+                              {events.length}
+                            </span>
+                          )}
+                        </button>
+                        <div className="mt-2 space-y-2">
+                          {events.map((event) => {
+                            const isSelected =
+                              selectedBooking?.id &&
+                              event.booking?.id === selectedBooking.id;
+                            return (
+                              <button
+                                type="button"
+                                key={`${day.iso}-${event.label}-${event.time}`}
+                                onClick={() => handleEventClick(event)}
+                                className={`w-full rounded-xl border px-2 py-1 text-left text-xs ${
+                                  isSelected
+                                    ? "border-brand bg-brand/10 text-black"
+                                    : "border-amber-200 bg-amber-50 text-black"
+                                }`}
+                              >
+                                <p className="font-semibold">{event.label}</p>
+                                <p className="text-[11px] text-black">
+                                  {event.time}
+                                </p>
+                                <p className="text-[11px] text-black">
+                                  {event.owner}
+                                </p>
+                              </button>
+                            );
+                          })}
+                          {events.length === 0 && (
                             <p className="text-[11px] text-black">
-                              {event.time}
+                              No bookings
                             </p>
-                            <p className="text-[11px] text-black">
-                              {event.owner}
-                            </p>
-                          </button>
-                        );
-                      })}
-                      {events.length === 0 && (
-                        <p className="text-[11px] text-black">No bookings</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           <aside className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-black shadow-lg lg:sticky lg:top-8 lg:self-start">
@@ -486,8 +542,8 @@ const BookingCalendar = () => {
                   {selectedBooking.vehicleModel}
                 </p>
                 <p>
-                  {new Date(selectedBooking.startAt).toLocaleString()} -{" "}
-                  {new Date(selectedBooking.endAt).toLocaleTimeString()}
+                  {parseServerIso(selectedBooking.startAt).toLocaleString()} -{" "}
+                  {parseServerIso(selectedBooking.endAt).toLocaleTimeString()}
                 </p>
                 <p>
                   Owner: {selectedBooking.userFirstName}{" "}
@@ -502,24 +558,24 @@ const BookingCalendar = () => {
                   >
                     Details
                   </Link>
-                  <Link
-                    to={`/booking/check-in?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Check-In
-                  </Link>
-                  {/* <Link
-                    to={`/booking/active-trip?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Active Trip (17)
-                  </Link> */}
-                  <Link
-                    to={`/booking/check-out?bookingId=${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
-                  >
-                    Check-Out
-                  </Link>
+                  {!isInactiveStatus(selectedBooking.status) &&
+                  parseServerIso(selectedBooking.endAt).getTime() >=
+                    Date.now() ? (
+                    <>
+                      <Link
+                        to={`/booking/check-in?bookingId=${selectedBooking.id}`}
+                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                      >
+                        Check-In
+                      </Link>
+                      <Link
+                        to={`/booking/check-out?bookingId=${selectedBooking.id}`}
+                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                      >
+                        Check-Out
+                      </Link>
+                    </>
+                  ) : null}
                 </div>
                 {/* <div className="space-y-2 border-t border-amber-200 pt-4">
                   <p className="text-xs uppercase tracking-wide text-black">
