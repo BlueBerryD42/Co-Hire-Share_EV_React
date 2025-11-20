@@ -11,6 +11,17 @@ import {
 } from "@/models/booking";
 import type { VehicleStatus } from "@/models/vehicle";
 
+// Parse ISO-like strings returned by the server. If the string already
+// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
+// server returned a UTC timestamp without zone and append 'Z' so JS treats
+// it as a UTC instant.
+const parseServerIso = (iso?: string) =>
+  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
+    ? new Date(iso)
+    : iso
+    ? new Date(iso + "Z")
+    : new Date(NaN);
+
 const stepLabels = ["Load booking", "Pre-trip photos", "Confirm start"];
 
 const normalizeCheckRecordType = (type: CheckInDto["type"] | number) => {
@@ -50,7 +61,7 @@ const HistoryTable = ({
           {records.map((record) => (
             <tr key={record.id}>
               <td className="py-2">
-                {new Date(record.checkInTime).toLocaleString()}
+                {parseServerIso(record.checkInTime).toLocaleString()}
               </td>
               <td className="py-2">{record.odometer ?? "--"}</td>
               <td className="py-2">{record.notes ?? "--"}</td>
@@ -100,7 +111,8 @@ const CheckIn = () => {
       if (lastStart) {
         const lastEndBeforeStart =
           !lastEnd ||
-          new Date(lastEnd.checkInTime) < new Date(lastStart.checkInTime);
+          parseServerIso(lastEnd.checkInTime).getTime() <
+            parseServerIso(lastStart.checkInTime).getTime();
         hasOpenTrip = lastEndBeforeStart;
       }
       setTripStarted(hasOpenTrip);
@@ -271,7 +283,7 @@ const CheckIn = () => {
         {booking && (
           <p className="mt-1 text-xs text-black">
             Vehicle: {booking.vehicleModel} (
-            {new Date(booking.startAt).toLocaleString()})
+            {parseServerIso(booking.startAt).toLocaleString()})
           </p>
         )}
       </div>

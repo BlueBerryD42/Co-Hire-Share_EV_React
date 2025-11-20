@@ -10,6 +10,17 @@ import {
   type CheckInPhotoInputDto,
 } from "@/models/booking";
 
+// Parse ISO-like strings returned by the server. If the string already
+// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
+// server returned a UTC timestamp without zone and append 'Z' so JS treats
+// it as a UTC instant.
+const parseServerIso = (iso?: string) =>
+  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
+    ? new Date(iso)
+    : iso
+    ? new Date(iso + "Z")
+    : new Date(NaN);
+
 const isCheckOutRecord = (record: CheckInDto) =>
   record.type === 0 || record.type === "CheckOut";
 
@@ -40,7 +51,7 @@ const HistoryTable = ({
           {records.map((record) => (
             <tr key={record.id}>
               <td className="py-2">
-                {new Date(record.checkInTime).toLocaleString()}
+                {parseServerIso(record.checkInTime).toLocaleString()}
               </td>
               <td className="py-2">{record.odometer ?? "--"}</td>
               <td className="py-2">{record.notes ?? "--"}</td>
@@ -92,7 +103,8 @@ const CheckOut = () => {
       const hasValidEnd =
         Boolean(lastEnd) &&
         (!lastStart ||
-          new Date(lastEnd.checkInTime) >= new Date(lastStart.checkInTime));
+          parseServerIso(lastEnd.checkInTime).getTime() >=
+            parseServerIso(lastStart.checkInTime).getTime());
       setTripCompleted(hasValidEnd);
     } catch (error) {
       console.error("Unable to load check-in history for checkout", error);
@@ -188,11 +200,35 @@ const CheckOut = () => {
       setEndOdometer(odo);
       setPhotos([]);
       setTripCompleted(true);
-      const localTimestamp = new Date();
-      setMessage(
-        `Checkout captured at ${localTimestamp.toLocaleString()} (client + server timestamps stored).`
-      );
+      const clientTs = new Date();
+      // Refresh history and then fetch latest record to show server timestamp
       await refreshHistory();
+      try {
+        const records = await checkInApi.getHistory(booking.id);
+        const latest = [...records]
+          .sort(
+            (a, b) =>
+              parseServerIso(a.checkInTime).getTime() -
+              parseServerIso(b.checkInTime).getTime()
+          )
+          .pop();
+        if (latest) {
+          setMessage(
+            `Checkout recorded: client=${clientTs.toLocaleString()} server=${parseServerIso(
+              latest.checkInTime
+            ).toLocaleString()}`
+          );
+        } else {
+          setMessage(
+            `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
+          );
+        }
+      } catch {
+        // If fetching latest fails, at least show client timestamp
+        setMessage(
+          `Checkout captured at ${clientTs.toLocaleString()} (client timestamp).`
+        );
+      }
     } catch (error) {
       console.error("Checkout failed", error);
       setMessage("Unable to complete checkout.");
@@ -254,7 +290,7 @@ const CheckOut = () => {
         {booking && (
           <p className="mt-1 text-xs text-black">
             Vehicle: {booking.vehicleModel} ·{" "}
-            {new Date(booking.endAt).toLocaleString()}
+            {parseServerIso(booking.endAt).toLocaleString()}
           </p>
         )}
       </div>

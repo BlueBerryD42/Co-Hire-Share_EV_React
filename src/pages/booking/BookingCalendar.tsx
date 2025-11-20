@@ -96,7 +96,9 @@ const expandBookingDates = (booking: BookingDto) => {
   const cursor = new Date(start);
   cursor.setHours(0, 0, 0, 0);
   while (cursor <= end) {
-    dates.push(cursor.toISOString().slice(0, 10));
+    // Use local ISO (yyyy-mm-dd) instead of UTC-based toISOString()
+    // to ensure the calendar shows the correct local day for bookings.
+    dates.push(localIso(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;

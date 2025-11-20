@@ -3,6 +3,17 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import type { BookingDto } from "@/models/booking";
 
+// Parse ISO-like strings returned by the server. If the string already
+// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
+// server returned a UTC timestamp without zone and append 'Z' so JS treats
+// it as a UTC instant.
+const parseServerIso = (iso?: string) =>
+  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
+    ? new Date(iso)
+    : iso
+    ? new Date(iso + "Z")
+    : new Date(NaN);
+
 const statusStyles: Record<BookingDto["status"], string> = {
   Pending: "bg-amber-50 text-black border border-slate-800",
   PendingApproval: "bg-amber-50 text-black border border-slate-800",
@@ -22,7 +33,7 @@ const formatCurrency = (value?: number | null) => {
 
 const formatDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString("vi-VN", {
+    ? parseServerIso(iso).toLocaleString("vi-VN", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -33,8 +44,8 @@ const formatDateTime = (iso?: string) =>
 
 const formatDuration = (start?: string, end?: string) => {
   if (!start || !end) return "N/A";
-  const startTime = new Date(start).getTime();
-  const endTime = new Date(end).getTime();
+  const startTime = parseServerIso(start).getTime();
+  const endTime = parseServerIso(end).getTime();
   if (Number.isNaN(startTime) || Number.isNaN(endTime)) return "N/A";
   const hours = Math.max((endTime - startTime) / 3_600_000, 0);
   return `${hours.toFixed(1)}h`;

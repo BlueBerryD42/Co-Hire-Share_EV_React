@@ -222,15 +222,9 @@ const CreateBooking = () => {
     }));
   };
 
-  // Interpret date/time as local and convert to UTC ISO string for internal use.
-  // Construct a local Date from the `YYYY-MM-DD` and `HH:mm` inputs, then
-  // call `toISOString()` so the resulting string is the correct UTC instant.
   const buildIsoUtc = (date: string, time: string) =>
     new Date(`${date}T${time}:00`).toISOString();
 
-  // Format a Date as an ISO string with local timezone offset, e.g.
-  // 2025-11-20T01:30:00+07:00. This preserves the local wall-clock time
-  // in the serialized value sent to the backend.
   const formatLocalWithOffset = (d: Date) => {
     const pad2 = (n: number) => String(n).padStart(2, "0");
     const year = d.getFullYear();
@@ -274,8 +268,6 @@ const CreateBooking = () => {
     return Math.max(minDurationMinutes, minutes || 0);
   }, [startIso, endIso]);
 
-  // Use an exclusive end for conflict checks to avoid flagging back-to-back bookings.
-  // Use a slight offset on end time when checking conflicts to allow back-to-back bookings without false overlap.
   const conflictEndIso = useMemo(() => {
     const endMs = new Date(endIso).getTime();
     const exclusive = new Date(endMs - 1000); // minus 1 second: keeps same minute but avoids boundary collision
