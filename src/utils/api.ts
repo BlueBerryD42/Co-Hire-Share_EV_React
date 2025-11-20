@@ -7,144 +7,145 @@ type Identifier = string | number;
 const apiClient = createApiClient("");
 
 // Admin API endpoints
+// Note: Using lowercase 'admin' to match API Gateway routing in ocelot.json
 export const adminApi = {
   // Dashboard
   getDashboard: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/dashboard", { params }),
+    apiClient.get("/api/admin/dashboard", { params }),
 
   getRecentActivity: (count = 20) =>
-    apiClient.get("/api/Admin/activity", { params: { count } }),
+    apiClient.get("/api/admin/activity", { params: { count } }),
 
-  getAlerts: () => apiClient.get("/api/Admin/alerts"),
+  getAlerts: () => apiClient.get("/api/admin/alerts"),
 
   // Groups
   getGroups: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/groups", { params }),
+    apiClient.get("/api/admin/groups", { params }),
 
   getGroupDetails: (groupId: Identifier) =>
-    apiClient.get(`/api/Admin/groups/${groupId}`),
+    apiClient.get(`/api/admin/groups/${groupId}`),
 
   updateGroupStatus: (groupId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/groups/${groupId}/status`, data),
+    apiClient.put(`/api/admin/groups/${groupId}/status`, data),
 
   getGroupHealth: (groupId: Identifier) =>
-    apiClient.get(`/api/Admin/groups/${groupId}/health`),
+    apiClient.get(`/api/admin/groups/${groupId}/health`),
 
   // Vehicles
   getVehicles: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/vehicles", { params }),
+    apiClient.get("/api/admin/vehicles", { params }),
 
   getVehicleDetails: (vehicleId: Identifier) =>
-    apiClient.get(`/api/Admin/vehicles/${vehicleId}`),
+    apiClient.get(`/api/admin/vehicles/${vehicleId}`),
 
   updateVehicleStatus: (vehicleId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/vehicles/${vehicleId}/status`, data),
+    apiClient.put(`/api/admin/vehicles/${vehicleId}/status`, data),
 
   // Users
   getUsers: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/users", { params }),
+    apiClient.get("/api/admin/users", { params }),
 
   getUserDetails: (userId: Identifier) =>
-    apiClient.get(`/api/Admin/users/${userId}`),
+    apiClient.get(`/api/admin/users/${userId}`),
 
   updateUserStatus: (userId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/users/${userId}/status`, data),
+    apiClient.put(`/api/admin/users/${userId}/status`, data),
 
   updateUserRole: (userId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/users/${userId}/role`, data),
+    apiClient.put(`/api/admin/users/${userId}/role`, data),
 
   // KYC
   getPendingKycUsers: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/users/pending-kyc", { params }),
+    apiClient.get("/api/admin/users/pending-kyc", { params }),
 
   getKycDocumentDetails: (documentId: Identifier) =>
-    apiClient.get(`/api/Admin/kyc/documents/${documentId}`),
+    apiClient.get(`/api/admin/kyc/documents/${documentId}`),
 
   downloadKycDocument: (documentId: Identifier) =>
-    apiClient.get(`/api/Admin/kyc/documents/${documentId}/download`, {
+    apiClient.get(`/api/admin/kyc/documents/${documentId}/download`, {
       responseType: "blob",
     }),
 
   reviewKycDocument: (documentId: Identifier, data: Payload) =>
-    apiClient.post(`/api/Admin/kyc/documents/${documentId}/review`, data),
+    apiClient.post(`/api/admin/kyc/documents/${documentId}/review`, data),
 
   bulkReviewKycDocuments: (data: Payload) =>
-    apiClient.post("/api/Admin/kyc/documents/bulk-review", data),
+    apiClient.post("/api/admin/kyc/documents/bulk-review", data),
 
-  getKycStatistics: () => apiClient.get("/api/Admin/kyc/statistics"),
+  getKycStatistics: () => apiClient.get("/api/admin/kyc/statistics"),
 
   updateUserKycStatus: (userId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/users/${userId}/kyc-status`, data),
+    apiClient.put(`/api/admin/users/${userId}/kyc-status`, data),
 
   // Check-in/Out Management
   getCheckIns: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/checkins", { params }),
+    apiClient.get("/api/admin/checkins", { params }),
 
   getCheckInDetails: (checkInId: Identifier) =>
-    apiClient.get(`/api/Admin/checkins/${checkInId}`),
+    apiClient.get(`/api/admin/checkins/${checkInId}`),
 
   approveCheckIn: (checkInId: Identifier, data: Payload) =>
-    apiClient.post(`/api/Admin/checkins/${checkInId}/approve`, data),
+    apiClient.post(`/api/admin/checkins/${checkInId}/approve`, data),
 
   rejectCheckIn: (checkInId: Identifier, data: Payload) =>
-    apiClient.post(`/api/Admin/checkins/${checkInId}/reject`, data),
+    apiClient.post(`/api/admin/checkins/${checkInId}/reject`, data),
 
   // Disputes
   getDisputes: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/disputes", { params }),
+    apiClient.get("/api/admin/disputes", { params }),
 
   getDisputeDetails: (disputeId: Identifier) =>
-    apiClient.get(`/api/Admin/disputes/${disputeId}`),
+    apiClient.get(`/api/admin/disputes/${disputeId}`),
 
   updateDisputeStatus: (disputeId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/disputes/${disputeId}/status`, data),
+    apiClient.put(`/api/admin/disputes/${disputeId}/status`, data),
 
   resolveDispute: (disputeId: Identifier, data: Payload) =>
-    apiClient.post(`/api/Admin/disputes/${disputeId}/resolve`, data),
+    apiClient.post(`/api/admin/disputes/${disputeId}/resolve`, data),
 
   // Financial Reports
-  getFinancialOverview: () => apiClient.get("/api/Admin/financial/overview"),
+  getFinancialOverview: () => apiClient.get("/api/admin/financial/overview"),
 
-  getFinancialByGroups: () => apiClient.get("/api/Admin/financial/groups"),
+  getFinancialByGroups: () => apiClient.get("/api/admin/financial/groups"),
 
-  getPaymentStatistics: () => apiClient.get("/api/Admin/financial/payments"),
+  getPaymentStatistics: () => apiClient.get("/api/admin/financial/payments"),
 
-  getExpenseAnalysis: () => apiClient.get("/api/Admin/financial/expenses"),
+  getExpenseAnalysis: () => apiClient.get("/api/admin/financial/expenses"),
 
   generateFinancialPdf: (params?: QueryParams) =>
-    apiClient.get("/api/Admin/financial/reports/pdf", {
+    apiClient.get("/api/admin/financial/reports/pdf", {
       params,
       responseType: "blob",
     }),
 
   generateFinancialExcel: (params?: QueryParams) =>
-    apiClient.get("/api/Admin/financial/reports/excel", {
+    apiClient.get("/api/admin/financial/reports/excel", {
       params,
       responseType: "blob",
     }),
 
   // System Health
-  getSystemHealth: () => apiClient.get("/api/Admin/health"),
+  getSystemHealth: () => apiClient.get("/api/admin/health"),
 
   getSystemMetrics: (minutes = 15) =>
-    apiClient.get("/api/Admin/metrics", { params: { minutes } }),
+    apiClient.get("/api/admin/metrics", { params: { minutes } }),
 
   // Audit Log
   getAuditLogs: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/audit", { params }),
+    apiClient.get("/api/admin/audit", { params }),
 
   // Maintenance
   getMaintenance: (params: QueryParams = {}) =>
-    apiClient.get("/api/Admin/maintenance", { params }),
+    apiClient.get("/api/admin/maintenance", { params }),
 
   getMaintenanceDetails: (maintenanceId: Identifier) =>
-    apiClient.get(`/api/Admin/maintenance/${maintenanceId}`),
+    apiClient.get(`/api/admin/maintenance/${maintenanceId}`),
 
   createMaintenance: (data: Payload) =>
-    apiClient.post("/api/Admin/maintenance", data),
+    apiClient.post("/api/admin/maintenance", data),
 
   updateMaintenance: (maintenanceId: Identifier, data: Payload) =>
-    apiClient.put(`/api/Admin/maintenance/${maintenanceId}`, data),
+    apiClient.put(`/api/admin/maintenance/${maintenanceId}`, data),
 };
 
 // Analytics API endpoints

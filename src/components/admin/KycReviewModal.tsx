@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Snackbar, Alert } from "@mui/material";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -49,6 +50,15 @@ const KycReviewModal = ({
   const [reviewStatus, setReviewStatus] = useState<string>("");
   const [reviewNotes, setReviewNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const handleDocumentToggle = (documentId: string) => {
     const newSelected = new Set(selectedDocuments);
@@ -68,33 +78,63 @@ const KycReviewModal = ({
     }
   };
 
+  // Convert status string to enum number
+  // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
+  const convertStatusToEnum = (status: string): number => {
+    switch (status) {
+      case "Approved":
+        return 2; // Approved
+      case "Rejected":
+        return 3; // Rejected
+      case "RequiresUpdate":
+        return 4; // RequiresUpdate
+      default:
+        return 0; // Pending (fallback)
+    }
+  };
+
   const handleSubmit = async () => {
     if (!reviewStatus) {
-      alert("Please select a review status");
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn trạng thái review",
+        severity: "error",
+      });
       return;
     }
 
     if (selectedDocuments.size === 0) {
-      alert("Please select at least one document");
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn ít nhất một tài liệu",
+        severity: "error",
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Convert status string to enum number
+      const statusEnum = convertStatusToEnum(reviewStatus);
+
       if (selectedDocuments.size === 1 && onReview) {
         const documentId = Array.from(selectedDocuments)[0];
-        await onReview(documentId, reviewStatus, reviewNotes);
+        await onReview(documentId, statusEnum.toString(), reviewNotes);
       } else if (selectedDocuments.size > 1 && onBulkReview) {
         await onBulkReview(
           Array.from(selectedDocuments),
-          reviewStatus,
+          statusEnum.toString(),
           reviewNotes
         );
       }
       onClose();
     } catch (error) {
       console.error("Error reviewing documents:", error);
-      alert("Failed to review documents");
+      setSnackbar({
+        open: true,
+        message: "Không thể review tài liệu. Vui lòng thử lại.",
+        severity: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -342,6 +382,22 @@ const KycReviewModal = ({
           </div>
         </div>
       </Card>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

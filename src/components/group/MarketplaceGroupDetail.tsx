@@ -1,14 +1,17 @@
-import { useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Close,
-  LocationOn,
-  People,
-  AttachMoney,
-  Description,
-} from "@mui/icons-material";
+  X,
+  MapPin,
+  Users,
+  DollarSign,
+  Car,
+  FileText,
+  CheckCircle2,
+  User,
+  Percent,
+} from "lucide-react";
 import type { MarketplaceGroupDto } from "@/models/analytics";
-import type { UUID } from "@/models/booking";
 import { marketplaceApi } from "@/services/group/marketplace";
 import { useGroup } from "@/hooks/useGroups";
 
@@ -28,11 +31,14 @@ const MarketplaceGroupDetail = ({
   onClose,
 }: MarketplaceGroupDetailProps) => {
   const navigate = useNavigate();
-  const { data: groupDetails } = useGroup(group?.groupId);
+  const { data: groupDetails, loading: loadingDetails } = useGroup(
+    group?.groupId
+  );
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const handleApplyToJoin = () => {
     if (group?.groupId) {
-      navigate(`/home/groups/${group.groupId}/apply`);
+      navigate(`/groups/${group.groupId}/apply`);
       onClose();
     }
   };
@@ -44,29 +50,67 @@ const MarketplaceGroupDetail = ({
   const availableOwnership = group.availableOwnershipPercentage;
   const isAvailable = availableOwnership > 0;
 
+  // Mock vehicle images array (in real app, this would come from vehicle data)
+  const vehicleImages = group.vehiclePhoto ? [group.vehiclePhoto] : [];
+
+  // Calculate cost breakdown (simplified - in real app would come from backend)
+  const costBreakdown = group.monthlyEstimatedCost
+    ? {
+        baseCost: group.monthlyEstimatedCost * 0.6,
+        maintenance: group.monthlyEstimatedCost * 0.2,
+        insurance: group.monthlyEstimatedCost * 0.15,
+        other: group.monthlyEstimatedCost * 0.05,
+      }
+    : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-neutral-100 shadow-2xl">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-neutral-100 shadow-2xl">
         {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute right-4 top-4 z-10 rounded-full bg-white/90 p-2 text-neutral-600 transition hover:bg-white hover:text-neutral-900"
           aria-label="Close"
         >
-          <Close />
+          <X className="h-5 w-5" />
         </button>
 
-        {/* Vehicle Photo */}
-        {group.vehiclePhoto && (
-          <div className="relative h-64 w-full overflow-hidden rounded-t-2xl bg-neutral-200">
+        {/* Vehicle Photo Carousel */}
+        {vehicleImages.length > 0 ? (
+          <div className="relative h-64 w-full overflow-hidden bg-neutral-200">
             <img
-              src={group.vehiclePhoto}
-              alt={`${group.vehicleMake} ${group.vehicleModel}`}
+              src={vehicleImages[activeImageIndex]}
+              alt={`${group.vehicleMake || ""} ${group.vehicleModel || ""}`}
               className="h-full w-full object-cover"
             />
             {isAvailable && (
-              <div className="absolute right-4 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white">
-                {availableOwnership.toFixed(1)}% available
+              <div className="absolute right-4 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+                {availableOwnership.toFixed(0)}% available
+              </div>
+            )}
+            {vehicleImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+                {vehicleImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveImageIndex(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === activeImageIndex
+                        ? "w-8 bg-white"
+                        : "w-2 bg-white/50"
+                    }`}
+                    aria-label={`View image ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="relative h-64 w-full bg-neutral-200">
+            <Car className="absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 text-neutral-400" />
+            {isAvailable && (
+              <div className="absolute right-4 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+                {availableOwnership.toFixed(0)}% available
               </div>
             )}
           </div>
@@ -84,13 +128,18 @@ const MarketplaceGroupDetail = ({
                 {group.vehicleYear && ` ${group.vehicleYear}`}
               </p>
             )}
+            {group.vehiclePlateNumber && (
+              <p className="mt-1 text-sm text-neutral-500">
+                License Plate: {group.vehiclePlateNumber}
+              </p>
+            )}
           </div>
 
           {/* Key Info Cards */}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl bg-white p-4">
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
               <div className="flex items-center gap-2 text-sm text-neutral-500">
-                <People fontSize="small" />
+                <Users className="h-4 w-4" />
                 <span>Members</span>
               </div>
               <p className="mt-1 text-2xl font-semibold text-neutral-900">
@@ -100,9 +149,9 @@ const MarketplaceGroupDetail = ({
 
             {group.monthlyEstimatedCost !== null &&
               group.monthlyEstimatedCost !== undefined && (
-                <div className="rounded-xl bg-white p-4">
+                <div className="rounded-lg border border-neutral-200 bg-white p-4">
                   <div className="flex items-center gap-2 text-sm text-neutral-500">
-                    <AttachMoney fontSize="small" />
+                    <DollarSign className="h-4 w-4" />
                     <span>Monthly Cost</span>
                   </div>
                   <p className="mt-1 text-2xl font-semibold text-neutral-900">
@@ -112,9 +161,9 @@ const MarketplaceGroupDetail = ({
               )}
 
             {group.location && (
-              <div className="rounded-xl bg-white p-4">
+              <div className="rounded-lg border border-neutral-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-sm text-neutral-500">
-                  <LocationOn fontSize="small" />
+                  <MapPin className="h-4 w-4" />
                   <span>Location</span>
                 </div>
                 <p className="mt-1 text-lg font-semibold text-neutral-900">
@@ -126,17 +175,17 @@ const MarketplaceGroupDetail = ({
 
           {/* Description */}
           {group.description && (
-            <div className="rounded-xl bg-white p-4">
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-600">
-                <Description fontSize="small" />
-                <span>About</span>
+                <FileText className="h-4 w-4" />
+                <span>About This Group</span>
               </div>
               <p className="mt-2 text-neutral-700">{group.description}</p>
             </div>
           )}
 
           {/* Vehicle Details */}
-          <div className="rounded-xl bg-white p-4">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
             <h3 className="text-lg font-semibold text-neutral-900">
               Vehicle Information
             </h3>
@@ -176,40 +225,139 @@ const MarketplaceGroupDetail = ({
             </dl>
           </div>
 
+          {/* Cost Breakdown */}
+          {costBreakdown && (
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
+              <h3 className="text-lg font-semibold text-neutral-900">
+                Monthly Cost Breakdown
+              </h3>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-neutral-600">Base Cost</span>
+                  <span className="font-semibold text-neutral-900">
+                    {currency.format(costBreakdown.baseCost)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-neutral-600">Maintenance</span>
+                  <span className="font-semibold text-neutral-900">
+                    {currency.format(costBreakdown.maintenance)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-neutral-600">Insurance</span>
+                  <span className="font-semibold text-neutral-900">
+                    {currency.format(costBreakdown.insurance)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-neutral-600">Other</span>
+                  <span className="font-semibold text-neutral-900">
+                    {currency.format(costBreakdown.other)}
+                  </span>
+                </div>
+                <div className="border-t border-neutral-200 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-900">
+                      Total (per member)
+                    </span>
+                    <span className="text-lg font-bold text-neutral-900">
+                      {currency.format(group.monthlyEstimatedCost!)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Ownership Breakdown */}
-          <div className="rounded-xl bg-white p-4">
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
             <h3 className="text-lg font-semibold text-neutral-900">
               Ownership
             </h3>
             <div className="mt-4">
-              <div className="flex items-center justify-between text-sm">
+              <div className="mb-2 flex items-center justify-between text-sm">
                 <span className="text-neutral-600">Available</span>
                 <span className="font-semibold text-neutral-900">
                   {availableOwnership.toFixed(1)}%
                 </span>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
                 <div
                   className="h-full bg-accent-blue transition-all"
                   style={{ width: `${availableOwnership}%` }}
                 />
               </div>
+              <p className="mt-2 text-xs text-neutral-500">
+                {group.totalOwnershipPercentage.toFixed(1)}% already owned
+              </p>
             </div>
           </div>
 
-          {/* Group Stats */}
-          {group.utilizationRate !== undefined && (
-            <div className="rounded-xl bg-white p-4">
+          {/* Current Co-owners */}
+          {loadingDetails ? (
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
+              <p className="text-sm text-neutral-500">Loading members...</p>
+            </div>
+          ) : (
+            groupDetails &&
+            groupDetails.members.length > 0 && (
+              <div className="rounded-lg border border-neutral-200 bg-white p-4">
+                <h3 className="text-lg font-semibold text-neutral-900">
+                  Current Co-owners
+                </h3>
+                <div className="mt-4 space-y-2">
+                  {groupDetails.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between rounded-lg bg-neutral-50 p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-blue/10">
+                          <User className="h-5 w-5 text-accent-blue" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-neutral-900">
+                            {member.userFirstName} {member.userLastName}
+                          </p>
+                          <p className="text-sm text-neutral-500">
+                            {member.userEmail}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-neutral-900">
+                          {(member.sharePercentage * 100).toFixed(1)}%
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {member.roleInGroup}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+
+          {/* Group Statistics */}
+          {(group.utilizationRate !== undefined ||
+            group.participationRate !== undefined) && (
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
               <h3 className="text-lg font-semibold text-neutral-900">
                 Group Statistics
               </h3>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-sm text-neutral-500">Utilization Rate</dt>
-                  <dd className="text-lg font-semibold text-neutral-900">
-                    {group.utilizationRate.toFixed(1)}%
-                  </dd>
-                </div>
+                {group.utilizationRate !== undefined && (
+                  <div>
+                    <dt className="text-sm text-neutral-500">
+                      Utilization Rate
+                    </dt>
+                    <dd className="text-lg font-semibold text-neutral-900">
+                      {group.utilizationRate.toFixed(1)}%
+                    </dd>
+                  </div>
+                )}
                 {group.participationRate !== undefined && (
                   <div>
                     <dt className="text-sm text-neutral-500">
@@ -232,59 +380,66 @@ const MarketplaceGroupDetail = ({
             </div>
           )}
 
-          {/* Co-owners (if available) */}
-          {groupDetails && groupDetails.members.length > 0 && (
-            <div className="rounded-xl bg-white p-4">
-              <h3 className="text-lg font-semibold text-neutral-900">
-                Current Co-owners
-              </h3>
-              <div className="mt-4 space-y-2">
-                {groupDetails.members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between rounded-lg bg-neutral-50 p-3"
-                  >
-                    <div>
-                      <p className="font-medium text-neutral-900">
-                        {member.userFirstName} {member.userLastName}
-                      </p>
-                      <p className="text-sm text-neutral-500">
-                        {member.userEmail}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-neutral-900">
-                        {(member.sharePercentage * 100).toFixed(1)}%
-                      </p>
-                      <p className="text-xs text-neutral-500">
-                        {member.roleInGroup}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+          {/* Application Process Info */}
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
+            <h3 className="text-lg font-semibold text-neutral-900">
+              Application Process
+            </h3>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-green" />
+                <div>
+                  <p className="font-medium text-neutral-900">
+                    Submit Application
+                  </p>
+                  <p className="text-sm text-neutral-600">
+                    Fill out the application form with your desired ownership
+                    percentage and usage intentions.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-green" />
+                <div>
+                  <p className="font-medium text-neutral-900">Review</p>
+                  <p className="text-sm text-neutral-600">
+                    Group admin will review your application and may contact you
+                    for additional information.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-green" />
+                <div>
+                  <p className="font-medium text-neutral-900">Approval</p>
+                  <p className="text-sm text-neutral-600">
+                    Once approved, you'll be added to the group and can start
+                    booking the vehicle.
+                  </p>
+                </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Actions */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <button
               onClick={onClose}
-              className="flex-1 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-50"
+              className="flex-1 rounded-lg border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-50"
             >
               Close
             </button>
             {isAvailable ? (
               <button
                 onClick={handleApplyToJoin}
-                className="flex-1 rounded-xl bg-accent-blue px-6 py-3 font-semibold text-white transition hover:bg-accent-blue/90"
+                className="flex-1 rounded-lg bg-accent-blue px-6 py-3 font-semibold text-white transition hover:bg-accent-blue/90"
               >
                 Apply to Join
               </button>
             ) : (
               <button
                 disabled
-                className="flex-1 rounded-xl bg-neutral-300 px-6 py-3 font-semibold text-neutral-500"
+                className="flex-1 rounded-lg bg-neutral-300 px-6 py-3 font-semibold text-neutral-500"
               >
                 Group Full
               </button>

@@ -20,6 +20,9 @@ export interface MarketplaceQuery {
   vehicleType?: string;
   minPrice?: number;
   maxPrice?: number;
+  minMembers?: number;
+  maxMembers?: number;
+  availability?: "Any" | "Open" | "Full";
 }
 
 export const marketplaceApi = {
@@ -44,15 +47,26 @@ export const marketplaceApi = {
       for (const analytics of analyticsData) {
         try {
           // Get group details
-          const groupDetails = await groupApi.getGroupDetails(
-            analytics.groupId
-          );
+          let groupDetails: any = null;
+          let groupFullDetails: GroupDto | null = null;
+          try {
+            groupDetails = await groupApi.getGroupDetails(analytics.groupId);
+            // Also get full group details for description
+            groupFullDetails = await groupApi.getGroup(analytics.groupId);
+          } catch (error) {
+            console.warn(
+              `Failed to fetch group details for ${analytics.groupId}:`,
+              error
+            );
+          }
 
           // Calculate available ownership percentage
-          const totalOwnership = groupDetails.members.reduce(
-            (sum, m) => sum + (m.sharePercentage || 0),
-            0
-          );
+          const totalOwnership =
+            groupDetails?.members?.reduce(
+              (sum: number, m: any) =>
+                sum + (m.ownershipPercentage || m.sharePercentage || 0),
+              0
+            ) || 0;
           const availableOwnership = Math.max(0, 100 - totalOwnership);
 
           // Try to get vehicle information (get first vehicle from group)
@@ -87,8 +101,8 @@ export const marketplaceApi = {
           marketplaceGroups.push({
             groupId: analytics.groupId,
             groupName: analytics.groupName,
-            description: null, // Description not in analytics, would need to fetch from group
-            status: "Active", // Default, would need to fetch from group
+            description: groupFullDetails?.description || null,
+            status: groupFullDetails?.status || "Active",
             vehicleId: vehicleInfo?.id || null,
             vehiclePhoto:
               vehicleInfo?.imageUrl || vehicleInfo?.images?.[0] || null,
@@ -96,7 +110,7 @@ export const marketplaceApi = {
             vehicleModel,
             vehicleYear: vehicleInfo?.year || null,
             vehiclePlateNumber: vehicleInfo?.plateNumber || null,
-            location: null, // Location not available in current API
+            location: null, // Location not available in current API - may need backend support
             totalOwnershipPercentage: totalOwnership,
             availableOwnershipPercentage: availableOwnership,
             totalMembers: analytics.totalMembers,

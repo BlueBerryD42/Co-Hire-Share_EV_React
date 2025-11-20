@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { getCurrentUser } from "@/store/slices/authSlice";
@@ -10,7 +17,15 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
 
 // Auth Pages
-import { Login, Register, EmailVerification, CorrectEmail, ForgotPassword, ResetPassword } from "@/pages/auth";
+import {
+  Login,
+  Register,
+  EmailVerification,
+  CorrectEmail,
+  ForgotPassword,
+  ResetPassword,
+  KycVerification,
+} from "@/pages/auth";
 
 // Vehicle Pages
 import {
@@ -91,7 +106,9 @@ const AuthInitializer = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, token, user } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, token, user } = useAppSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     // Nếu có token nhưng chưa có user data, load user data
@@ -106,10 +123,10 @@ const AuthInitializer = () => {
 
   // Redirect admins to admin dashboard if they're on home page
   useEffect(() => {
-    if (isAuthenticated && user && location.pathname === '/') {
+    if (isAuthenticated && user && location.pathname === "/") {
       // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
       if (user.role === 0 || user.role === 1) {
-        navigate('/admin/dashboard', { replace: true });
+        navigate("/admin/dashboard", { replace: true });
       }
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
@@ -126,8 +143,6 @@ const App = () => {
       <ErrorBoundary>
         <AuthInitializer />
         <Routes>
-
-
           <Route path="/" element={<Landing />} />
 
           {/* Public Auth Routes */}
@@ -143,15 +158,30 @@ const App = () => {
             {/* Home Dashboard */}
             <Route path="/home" element={<Home />} />
 
+            {/* KYC Verification */}
+            <Route path="/kyc-verification" element={<KycVerification />} />
+
             {/* Vehicle Routes */}
             <Route path="/vehicles">
               <Route index element={<MyVehicles />} />
               <Route path="create" element={<CreateVehicle />} />
               <Route path=":id" element={<VehicleDetails />} />
-              <Route path=":id/maintenance/create" element={<ScheduleMaintenance />} />
-              <Route path=":id/maintenance/:scheduleId" element={<MaintenanceDetails />} />
-              <Route path=":id/maintenance/:scheduleId/edit" element={<EditMaintenance />} />
-              <Route path=":id/maintenance/:scheduleId/complete" element={<CompleteMaintenance />} />
+              <Route
+                path=":id/maintenance/create"
+                element={<ScheduleMaintenance />}
+              />
+              <Route
+                path=":id/maintenance/:scheduleId"
+                element={<MaintenanceDetails />}
+              />
+              <Route
+                path=":id/maintenance/:scheduleId/edit"
+                element={<EditMaintenance />}
+              />
+              <Route
+                path=":id/maintenance/:scheduleId/complete"
+                element={<CompleteMaintenance />}
+              />
 
               {/* Expenses & Payments */}
               <Route path=":vehicleId/expenses">
@@ -197,7 +227,10 @@ const App = () => {
               <Route index element={<GroupHub />} />
               <Route path="marketplace" element={<GroupMarketplace />} />
               <Route path="create" element={<CreateGroup />} />
-              <Route path="my-pending-signatures" element={<MyPendingSignatures />} />
+              <Route
+                path="my-pending-signatures"
+                element={<MyPendingSignatures />}
+              />
               <Route path=":groupId" element={<GroupOverview />} />
               <Route
                 path=":groupId/members/:memberId"
@@ -213,18 +246,9 @@ const App = () => {
                 path=":groupId/proposals/:proposalId"
                 element={<ProposalDetails />}
               />
-              <Route
-                path=":groupId/apply"
-                element={<JoinGroupApplication />}
-              />
-              <Route
-                path=":groupId/messages"
-                element={<MessageCenter />}
-              />
-              <Route
-                path=":groupId/documents"
-                element={<Documents />}
-              />
+              <Route path=":groupId/apply" element={<JoinGroupApplication />} />
+              <Route path=":groupId/messages" element={<MessageCenter />} />
+              <Route path=":groupId/documents" element={<Documents />} />
               <Route
                 path=":groupId/documents/:documentId"
                 element={<DocumentViewer />}

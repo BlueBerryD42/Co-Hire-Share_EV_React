@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Snackbar, Alert } from "@mui/material";
 import { adminApi } from "@/utils/api";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -35,8 +36,8 @@ interface FilterParams extends Record<string, unknown> {
   page: number;
   pageSize: number;
   search?: string;
-  status?: string;
-  documentType?: string;
+  status?: number; // KycDocumentStatus enum (0-4)
+  documentType?: number; // KycDocumentType enum (0-5)
   fromDate?: string;
   toDate?: string;
   sortBy?: string;
@@ -53,6 +54,15 @@ const KycDocumentReview = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +75,67 @@ const KycDocumentReview = () => {
     fetchPendingKycUsers();
   }, [currentPage, statusFilter, documentTypeFilter, sortBy, sortDirection]);
 
+  // Convert status string to enum number
+  // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
+  const convertStatusToEnum = (status: string): number | null => {
+    switch (status) {
+      case "Pending":
+        return 0;
+      case "UnderReview":
+        return 1;
+      case "Approved":
+        return 2;
+      case "Rejected":
+        return 3;
+      case "RequiresUpdate":
+        return 4;
+      default:
+        return null;
+    }
+  };
+
+  // Normalize document status to number (handles string, number, or string number)
+  const normalizeStatusToNumber = (
+    status: string | number | undefined | null
+  ): number | null => {
+    if (status === null || status === undefined) return null;
+
+    // If already a number, return it
+    if (typeof status === "number") {
+      return status;
+    }
+
+    // If string number ("0", "1", "2", etc.), parse it
+    const numStatus = parseInt(status, 10);
+    if (!isNaN(numStatus)) {
+      return numStatus;
+    }
+
+    // If string name, convert using convertStatusToEnum
+    return convertStatusToEnum(status);
+  };
+
+  // Convert document type string to enum number
+  // KycDocumentType: NationalId=0, Passport=1, DriverLicense=2, ProofOfAddress=3, BankStatement=4, Other=5
+  const convertDocumentTypeToEnum = (type: string): number | null => {
+    switch (type) {
+      case "NationalId":
+        return 0;
+      case "Passport":
+        return 1;
+      case "DriverLicense":
+        return 2;
+      case "ProofOfAddress":
+        return 3;
+      case "BankStatement":
+        return 4;
+      case "Other":
+        return 5;
+      default:
+        return null;
+    }
+  };
+
   const buildFilterParams = (): FilterParams => {
     const params: FilterParams = {
       page: currentPage,
@@ -74,8 +145,22 @@ const KycDocumentReview = () => {
     };
 
     if (searchTerm) params.search = searchTerm;
-    if (statusFilter) params.status = statusFilter;
-    if (documentTypeFilter) params.documentType = documentTypeFilter;
+
+    // Convert status string to enum number
+    if (statusFilter) {
+      const statusEnum = convertStatusToEnum(statusFilter);
+      if (statusEnum !== null) {
+        params.status = statusEnum;
+      }
+    }
+
+    // Convert document type string to enum number
+    if (documentTypeFilter) {
+      const typeEnum = convertDocumentTypeToEnum(documentTypeFilter);
+      if (typeEnum !== null) {
+        params.documentType = typeEnum;
+      }
+    }
 
     return params;
   };
@@ -89,9 +174,76 @@ const KycDocumentReview = () => {
         params as Record<string, unknown>
       );
       const data = response.data;
-      setUsers(data.users || []);
-      setTotalCount(data.totalCount || 0);
-      setTotalPages(data.totalPages || 0);
+      let filteredUsers = data.users || [];
+
+      // Apply client-side filtering for status and documentType
+      // Backend may return all users, so we need to filter on frontend
+      if (statusFilter) {
+        const statusEnum = convertStatusToEnum(statusFilter);
+        if (statusEnum !== null) {
+          // Filter users that have at least one document with matching status
+          filteredUsers = filteredUsers.filter((user: User) => {
+            if (!user.documents || user.documents.length === 0) {
+              return false; // Exclude users with no documents
+            }
+            return user.documents.some((doc: Document) => {
+              const docStatus = normalizeStatusToNumber(doc.status);
+              return docStatus === statusEnum;
+            });
+          });
+
+          // Also filter documents within each user to only show matching status
+          filteredUsers = filteredUsers.map((user: User) => ({
+            ...user,
+            documents:
+              user.documents?.filter((doc: Document) => {
+                const docStatus = normalizeStatusToNumber(doc.status);
+                return docStatus === statusEnum;
+              }) || [],
+          }));
+        }
+      }
+
+      if (documentTypeFilter) {
+        const typeEnum = convertDocumentTypeToEnum(documentTypeFilter);
+        if (typeEnum !== null) {
+          // Filter users that have at least one document with matching type
+          filteredUsers = filteredUsers.filter(
+            (user: User) =>
+              user.documents &&
+              user.documents.some((doc: Document) => {
+                const docType =
+                  typeof doc.documentType === "string"
+                    ? convertDocumentTypeToEnum(doc.documentType)
+                    : doc.documentType;
+                return docType === typeEnum;
+              })
+          );
+
+          // Also filter documents within each user to only show matching type
+          filteredUsers = filteredUsers.map((user: User) => ({
+            ...user,
+            documents:
+              user.documents?.filter((doc: Document) => {
+                const docType =
+                  typeof doc.documentType === "string"
+                    ? convertDocumentTypeToEnum(doc.documentType)
+                    : doc.documentType;
+                return docType === typeEnum;
+              }) || [],
+          }));
+        }
+      }
+
+      // Update total count based on filtered results
+      const filteredTotalCount = filteredUsers.length;
+      const filteredTotalPages = Math.ceil(
+        filteredTotalCount / (params.pageSize || 20)
+      );
+
+      setUsers(filteredUsers);
+      setTotalCount(filteredTotalCount);
+      setTotalPages(filteredTotalPages);
     } catch (err) {
       console.error("Error fetching pending KYC users:", err);
       setError("Failed to load pending KYC users");
@@ -111,8 +263,12 @@ const KycDocumentReview = () => {
     notes: string
   ) => {
     try {
+      // Convert status string to enum number
+      // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
+      const statusEnum = parseInt(status, 10);
+
       await adminApi.reviewKycDocument(documentId, {
-        status,
+        status: statusEnum,
         reviewNotes: notes,
       });
       await fetchPendingKycUsers();
@@ -122,10 +278,18 @@ const KycDocumentReview = () => {
         if (updatedUser) setSelectedUser(updatedUser);
       }
       setShowReviewModal(false);
-      alert("Document reviewed successfully");
+      setSnackbar({
+        open: true,
+        message: "Đã review tài liệu thành công",
+        severity: "success",
+      });
     } catch (err) {
       console.error("Error reviewing document:", err);
-      alert("Failed to review document");
+      setSnackbar({
+        open: true,
+        message: "Không thể review tài liệu. Vui lòng thử lại.",
+        severity: "error",
+      });
       throw err;
     }
   };
@@ -136,17 +300,29 @@ const KycDocumentReview = () => {
     notes: string
   ) => {
     try {
+      // Convert status string to enum number
+      // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
+      const statusEnum = parseInt(status, 10);
+
       await adminApi.bulkReviewKycDocuments({
         documentIds,
-        status,
+        status: statusEnum,
         reviewNotes: notes,
       });
       await fetchPendingKycUsers();
       setShowReviewModal(false);
-      alert(`Successfully reviewed ${documentIds.length} documents`);
+      setSnackbar({
+        open: true,
+        message: `Đã review thành công ${documentIds.length} tài liệu`,
+        severity: "success",
+      });
     } catch (err) {
       console.error("Error bulk reviewing documents:", err);
-      alert("Failed to review documents");
+      setSnackbar({
+        open: true,
+        message: "Không thể review tài liệu. Vui lòng thử lại.",
+        severity: "error",
+      });
       throw err;
     }
   };
@@ -165,7 +341,11 @@ const KycDocumentReview = () => {
       document.body.removeChild(a);
     } catch (err) {
       console.error("Error downloading document:", err);
-      alert("Failed to download document");
+      setSnackbar({
+        open: true,
+        message: "Không thể tải tài liệu. Vui lòng thử lại.",
+        severity: "error",
+      });
     }
   };
 
@@ -524,6 +704,7 @@ const KycDocumentReview = () => {
         <DocumentViewer
           documentUrl={viewingDocument.storageUrl}
           fileName={viewingDocument.fileName}
+          documentId={viewingDocument.id}
           onClose={() => setViewingDocument(null)}
           onDownload={() => handleDownloadDocument(viewingDocument)}
         />
@@ -553,6 +734,22 @@ const KycDocumentReview = () => {
           onBulkReview={handleBulkReview}
         />
       )}
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
