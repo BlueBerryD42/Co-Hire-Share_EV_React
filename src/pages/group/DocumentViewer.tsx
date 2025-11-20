@@ -49,6 +49,7 @@ import {
   type DocumentDetailResponse,
   type DocumentSignatureStatusResponse,
   SignatureStatus,
+  SigningMode,
   getDocumentTypeName,
   getDocumentTypeColor,
   getSignatureStatusName,
@@ -111,7 +112,14 @@ export default function DocumentViewer() {
       const data = await documentApi.getSignatureStatus(documentId as UUID)
       setSignatureStatus(data)
     } catch (err: any) {
-      console.error('Error fetching signature status:', err)
+      // Signature status might not be available if document hasn't been sent for signing
+      // 404 = endpoint not found, 400 = document not in signing workflow yet
+      const status = err.response?.status
+      if (status === 404 || status === 400) {
+        console.log('Signature status not available:', 'Document has not been sent for signing yet')
+      } else {
+        console.error('Error fetching signature status:', err.message)
+      }
     }
   }
 
@@ -123,8 +131,9 @@ export default function DocumentViewer() {
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err: any) {
-      console.error('Error loading PDF preview:', err)
-      setError('Failed to load PDF preview')
+      // Preview might not be available for all file types - this is not critical
+      console.log('Preview not available:', err.response?.status === 500 ? 'Backend error generating preview' : err.message)
+      // Don't set error state as preview is optional
     }
   }
 
@@ -134,13 +143,13 @@ export default function DocumentViewer() {
     try {
       const blob = await documentApi.downloadDocument(documentId as UUID)
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = documentData.fileName
-      document.body.appendChild(a)
-      a.click()
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = documentData.fileName
+      window.document.body.appendChild(link)
+      link.click()
       window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      window.document.body.removeChild(link)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to download document')
     }
@@ -235,6 +244,7 @@ export default function DocumentViewer() {
                       )}
                     </Box>
                   }
+                  primaryTypographyProps={{ component: 'div' }}
                   secondary={
                     <Box>
                       <Typography variant="caption" color="text.secondary">
@@ -245,13 +255,14 @@ export default function DocumentViewer() {
                           Signed on {new Date(sig.signedAt).toLocaleString()}
                         </Typography>
                       )}
-                      {signatureStatus.signingMode === 1 && (
+                      {signatureStatus.signingMode === SigningMode.Sequential && (
                         <Typography variant="caption" display="block" color="text.secondary">
                           Order: {sig.signatureOrder}
                         </Typography>
                       )}
                     </Box>
                   }
+                  secondaryTypographyProps={{ component: 'div' }}
                 />
                 <Chip
                   label={getSignatureStatusName(sig.status)}
@@ -273,7 +284,7 @@ export default function DocumentViewer() {
             fullWidth
             variant="contained"
             size="large"
-            onClick={() => navigate(`/home/groups/${groupId}/documents/${documentId}/sign`)}
+            onClick={() => navigate(`/groups/${groupId}/documents/${documentId}/sign`)}
             sx={{
               mt: 2,
               bgcolor: '#7a9b76',
@@ -447,7 +458,7 @@ export default function DocumentViewer() {
         <Alert severity="error">{error || 'Document not found'}</Alert>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/home/groups/${groupId}/documents`)}
+          onClick={() => navigate(`/groups/${groupId}/documents`)}
           sx={{ mt: 2 }}
         >
           Back to Documents
@@ -463,7 +474,7 @@ export default function DocumentViewer() {
         {/* Toolbar */}
         <Paper sx={{ p: 2, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton onClick={() => navigate(`/home/groups/${groupId}/documents`)}>
+            <IconButton onClick={() => navigate(`/groups/${groupId}/documents`)}>
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="h6" noWrap sx={{ maxWidth: 400 }}>

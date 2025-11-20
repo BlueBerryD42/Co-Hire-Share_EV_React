@@ -135,7 +135,7 @@ export default function UploadDocumentDialog({
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" fontWeight={600}>
+        <Typography variant="h6" component="span" fontWeight={600}>
           Upload Document
         </Typography>
         <IconButton onClick={handleClose} disabled={uploading}>
@@ -210,13 +210,11 @@ export default function UploadDocumentDialog({
             label="Document Type"
             disabled={uploading}
           >
-            {Object.values(DocumentType)
-              .filter((v) => typeof v === 'number')
-              .map((type) => (
-                <MenuItem key={type} value={type}>
-                  {getDocumentTypeName(type as DocumentType)}
-                </MenuItem>
-              ))}
+            {Object.values(DocumentType).map((type) => (
+              <MenuItem key={type} value={type}>
+                {getDocumentTypeName(type as DocumentType)}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 

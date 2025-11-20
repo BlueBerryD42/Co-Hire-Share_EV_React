@@ -1,27 +1,27 @@
 import type { UUID } from './booking'
 
-// Enums
+// Enums - Backend sends these as strings, not numbers
 export enum DocumentType {
-  OwnershipAgreement = 0,
-  MaintenanceContract = 1,
-  InsurancePolicy = 2,
-  CheckInReport = 3,
-  CheckOutReport = 4,
-  Other = 5,
+  OwnershipAgreement = 'OwnershipAgreement',
+  MaintenanceContract = 'MaintenanceContract',
+  InsurancePolicy = 'InsurancePolicy',
+  CheckInReport = 'CheckInReport',
+  CheckOutReport = 'CheckOutReport',
+  Other = 'Other',
 }
 
 export enum SignatureStatus {
-  Draft = 0,
-  SentForSigning = 1,
-  PartiallySigned = 2,
-  FullySigned = 3,
-  Expired = 4,
-  Cancelled = 5,
+  Draft = 'Draft',
+  SentForSigning = 'SentForSigning',
+  PartiallySigned = 'PartiallySigned',
+  FullySigned = 'FullySigned',
+  Expired = 'Expired',
+  Cancelled = 'Cancelled',
 }
 
 export enum SigningMode {
-  Parallel = 0,
-  Sequential = 1,
+  Parallel = 'Parallel',
+  Sequential = 'Sequential',
 }
 
 // Request DTOs
@@ -59,39 +59,50 @@ export interface DocumentQueryParameters {
   endDate?: string
 }
 
-// Response DTOs
+// Response DTOs - Match backend C# PascalCase exactly
 export interface DocumentListItemResponse {
   id: UUID
-  fileName: string
+  groupId: UUID
   type: DocumentType
-  signatureStatus: SignatureStatus
-  createdAt: string
-  updatedAt: string
+  fileName: string
   fileSize: number
-  uploaderName: string
+  signatureStatus: SignatureStatus
   description?: string
+  createdAt: string
   signatureCount: number
   signedCount: number
+  uploaderName: string
+  uploaderId: UUID
+  downloadCount: number
+  isDeleted?: boolean
+  deletedAt?: string
+  deletedBy?: UUID
+  deletedByName?: string
 }
 
 export interface DocumentDetailResponse {
   id: UUID
   groupId: UUID
-  fileName: string
-  filePath: string
   type: DocumentType
+  fileName: string
+  fileSize: number
+  contentType: string
   signatureStatus: SignatureStatus
+  description?: string
+  secureUrl: string
   createdAt: string
   updatedAt: string
-  fileSize: number
   pageCount?: number
-  uploaderId: UUID
-  uploaderName: string
-  description?: string
   author?: string
   isVirusScanned: boolean
-  virusScanResult?: string
-  tags?: string[]
+  signatures: Array<{
+    id: UUID
+    signerId: UUID
+    signerName: string
+    signedAt?: string
+    signatureOrder: number
+    status: SignatureStatus
+  }>
 }
 
 export interface DocumentSignatureStatusResponse {
@@ -155,6 +166,23 @@ export interface PaginatedDocumentListResponse {
   page: number
   pageSize: number
   totalPages: number
+  hasNextPage?: boolean
+  hasPreviousPage?: boolean
+}
+
+export interface PendingSignatureResponse {
+  documentId: UUID
+  groupId: UUID
+  groupName: string
+  fileName: string
+  description: string
+  documentType: DocumentType
+  signingToken: string
+  dueDate?: string
+  sentAt: string
+  signatureOrder: number
+  signingMode: SigningMode
+  isMyTurn: boolean
 }
 
 // Helper functions

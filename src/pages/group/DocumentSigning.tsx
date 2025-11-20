@@ -67,18 +67,11 @@ export default function DocumentSigning() {
   // Step 5: Result
   const [signResult, setSignResult] = useState<SignDocumentResponse | null>(null)
   const [successDialogOpen, setSuccessDialogOpen] = useState(false)
-
-  // Token verification
-  const [tokenData, setTokenData] = useState<{
-    isValid: boolean
-    documentName: string
-    signerName: string
-    expiresAt: string
-  } | null>(null)
+  const [documentName, setDocumentName] = useState<string>('Document')
 
   useEffect(() => {
     if (documentId && signingToken) {
-      verifyToken()
+      loadDocumentInfo()
       loadPdfPreview()
     } else {
       setError('Invalid signing link')
@@ -86,21 +79,17 @@ export default function DocumentSigning() {
     }
   }, [documentId, signingToken])
 
-  const verifyToken = async () => {
+  const loadDocumentInfo = async () => {
     if (!documentId) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const data = await documentApi.verifySigningToken(documentId as UUID, signingToken)
-      if (!data.isValid) {
-        setError('This signing link is invalid or has expired')
-      } else {
-        setTokenData(data)
-      }
+      const doc = await documentApi.getDocumentById(documentId as UUID)
+      setDocumentName(doc.fileName)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to verify signing link')
+      setError(err.response?.data?.error || 'Failed to load document information')
     } finally {
       setLoading(false)
     }
@@ -198,18 +187,18 @@ export default function DocumentSigning() {
   }
 
   const handleDownloadSignedDocument = async () => {
-    if (!documentId || !tokenData) return
+    if (!documentId) return
 
     try {
       const blob = await documentApi.downloadDocument(documentId as UUID)
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = tokenData.documentName
-      document.body.appendChild(a)
-      a.click()
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = documentName
+      window.document.body.appendChild(link)
+      link.click()
       window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      window.document.body.removeChild(link)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to download document')
     }
@@ -504,14 +493,7 @@ export default function DocumentSigning() {
                   Document
                 </Typography>
                 <Typography variant="body1" sx={{ mb: 2 }}>
-                  {tokenData?.documentName}
-                </Typography>
-
-                <Typography variant="subtitle2" color="text.secondary">
-                  Signer
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  {tokenData?.signerName}
+                  {documentName}
                 </Typography>
 
                 <Typography variant="subtitle2" color="text.secondary">
@@ -574,7 +556,7 @@ export default function DocumentSigning() {
     }
   }
 
-  if (loading && !tokenData) {
+  if (loading && !documentName) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress sx={{ color: '#7a9b76' }} />
@@ -582,13 +564,13 @@ export default function DocumentSigning() {
     )
   }
 
-  if (error && !tokenData) {
+  if (error && !documentName) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">{error}</Alert>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/home/groups/${groupId}/documents`)}
+          onClick={() => navigate(`/groups/${groupId}/documents`)}
           sx={{ mt: 2 }}
         >
           Back to Documents
@@ -608,7 +590,7 @@ export default function DocumentSigning() {
           Sign Document
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          {tokenData?.documentName}
+          {documentName}
         </Typography>
       </Box>
 
@@ -664,7 +646,7 @@ export default function DocumentSigning() {
           </Button>
           <Button
             variant="contained"
-            onClick={() => navigate(`/home/groups/${groupId}/documents`)}
+            onClick={() => navigate(`/groups/${groupId}/documents`)}
             sx={{ bgcolor: '#7a9b76', '&:hover': { bgcolor: '#6a8b66' } }}
           >
             Back to Documents

@@ -1,18 +1,22 @@
-import { createApiClient } from '@/services/api'
+import { createApiClient, API_GATEWAY_URL } from '@/services/api'
+import axios from 'axios'
+import Cookies from 'js-cookie'
 import type {
   UUID,
 } from '@/models/booking'
-import type {
-  DocumentDetailResponse,
-  DocumentListItemResponse,
-  DocumentSignatureStatusResponse,
-  DocumentUploadResponse,
-  SendForSigningRequest,
-  SendForSigningResponse,
-  SignDocumentRequest,
-  SignDocumentResponse,
-  DocumentQueryParameters,
-  PaginatedDocumentListResponse,
+import {
+  DocumentType,
+  type DocumentDetailResponse,
+  type DocumentListItemResponse,
+  type DocumentSignatureStatusResponse,
+  type DocumentUploadResponse,
+  type SendForSigningRequest,
+  type SendForSigningResponse,
+  type SignDocumentRequest,
+  type SignDocumentResponse,
+  type DocumentQueryParameters,
+  type PaginatedDocumentListResponse,
+  type PendingSignatureResponse,
 } from '@/models/document'
 
 const http = createApiClient('/api/document')
@@ -22,22 +26,33 @@ export const documentApi = {
   async uploadDocument(
     groupId: UUID,
     file: File,
-    documentType: number,
+    documentType: DocumentType,
     description?: string
   ): Promise<DocumentUploadResponse> {
     const formData = new FormData()
-    formData.append('file', file)
-    formData.append('groupId', groupId)
-    formData.append('documentType', documentType.toString())
+    formData.append('File', file)
+    formData.append('GroupId', groupId)
+    formData.append('DocumentType', documentType) // Now it's a string enum value
     if (description) {
-      formData.append('description', description)
+      formData.append('Description', description)
     }
 
-    const { data } = await http.post<DocumentUploadResponse>('/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    // Get auth token
+    const cookieToken = Cookies.get('auth_token')
+    const localStorageToken = localStorage.getItem('accessToken')
+    const token = cookieToken || localStorageToken
+
+    // Use raw axios instance to avoid default Content-Type: application/json
+    const { data } = await axios.post<DocumentUploadResponse>(
+      `${API_GATEWAY_URL}/api/document/upload`,
+      formData,
+      {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        timeout: 30000,
+      }
+    )
     return data
   },
 
@@ -52,7 +67,7 @@ export const documentApi = {
     groupId: UUID,
     params?: DocumentQueryParameters
   ): Promise<PaginatedDocumentListResponse> {
-    const { data } = await http.get<PaginatedDocumentListResponse>(`/group/${groupId}`, {
+    const { data } = await http.get<PaginatedDocumentListResponse>(`/group/${groupId}/paginated`, {
       params,
     })
     return data
@@ -113,31 +128,19 @@ export const documentApi = {
 
   // Get signature status
   async getSignatureStatus(documentId: UUID): Promise<DocumentSignatureStatusResponse> {
-    const { data } = await http.get<DocumentSignatureStatusResponse>(`/${documentId}/signature-status`)
+    const { data } = await http.get<DocumentSignatureStatusResponse>(`/${documentId}/signatures`)
+    return data
+  },
+
+  // Get my pending signatures
+  async getMyPendingSignatures(): Promise<PendingSignatureResponse[]> {
+    const { data } = await http.get<PendingSignatureResponse[]>('/my-pending-signatures')
     return data
   },
 
   // Sign document
   async signDocument(documentId: UUID, request: SignDocumentRequest): Promise<SignDocumentResponse> {
     const { data } = await http.post<SignDocumentResponse>(`/${documentId}/sign`, request)
-    return data
-  },
-
-  // Verify signing token
-  async verifySigningToken(documentId: UUID, token: string): Promise<{
-    isValid: boolean
-    documentName: string
-    signerName: string
-    expiresAt: string
-  }> {
-    const { data } = await http.get<{
-      isValid: boolean
-      documentName: string
-      signerName: string
-      expiresAt: string
-    }>(`/${documentId}/verify-token`, {
-      params: { token },
-    })
     return data
   },
 

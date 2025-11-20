@@ -5,37 +5,38 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  TextField,
   Box,
   Typography,
   Chip,
+  Alert,
   List,
   ListItem,
   ListItemText,
   ListItemAvatar,
   Avatar,
   IconButton,
-  Alert,
-  CircularProgress,
   Checkbox,
   FormControlLabel,
+  RadioGroup,
+  Radio,
+  CircularProgress,
   ListItemButton,
 } from '@mui/material'
 import {
   Close as CloseIcon,
-  Delete as DeleteIcon,
-  Send as SendIcon,
   Person as PersonIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import { groupApi } from '@/services/group/groups'
 import { SigningMode, type SendForSigningRequest } from '@/models/document'
 import type { UUID } from '@/models/booking'
-import type { GroupDto } from '@/models/group'
 
 interface SendForSigningDialogProps {
   open: boolean
@@ -45,6 +46,13 @@ interface SendForSigningDialogProps {
   onSuccess?: () => void
 }
 
+interface GroupMember {
+  id: UUID
+  userId: UUID
+  name: string
+  email: string
+}
+
 export default function SendForSigningDialog({
   open,
   onClose,
@@ -52,14 +60,14 @@ export default function SendForSigningDialog({
   groupId,
   onSuccess,
 }: SendForSigningDialogProps) {
-  const [groupData, setGroupData] = useState<GroupDto | null>(null)
   const [selectedSigners, setSelectedSigners] = useState<UUID[]>([])
   const [signingMode, setSigningMode] = useState<SigningMode>(SigningMode.Parallel)
   const [dueDate, setDueDate] = useState('')
   const [message, setMessage] = useState('')
   const [tokenExpirationDays, setTokenExpirationDays] = useState(7)
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
   const [loading, setLoading] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [loadingMembers, setLoadingMembers] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -69,46 +77,57 @@ export default function SendForSigningDialog({
   }, [open, groupId])
 
   const fetchGroupMembers = async () => {
-    setLoading(true)
+    setLoadingMembers(true)
     setError(null)
 
     try {
-      const data = await groupApi.getGroup(groupId)
-      setGroupData(data)
+      const group = await groupApi.getGroup(groupId)
+      const members = group.members.map((member: any) => ({
+        id: member.id,
+        userId: member.userId,
+        name: `${member.userFirstName} ${member.userLastName}`.trim() || 'Unknown Member',
+        email: member.userEmail || '',
+      }))
+      setGroupMembers(members)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load group members')
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to load group members'
+      setError(errorMessage)
       console.error('Error fetching group members:', err)
     } finally {
-      setLoading(false)
+      setLoadingMembers(false)
     }
   }
 
-  const handleToggleSigner = (userId: UUID) => {
+  const handleToggleSigner = (signerId: UUID) => {
     setSelectedSigners((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      prev.includes(signerId)
+        ? prev.filter((id) => id !== signerId)
+        : [...prev, signerId]
     )
   }
 
-  const handleRemoveSigner = (userId: UUID) => {
-    setSelectedSigners((prev) => prev.filter((id) => id !== userId))
-  }
-
-  const handleSendForSigning = async () => {
+  const handleSend = async () => {
     if (selectedSigners.length === 0) {
       setError('Please select at least one signer')
       return
     }
 
-    setSending(true)
+    setLoading(true)
     setError(null)
 
     try {
       const request: SendForSigningRequest = {
         signerIds: selectedSigners,
         signingMode,
-        dueDate: dueDate || undefined,
-        message: message || undefined,
         tokenExpirationDays,
+      }
+
+      if (dueDate) {
+        request.dueDate = new Date(dueDate).toISOString()
+      }
+
+      if (message) {
+        request.message = message
       }
 
       await documentApi.sendForSigning(documentId, request)
@@ -127,15 +146,15 @@ export default function SendForSigningDialog({
 
       onClose()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send document for signing')
-      console.error('Error sending document for signing:', err)
+      setError(err.response?.data?.error || err.message || 'Failed to send document for signing')
+      console.error('Error sending for signing:', err)
     } finally {
-      setSending(false)
+      setLoading(false)
     }
   }
 
   const handleClose = () => {
-    if (!sending) {
+    if (!loading) {
       setSelectedSigners([])
       setSigningMode(SigningMode.Parallel)
       setDueDate('')
@@ -146,205 +165,197 @@ export default function SendForSigningDialog({
     }
   }
 
-  const getSelectedSignersDetails = () => {
-    if (!groupData) return []
-    return selectedSigners
-      .map((id) => groupData.members.find((m) => m.userId === id))
-      .filter((m) => m !== undefined)
+  const getMinDate = () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return tomorrow.toISOString().split('T')[0]
   }
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" fontWeight={600}>
-          Send for Signing
+        <Typography variant="h6" component="span" fontWeight={600}>
+          Send Document for Signing
         </Typography>
-        <IconButton onClick={handleClose} disabled={sending}>
+        <IconButton onClick={handleClose} disabled={loading}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
       <DialogContent>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            {/* Select Signers */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Select Signers
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Choose group members who need to sign this document
-              </Typography>
-
-              <List sx={{ maxHeight: 300, overflow: 'auto', bgcolor: '#f5f5f5', borderRadius: 1 }}>
-  {groupData?.members.map((member) => (
-            <ListItem
-              key={member.userId}
-              sx={{
-                bgcolor: selectedSigners.includes(member.userId) ? '#f5ebe0' : 'transparent',
-              }}
-            >
-              <ListItemButton
-                onClick={() => handleToggleSigner(member.userId)}
-                sx={{
-                  bgcolor: selectedSigners.includes(member.userId) ? '#f5ebe0' : 'transparent',
-                  '&:hover': {
-                    bgcolor: '#f5ebe0',
-                  },
-                }}
-              >
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedSigners.includes(member.userId)}
-                      sx={{ color: '#7a9b76', '&.Mui-checked': { color: '#7a9b76' } }}
-                    />
-                  }
-                  label=""
-                  sx={{ mr: 1 }}
-                />
-
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: '#7a9b76' }}>
-                    <PersonIcon />
-                  </Avatar>
-                </ListItemAvatar>
-
-                <ListItemText
-                  primary={`${member.userFirstName} ${member.userLastName}`}
-                  secondary={member.userEmail}
-                />
-
-                <Chip label={member.roleInGroup} size="small" />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-
-              {/* Selected Signers Summary */}
-              {selectedSigners.length > 0 && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Selected Signers ({selectedSigners.length}):
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {getSelectedSignersDetails().map((member) => (
-                      <Chip
-                        key={member.userId}
-                        label={`${member.userFirstName} ${member.userLastName}`}
-                        onDelete={() => handleRemoveSigner(member.userId)}
-                        deleteIcon={<DeleteIcon />}
-                        sx={{ bgcolor: '#7a9b76', color: 'white' }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-
-            {/* Signing Mode */}
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Signing Mode</InputLabel>
-              <Select
-                value={signingMode}
-                onChange={(e) => setSigningMode(e.target.value as SigningMode)}
-                label="Signing Mode"
-                disabled={sending}
-              >
-                <MenuItem value={SigningMode.Parallel}>
-                  <Box>
-                    <Typography variant="body1">Parallel</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      All signers can sign at the same time
-                    </Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value={SigningMode.Sequential}>
-                  <Box>
-                    <Typography variant="body1">Sequential</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Signers must sign in order
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Due Date */}
-            <TextField
-              fullWidth
-              type="date"
-              label="Due Date (Optional)"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ mb: 3 }}
-              disabled={sending}
-            />
-
-            {/* Token Expiration */}
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Signing Link Expiration</InputLabel>
-              <Select
-                value={tokenExpirationDays}
-                onChange={(e) => setTokenExpirationDays(e.target.value as number)}
-                label="Signing Link Expiration"
-                disabled={sending}
-              >
-                <MenuItem value={1}>1 day</MenuItem>
-                <MenuItem value={3}>3 days</MenuItem>
-                <MenuItem value={7}>7 days</MenuItem>
-                <MenuItem value={14}>14 days</MenuItem>
-                <MenuItem value={30}>30 days</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Message */}
-            <TextField
-              fullWidth
-              label="Message to Signers (Optional)"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              multiline
-              rows={3}
-              placeholder="Add a message that will be included in the signing invitation..."
-              disabled={sending}
-            />
-
-            {/* Info Alert */}
-            <Alert severity="info" sx={{ mt: 3 }}>
-              Signers will receive an email notification with a secure link to sign the document.
-            </Alert>
-
-            {/* Error Message */}
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
-              </Alert>
-            )}
-          </>
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
         )}
+
+        {/* Signing Mode */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+            Signing Mode
+          </Typography>
+          <RadioGroup
+            value={signingMode}
+            onChange={(e) => setSigningMode(e.target.value as SigningMode)}
+          >
+            <FormControlLabel
+              value={SigningMode.Parallel}
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body1">Parallel Signing</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    All signers can sign at the same time
+                  </Typography>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value={SigningMode.Sequential}
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body1">Sequential Signing</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Signers must sign in order (as listed below)
+                  </Typography>
+                </Box>
+              }
+            />
+          </RadioGroup>
+        </Box>
+
+        {/* Select Signers */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+            Select Signers {signingMode === SigningMode.Sequential && '(order matters)'}
+          </Typography>
+          {loadingMembers ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress sx={{ color: '#7a9b76' }} />
+            </Box>
+          ) : groupMembers.length === 0 ? (
+            <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f5ebe0', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                No group members found
+              </Typography>
+            </Box>
+          ) : (
+            <List sx={{ bgcolor: '#f5ebe0', borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
+              {groupMembers.map((member, index) => (
+                <ListItem
+  key={member.userId}
+  sx={{
+    borderBottom:
+      index < groupMembers.length - 1
+        ? '1px solid rgba(0,0,0,0.1)'
+        : 'none',
+  }}
+  disablePadding
+>
+          <ListItemButton onClick={() => handleToggleSigner(member.userId)}>
+            <Checkbox
+              edge="start"
+              checked={selectedSigners.includes(member.userId)}
+              sx={{
+                color: '#7a9b76',
+                '&.Mui-checked': { color: '#7a9b76' },
+              }}
+            />
+
+            <ListItemAvatar>
+              <Avatar sx={{ bgcolor: '#7a9b76' }}>
+                <PersonIcon />
+              </Avatar>
+            </ListItemAvatar>
+
+            <ListItemText primary={member.name} secondary={member.email} />
+
+            {selectedSigners.includes(member.userId) &&
+              signingMode === SigningMode.Sequential && (
+                <Chip
+                  label={`Order: ${
+                    selectedSigners.indexOf(member.userId) + 1
+                  }`}
+                  size="small"
+                  sx={{ bgcolor: '#7a9b76', color: 'white' }}
+                />
+              )}
+          </ListItemButton>
+        </ListItem>
+              ))}
+            </List>
+          )}
+          {selectedSigners.length > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              {selectedSigners.length} signer(s) selected
+            </Typography>
+          )}
+        </Box>
+
+        {/* Due Date */}
+        <TextField
+          fullWidth
+          label="Due Date (Optional)"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          InputLabelProps={{
+            shrink: true,
+          }}
+          inputProps={{
+            min: getMinDate(),
+          }}
+          sx={{ mb: 3 }}
+          disabled={loading}
+        />
+
+        {/* Token Expiration */}
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel>Signing Link Expiration</InputLabel>
+          <Select
+            value={tokenExpirationDays}
+            onChange={(e) => setTokenExpirationDays(e.target.value as number)}
+            label="Signing Link Expiration"
+            disabled={loading}
+          >
+            <MenuItem value={1}>1 day</MenuItem>
+            <MenuItem value={3}>3 days</MenuItem>
+            <MenuItem value={7}>7 days (recommended)</MenuItem>
+            <MenuItem value={14}>14 days</MenuItem>
+            <MenuItem value={30}>30 days</MenuItem>
+            <MenuItem value={90}>90 days</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Message */}
+        <TextField
+          fullWidth
+          label="Message to Signers (Optional)"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          multiline
+          rows={3}
+          placeholder="Add a message to include in the signing notification..."
+          disabled={loading}
+        />
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={handleClose} disabled={sending}>
+        <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
         <Button
           variant="contained"
-          onClick={handleSendForSigning}
-          disabled={selectedSigners.length === 0 || sending || loading}
-          startIcon={sending ? <CircularProgress size={20} /> : <SendIcon />}
+          onClick={handleSend}
+          disabled={selectedSigners.length === 0 || loading}
           sx={{
             bgcolor: '#7a9b76',
             '&:hover': { bgcolor: '#6a8b66' },
           }}
         >
-          {sending ? 'Sending...' : 'Send for Signing'}
+          {loading ? 'Sending...' : 'Send for Signing'}
         </Button>
       </DialogActions>
     </Dialog>
