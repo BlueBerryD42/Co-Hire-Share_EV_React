@@ -45,13 +45,16 @@ const EditMaintenance = () => {
     setError(null);
 
     try {
-      const submissionData = {
-          ...formData,
-          serviceType: Number(formData.serviceType),
-          priority: Number(formData.priority),
-          estimatedCost: Number(formData.estimatedCost),
-          scheduledDate: new Date(formData.scheduledDate!).toISOString(),
-      }
+      // Construct a payload with only the updatable fields
+      const submissionData: Partial<MaintenanceSchedule> = {
+        serviceType: Number(formData.serviceType),
+        priority: Number(formData.priority),
+        scheduledDate: formData.scheduledDate ? new Date(formData.scheduledDate).toISOString() : undefined,
+        estimatedCost: formData.estimatedCost ? Number(formData.estimatedCost) : undefined,
+        serviceProvider: formData.serviceProvider,
+        notes: formData.notes,
+      };
+
       await maintenanceService.updateSchedule(scheduleId, submissionData);
       // TODO: Show success toast
       navigate(`/vehicles/${vehicleId}/maintenance/${scheduleId}`);
