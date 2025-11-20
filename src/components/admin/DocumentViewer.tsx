@@ -78,13 +78,14 @@ const DocumentViewer = ({
     }
   };
 
-  // Fetch image via API if it's an external URL
+  // Fetch image via API if documentId is provided (for KYC documents)
   useEffect(() => {
     // Reset error state when document changes
     setImageError(false);
     setImageUrl(documentUrl);
 
-    if (isImage && isExternalUrl(documentUrl) && documentId) {
+    // Always use download endpoint for KYC documents if documentId is provided
+    if (isImage && documentId) {
       const fetchImageViaApi = async () => {
         try {
           setLoading(true);
@@ -110,18 +111,19 @@ const DocumentViewer = ({
           blobUrlRef.current = blobUrl;
           setImageUrl(blobUrl);
           setImageError(false);
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Error fetching image via API:", error);
           // If 404, the endpoint might not exist or document not found
-          if (error.response?.status === 404) {
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 404) {
             console.warn(
               "Document download endpoint returned 404. This may indicate:",
               "1. The document does not exist in the database",
               "2. The download endpoint is not implemented in User service",
-              "3. The file was not actually stored (dev environment uses mock URLs)"
+              "3. The file was not actually stored"
             );
-            setImageError(true);
           }
+          setImageError(true);
           // Fallback to original URL (will fail but at least we tried)
           setImageUrl(documentUrl);
         } finally {
@@ -130,8 +132,12 @@ const DocumentViewer = ({
       };
 
       fetchImageViaApi();
+    } else if (isImage && !documentId && !isExternalUrl(documentUrl)) {
+      // Use original URL directly if it's a relative/internal URL and no documentId
+      setImageUrl(documentUrl);
+      setLoading(false);
     } else {
-      // Use original URL if it's internal or not an image
+      // Use original URL for non-images or external URLs without documentId
       setImageUrl(documentUrl);
       setLoading(false);
     }
@@ -212,7 +218,7 @@ const DocumentViewer = ({
             </div>
           )}
           {isImage ? (
-            imageError || isExternalUrl(documentUrl) ? (
+            imageError ? (
               <div className="text-center p-8 max-w-md">
                 <div className="mb-4 text-neutral-400">
                   <svg
