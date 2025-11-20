@@ -5,6 +5,7 @@ import {
   type BookingDto,
   type BookingHistoryEntryDto,
   type BookingPriorityDto,
+  type AvailabilityResponseDto,
   type BookingSuggestionResponse,
   type CancelBookingDto,
   type CreateBookingDto,
@@ -132,6 +133,26 @@ export const bookingApi = {
         preferredDate,
         durationHours,
       },
+    });
+    return data;
+  },
+  getAvailability: async (
+    vehicleId: string,
+    from: string,
+    to: string,
+    durationMinutes = 60,
+    bufferMinutes = 0
+  ) => {
+    const params: Record<string, string> = {
+      vehicleId,
+      from,
+      to,
+      durationMinutes: durationMinutes.toString(),
+      bufferMinutes: bufferMinutes.toString(),
+    };
+
+    const { data } = await http.get<AvailabilityResponseDto>("/availability", {
+      params,
     });
     return data;
   },

@@ -41,7 +41,10 @@ const buildCalendar = (anchorDate: Date): CalendarCell[] => {
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(firstVisibleDate);
     date.setDate(firstVisibleDate.getDate() + i);
-    const iso = date.toISOString().slice(0, 10);
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
     const monthType: CalendarCell["monthType"] =
       date.getMonth() < month
         ? "previous"
@@ -59,9 +62,24 @@ const buildCalendar = (anchorDate: Date): CalendarCell[] => {
   return matrix;
 };
 
+const localIso = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(date.getDate()).padStart(2, "0")}`;
+
+// Parse ISO-like strings returned by the server. If the string already
+// contains a timezone (Z or ±HH:MM) parse normally; otherwise assume the
+// server returned a UTC timestamp without zone and append 'Z' so JS treats
+// it as UTC instant.
+const parseServerIso = (iso: string) =>
+  iso && (iso.includes("Z") || /[+-]\d{2}:\d{2}$/.test(iso))
+    ? new Date(iso)
+    : new Date(iso + "Z");
+
 const formatTimeRange = (startIso: string, endIso: string) => {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
+  const start = parseServerIso(startIso);
+  const end = parseServerIso(endIso);
   return `${start.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -73,8 +91,8 @@ const formatTimeRange = (startIso: string, endIso: string) => {
 
 const expandBookingDates = (booking: BookingDto) => {
   const dates: string[] = [];
-  const start = new Date(booking.startAt);
-  const end = new Date(booking.endAt);
+  const start = parseServerIso(booking.startAt);
+  const end = parseServerIso(booking.endAt);
   const cursor = new Date(start);
   cursor.setHours(0, 0, 0, 0);
   while (cursor <= end) {
@@ -120,6 +138,7 @@ const isInactiveStatus = (status: BookingDto["status"]) => {
 //     .pop();
 
 const BookingCalendar = () => {
+  console.log("Ngày hôm nay trên trang Calendar là:", new Date());
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const calendarDays = useMemo(
     () => buildCalendar(currentMonth),
@@ -148,7 +167,7 @@ const BookingCalendar = () => {
     const start = new Date(currentMonth);
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
-    return start.toISOString().slice(0, 10);
+    return localIso(start);
   }, [currentMonth]);
 
   useEffect(() => {
@@ -402,78 +421,88 @@ const BookingCalendar = () => {
               ))}
             </div>
 
-            <div className="mt-2 grid grid-cols-7 gap-2 text-sm">
-              {calendarDays.map((day) => {
-                const events = eventsByDate[day.iso] ?? [];
-                const isToday =
-                  day.iso === new Date().toISOString().slice(0, 10);
-                const hasMine = events.some((event) => event.type === "mine");
-                const containerClasses = [
-                  "flex",
-                  "min-h-[120px]",
-                  "flex-col",
-                  "rounded-2xl",
-                  "border",
-                  "p-2",
-                  "transition",
-                  "hover:border-brand/60",
-                  "hover:bg-amber-50",
-                ];
-                if (hasMine)
-                  containerClasses.push("border-brand/60 bg-brand/10");
-                else containerClasses.push("border-amber-200 bg-amber-50");
-                if (day.monthType !== "current")
-                  containerClasses.push("opacity-60");
-                if (isToday) containerClasses.push("ring-1 ring-brand/60");
+            {(() => {
+              const today = new Date();
+              const todayIso = localIso(today);
 
-                return (
-                  <div key={day.iso} className={containerClasses.join(" ")}>
-                    <button
-                      type="button"
-                      className="flex items-center justify-between text-xs text-black"
-                      onClick={() => handleDaySelect(day.iso)}
-                    >
-                      <span>{day.label}</span>
-                      {events.length > 0 && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-black">
-                          {events.length}
-                        </span>
-                      )}
-                    </button>
-                    <div className="mt-2 space-y-2">
-                      {events.map((event) => {
-                        const isSelected =
-                          selectedBooking?.id &&
-                          event.booking?.id === selectedBooking.id;
-                        return (
-                          <button
-                            type="button"
-                            key={`${day.iso}-${event.label}-${event.time}`}
-                            onClick={() => handleEventClick(event)}
-                            className={`w-full rounded-xl border px-2 py-1 text-left text-xs ${
-                              isSelected
-                                ? "border-brand bg-brand/10 text-black"
-                                : "border-amber-200 bg-amber-50 text-black"
-                            }`}
-                          >
-                            <p className="font-semibold">{event.label}</p>
+              return (
+                <div className="mt-2 grid grid-cols-7 gap-2 text-sm">
+                  {calendarDays.map((day) => {
+                    const events = eventsByDate[day.iso] ?? [];
+                    const isToday = day.iso === todayIso;
+                    const hasMine = events.some(
+                      (event) => event.type === "mine"
+                    );
+                    const containerClasses = [
+                      "flex",
+                      "min-h-[120px]",
+                      "flex-col",
+                      "rounded-2xl",
+                      "border",
+                      "p-2",
+                      "transition",
+                      "hover:border-brand/60",
+                      "hover:bg-amber-50",
+                    ];
+                    if (hasMine)
+                      containerClasses.push("border-brand/60 bg-brand/10");
+                    else containerClasses.push("border-amber-200 bg-amber-50");
+                    if (day.monthType !== "current")
+                      containerClasses.push("opacity-60");
+                    if (isToday) containerClasses.push("ring-1 ring-brand/60");
+
+                    return (
+                      <div key={day.iso} className={containerClasses.join(" ")}>
+                        <button
+                          type="button"
+                          className="flex items-center justify-between text-xs text-black"
+                          onClick={() => handleDaySelect(day.iso)}
+                        >
+                          <span>{day.label}</span>
+                          {events.length > 0 && (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-black">
+                              {events.length}
+                            </span>
+                          )}
+                        </button>
+                        <div className="mt-2 space-y-2">
+                          {events.map((event) => {
+                            const isSelected =
+                              selectedBooking?.id &&
+                              event.booking?.id === selectedBooking.id;
+                            return (
+                              <button
+                                type="button"
+                                key={`${day.iso}-${event.label}-${event.time}`}
+                                onClick={() => handleEventClick(event)}
+                                className={`w-full rounded-xl border px-2 py-1 text-left text-xs ${
+                                  isSelected
+                                    ? "border-brand bg-brand/10 text-black"
+                                    : "border-amber-200 bg-amber-50 text-black"
+                                }`}
+                              >
+                                <p className="font-semibold">{event.label}</p>
+                                <p className="text-[11px] text-black">
+                                  {event.time}
+                                </p>
+                                <p className="text-[11px] text-black">
+                                  {event.owner}
+                                </p>
+                              </button>
+                            );
+                          })}
+                          {events.length === 0 && (
                             <p className="text-[11px] text-black">
-                              {event.time}
+                              No bookings
                             </p>
-                            <p className="text-[11px] text-black">
-                              {event.owner}
-                            </p>
-                          </button>
-                        );
-                      })}
-                      {events.length === 0 && (
-                        <p className="text-[11px] text-black">No bookings</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           <aside className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-black shadow-lg lg:sticky lg:top-8 lg:self-start">
@@ -486,8 +515,8 @@ const BookingCalendar = () => {
                   {selectedBooking.vehicleModel}
                 </p>
                 <p>
-                  {new Date(selectedBooking.startAt).toLocaleString()} -{" "}
-                  {new Date(selectedBooking.endAt).toLocaleTimeString()}
+                  {parseServerIso(selectedBooking.startAt).toLocaleString()} -{" "}
+                  {parseServerIso(selectedBooking.endAt).toLocaleTimeString()}
                 </p>
                 <p>
                   Owner: {selectedBooking.userFirstName}{" "}

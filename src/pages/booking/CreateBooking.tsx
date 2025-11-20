@@ -1,19 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/booking/api";
 import vehicleService from "@/services/vehicleService";
-import type { BookingPriority, CreateBookingDto } from "@/models/booking";
+import type {
+  AvailabilitySlotDto,
+  BookingPriority,
+  CreateBookingDto,
+} from "@/models/booking";
 import { useAppSelector } from "@/store/hooks";
 import Cookies from "js-cookie";
 import { useGroups } from "@/hooks/useGroups";
 import type { VehicleListItem } from "@/models/vehicle";
 
+const now = new Date();
+const tomorrow = new Date(now);
+tomorrow.setDate(now.getDate() + 1);
+
+const toDateInputLocal = (d: Date) => {
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, "0");
+  const day = d.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const initialForm = {
   vehicle: "Tesla Model 3 Performance",
-  date: "2025-03-18",
-  endDate: "2025-03-18",
-  start: "08:00",
-  end: "15:00",
+  date: toDateInputLocal(now),
+  endDate: toDateInputLocal(now),
+  start: now.toTimeString().slice(0, 5),
+  end: new Date(now.getTime() + 2 * 60 * 60 * 1000).toTimeString().slice(0, 5), // Default to 2 hours later
   repeat: "none",
   purpose: "Business",
   distance: 120,
@@ -24,18 +39,14 @@ const initialForm = {
   emergencyAutoCancelConflicts: false,
 };
 
-const repeatOptions = [
-  { value: "none", label: "No repeat" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-];
-
 const priorityMap: Record<BookingPriority, number> = {
   Low: 0,
   Normal: 1,
   High: 2,
   Emergency: 3,
 };
+const slotStepMinutes = 30;
+const minDurationMinutes = 30;
 type FormState = typeof initialForm;
 
 const decodeUserIdFromToken = (token?: string | null) => {
@@ -53,6 +64,7 @@ const decodeUserIdFromToken = (token?: string | null) => {
 };
 
 const CreateBooking = () => {
+  console.log("Ngày hôm nay là:", new Date());
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [purpose, setPurpose] = useState("Business");
@@ -78,6 +90,9 @@ const CreateBooking = () => {
   const [vehicles, setVehicles] = useState<VehicleListItem[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
+  const [slots, setSlots] = useState<AvailabilitySlotDto[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   useEffect(() => {
     setUserId(derivedUserId);
@@ -179,11 +194,21 @@ const CreateBooking = () => {
     }
   }, [availableVehicles, vehicleId]);
 
-  const updateForm = <K extends keyof FormState>(
-    field: K,
-    value: FormState[K]
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const updateForm = useCallback(
+    <K extends keyof FormState>(field: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
+
+  const handleDateChange = (newDate: string) => {
+    setForm((prev) => {
+      const updatedForm = { ...prev, date: newDate };
+      if (newDate > prev.endDate) {
+        updatedForm.endDate = newDate;
+      }
+      return updatedForm;
+    });
   };
 
   const handleVehicleSelect = (id: string) => {
@@ -197,6 +222,232 @@ const CreateBooking = () => {
     }));
   };
 
+  // Interpret date/time as local and convert to UTC ISO string for internal use.
+  // Construct a local Date from the `YYYY-MM-DD` and `HH:mm` inputs, then
+  // call `toISOString()` so the resulting string is the correct UTC instant.
+  const buildIsoUtc = (date: string, time: string) =>
+    new Date(`${date}T${time}:00`).toISOString();
+
+  // Format a Date as an ISO string with local timezone offset, e.g.
+  // 2025-11-20T01:30:00+07:00. This preserves the local wall-clock time
+  // in the serialized value sent to the backend.
+  const formatLocalWithOffset = (d: Date) => {
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad2(d.getMonth() + 1);
+    const day = pad2(d.getDate());
+    const hours = pad2(d.getHours());
+    const minutes = pad2(d.getMinutes());
+    const seconds = pad2(d.getSeconds());
+    const offsetMin = d.getTimezoneOffset(); // minutes behind UTC (e.g. -420 for +07:00)
+    const sign = offsetMin <= 0 ? "+" : "-";
+    const absMin = Math.abs(offsetMin);
+    const offH = pad2(Math.floor(absMin / 60));
+    const offM = pad2(absMin % 60);
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offH}:${offM}`;
+  };
+
+  // UTC instants used internally for calculations (slots, conflicts)
+  const startIso = useMemo(
+    () => buildIsoUtc(form.date, form.start),
+    [form.date, form.start]
+  );
+  const endIso = useMemo(
+    () => buildIsoUtc(form.endDate, form.end),
+    [form.endDate, form.end]
+  );
+
+  // Payload values: serialize the local wall-clock time with timezone offset
+  // so the backend receives the same local date/time you selected.
+  const payloadStartAt = useMemo(
+    () => formatLocalWithOffset(new Date(`${form.date}T${form.start}:00`)),
+    [form.date, form.start]
+  );
+  const payloadEndAt = useMemo(
+    () => formatLocalWithOffset(new Date(`${form.endDate}T${form.end}:00`)),
+    [form.endDate, form.end]
+  );
+
+  const durationMinutes = useMemo(() => {
+    const diff = new Date(endIso).getTime() - new Date(startIso).getTime();
+    const minutes = Math.max(0, Math.round(diff / 60000));
+    return Math.max(minDurationMinutes, minutes || 0);
+  }, [startIso, endIso]);
+
+  // Use an exclusive end for conflict checks to avoid flagging back-to-back bookings.
+  // Use a slight offset on end time when checking conflicts to allow back-to-back bookings without false overlap.
+  const conflictEndIso = useMemo(() => {
+    const endMs = new Date(endIso).getTime();
+    const exclusive = new Date(endMs - 1000); // minus 1 second: keeps same minute but avoids boundary collision
+    return exclusive.toISOString();
+  }, [endIso]);
+
+  const conflictStartIso = useMemo(() => {
+    const startMs = new Date(startIso).getTime();
+    const exclusive = new Date(startMs - 60000); // minus 1 minute still represents same minute but avoids boundary collision
+    return exclusive.toISOString();
+  }, [startIso]);
+
+  const toDateInput = useCallback((d: Date) => {
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const day = d.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const toTimeInput = useCallback((d: Date) => {
+    const hours = d.getHours().toString().padStart(2, "0");
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }, []);
+
+  useEffect(() => {
+    const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
+    if (!resolvedVehicleId) return;
+
+    const from = new Date(`${form.date}T00:00:00`).toISOString();
+    const to = new Date(`${form.endDate}T23:59:59`).toISOString();
+
+    setSlotsLoading(true);
+    bookingApi
+      .getAvailability(resolvedVehicleId, from, to, durationMinutes, 0)
+      .then((data) => {
+        setSlots(data.slots ?? []);
+        setSlotsError(null);
+      })
+      .catch((err) => {
+        console.warn("CreateBooking: availability failed", err);
+        setSlots([]);
+        setSlotsError("Unable to load availability right now. Please retry.");
+      })
+      .finally(() => setSlotsLoading(false));
+  }, [vehicleId, availableVehicles, form.date, form.endDate, durationMinutes]);
+
+  const startOptions = useMemo(() => {
+    if (!slots.length) return [];
+    const options: { label: string; value: string }[] = [];
+    const addedTimes = new Set<string>();
+    const stepMs = slotStepMinutes * 60000;
+    const durationMs = durationMinutes * 60000;
+
+    slots.forEach((slot) => {
+      const slotStart = new Date(slot.startAt).getTime();
+      const slotEnd = new Date(slot.endAt).getTime();
+      for (let t = slotStart; t + durationMs <= slotEnd; t += stepMs) {
+        const dt = new Date(t);
+        // Hide times that are already in the past relative to now.
+        if (dt.getTime() < Date.now()) continue;
+        const isoValue = dt.toISOString();
+        if (!addedTimes.has(isoValue)) {
+          options.push({
+            value: isoValue,
+            // Show the time in the user's local timezone for clarity.
+            label: dt.toLocaleTimeString(undefined, {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          });
+          addedTimes.add(isoValue);
+        }
+      }
+    });
+
+    return options;
+  }, [slots, durationMinutes]);
+
+  const currentSlot = useMemo(() => {
+    const start = new Date(startIso).getTime();
+    return slots.find(
+      (slot) =>
+        start >= new Date(slot.startAt).getTime() &&
+        start < new Date(slot.endAt).getTime()
+    );
+  }, [slots, startIso]);
+
+  const endOptions = useMemo(() => {
+    if (!currentSlot) return [];
+    const options: { label: string; value: string }[] = [];
+    const stepMs = slotStepMinutes * 60000;
+    const start = new Date(startIso).getTime();
+    const slotEnd = new Date(currentSlot.endAt).getTime();
+    for (
+      let t = start + minDurationMinutes * 60000;
+      t <= slotEnd;
+      t += stepMs
+    ) {
+      const dt = new Date(t);
+      options.push({
+        value: dt.toISOString(),
+        label: dt.toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    }
+    return options;
+  }, [currentSlot, startIso]);
+
+  const isSelectionAvailable = useMemo(() => {
+    const start = new Date(startIso).getTime();
+    const end = new Date(endIso).getTime();
+    if (!slots.length) return false;
+    return slots.some(
+      (slot) =>
+        start >= new Date(slot.startAt).getTime() &&
+        end <= new Date(slot.endAt).getTime()
+    );
+  }, [slots, startIso, endIso]);
+
+  const handleStartSelect = useCallback(
+    (iso: string) => {
+      const startDate = new Date(iso);
+      const selectedSlot = slots.find(
+        (slot) =>
+          startDate.getTime() >= new Date(slot.startAt).getTime() &&
+          startDate.getTime() < new Date(slot.endAt).getTime()
+      );
+      const slotEnd = selectedSlot
+        ? new Date(selectedSlot.endAt).getTime()
+        : startDate.getTime() +
+          Math.max(durationMinutes, minDurationMinutes) * 60000;
+      const desiredDurationMs = Math.max(
+        minDurationMinutes * 60000,
+        durationMinutes * 60000
+      );
+      const autoEndMs = Math.min(
+        startDate.getTime() + desiredDurationMs,
+        slotEnd
+      );
+      const newEndDate = new Date(autoEndMs);
+      updateForm("date", toDateInput(startDate));
+      updateForm("start", toTimeInput(startDate));
+      updateForm("endDate", toDateInput(newEndDate));
+      updateForm("end", toTimeInput(newEndDate));
+    },
+    [slots, durationMinutes, toDateInput, toTimeInput, updateForm]
+  );
+
+  const handleEndSelect = useCallback(
+    (iso: string) => {
+      const endDate = new Date(iso);
+      updateForm("endDate", toDateInput(endDate));
+      updateForm("end", toTimeInput(endDate));
+    },
+    [toDateInput, toTimeInput, updateForm]
+  );
+
+  useEffect(() => {
+    if (slotsLoading || startOptions.length === 0 || !startIso) return;
+
+    const isCurrentStartAnOption = startOptions.some(
+      (opt) => opt.value === startIso
+    );
+
+    if (!isCurrentStartAnOption && startOptions[0]?.value) {
+      handleStartSelect(startOptions[0].value);
+    }
+  }, [startOptions, startIso, slotsLoading, handleStartSelect]);
+
   const handleSubmit = async () => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
     if (!resolvedVehicleId) {
@@ -205,22 +456,32 @@ const CreateBooking = () => {
       return;
     }
 
-    const buildIso = (date: string, time: string) =>
-      new Date(`${date}T${time}:00`).toISOString();
     if (!userId || !groupId) {
-      setServerMessage("UserId và GroupId là bắt buộc");
+      setServerMessage("UserId and GroupId are required");
       setSubmissionStatus("error");
       return;
     }
 
-    const startIso = buildIso(form.date, form.start);
-    const endIso = buildIso(form.endDate, form.end);
+    // Prevent submitting a start time that's already in the past (client-side guard).
+    if (new Date(startIso).getTime() < Date.now()) {
+      setServerMessage("Selected start time is in the past");
+      setSubmissionStatus("error");
+      return;
+    }
+
+    if (!isSelectionAvailable) {
+      setConflictMessage(
+        "Selected time is busy. Please pick another highlighted slot."
+      );
+      setSubmissionStatus("error");
+      return;
+    }
 
     try {
       const conflicts = await bookingApi.checkConflicts(
         resolvedVehicleId,
-        startIso,
-        endIso
+        conflictStartIso,
+        conflictEndIso
       );
       if (conflicts?.hasConflicts) {
         setConflictMessage(
@@ -242,8 +503,10 @@ const CreateBooking = () => {
     const prioritySelection: BookingPriority = form.priority;
     const apiPayload: CreateBookingDto = {
       vehicleId: resolvedVehicleId,
-      startAt: startIso,
-      endAt: endIso,
+      // Send local wall-clock time with offset (e.g. +07:00) so payload shows
+      // the same date/time the user selected.
+      startAt: payloadStartAt,
+      endAt: payloadEndAt,
       notes: form.notes,
       purpose,
       isEmergency: form.isEmergency,
@@ -267,7 +530,7 @@ const CreateBooking = () => {
       }`;
       setServerMessage(successMessage);
       setCreatedBookingId(booking.id);
-      setTimeout(() => navigate("/booking/calendar"), 800);
+      // setTimeout(() => navigate("/booking/calendar"), 800);
     } catch (error) {
       console.error("Failed to create booking", error);
       setSubmissionStatus("error");
@@ -298,45 +561,82 @@ const CreateBooking = () => {
                 <p className="text-xs text-amber-800">{vehiclesError}</p>
               )}
             </label>
-            <label className="space-y-2 text-sm text-black">
-              <span>Start date</span>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => updateForm("date", e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
-              />
-            </label>
-            <label className="space-y-2 text-sm text-black">
-              <span>End date</span>
-              <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => updateForm("endDate", e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
-              />
-            </label>
-            <label className="space-y-2 text-sm text-black">
-              <span>Start time</span>
-              <input
-                type="time"
-                value={form.start}
-                onChange={(e) => updateForm("start", e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
-              />
-            </label>
-            <label className="space-y-2 text-sm text-black">
-              <span>End time</span>
-              <input
-                type="time"
-                value={form.end}
-                onChange={(e) => updateForm("end", e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
-              />
-            </label>
+            <div className="sm:col-span-2">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2 text-sm text-black">
+                  <span>Start date & time</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={form.date}
+                      min={toDateInput(new Date())}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    />
+                    <select
+                      value={startIso}
+                      onChange={(e) => handleStartSelect(e.target.value)}
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    >
+                      {slotsLoading && (
+                        <option value={startIso}>Loading...</option>
+                      )}
+                      {!slotsLoading && startOptions.length === 0 && (
+                        <option value={startIso}>No slots</option>
+                      )}
+                      {!slotsLoading &&
+                        startOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  {slotsError && (
+                    <p className="text-xs text-amber-800">{slotsError}</p>
+                  )}
+                </div>
+                <div className="space-y-2 text-sm text-black">
+                  <span>End date & time</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={form.endDate}
+                      min={form.date}
+                      onChange={(e) => updateForm("endDate", e.target.value)}
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    />
+                    <select
+                      value={endIso}
+                      onChange={(e) => handleEndSelect(e.target.value)}
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    >
+                      {slotsLoading && (
+                        <option value={endIso}>Loading...</option>
+                      )}
+                      {!slotsLoading && endOptions.length === 0 && (
+                        <option value={endIso}>No times</option>
+                      )}
+                      {!slotsLoading &&
+                        endOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           {conflictMessage && (
             <p className="text-xs text-rose-600">{conflictMessage}</p>
+          )}
+          {!slotsLoading && slots.length > 0 && !isSelectionAvailable && (
+            <p className="text-xs text-amber-800">
+              The selected time is outside available slots. Pick another
+              highlighted slot.
+            </p>
           )}
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -368,9 +668,7 @@ const CreateBooking = () => {
                 ))}
               </select>
               {groupsError && (
-                <p className="text-xs text-black">
-                  Không thể tải danh sách nhóm.
-                </p>
+                <p className="text-xs text-black">Unable to load groups.</p>
               )}
             </label>
           </div>
@@ -496,7 +794,11 @@ const CreateBooking = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submissionStatus === "submitting"}
+            disabled={
+              submissionStatus === "submitting" ||
+              slotsLoading ||
+              !isSelectionAvailable
+            }
             className="w-full rounded-2xl bg-brand/90 px-6 py-3 text-center text-sm font-semibold text-black transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submissionStatus === "submitting"
@@ -515,14 +817,28 @@ const CreateBooking = () => {
               </Link>
             </div>
           )}
-          {/* {lastPayload && (
+          {lastPayload && (
             <div className="rounded-2xl border border-emerald-800 bg-amber-50 p-4 text-xs text-black">
-              <p className="text-black">Payload preview (gửi lên API)</p>
+              <p className="text-black">Payload preview (to API)</p>
+              <div className="mt-2 text-[12px]">
+                <p>
+                  <strong>Start (local):</strong>{" "}
+                  {lastPayload.startAt
+                    ? new Date(lastPayload.startAt).toLocaleString()
+                    : "-"}
+                </p>
+                <p>
+                  <strong>End (local):</strong>{" "}
+                  {lastPayload.endAt
+                    ? new Date(lastPayload.endAt).toLocaleString()
+                    : "-"}
+                </p>
+              </div>
               <pre className="mt-2 overflow-auto text-[11px] leading-4">
                 {JSON.stringify(lastPayload, null, 2)}
               </pre>
             </div>
-          )} */}
+          )}
         </form>
       </div>
     </section>

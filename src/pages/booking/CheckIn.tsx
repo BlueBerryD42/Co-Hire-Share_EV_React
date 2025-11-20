@@ -340,7 +340,7 @@ const CheckIn = () => {
       </div>
 
       {booking && (
-        <HistoryTable title="Check-out history" records={checkOutHistory} />
+        <HistoryTable title="Check-in history" records={checkOutHistory} />
       )}
     </section>
   );
