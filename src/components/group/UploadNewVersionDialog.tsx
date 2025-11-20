@@ -74,6 +74,7 @@ export default function UploadNewVersionDialog({
         setUploadProgress((prev) => Math.min(prev + 10, 90))
       }, 200)
 
+      // Upload new version
       await documentApi.uploadNewVersion(documentId, file, changeDescription)
 
       clearInterval(progressInterval)

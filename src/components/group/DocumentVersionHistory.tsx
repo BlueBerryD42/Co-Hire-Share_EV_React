@@ -91,17 +91,39 @@ export default function DocumentVersionHistory({
   }
 
   const handleDeleteVersion = async (versionId: UUID) => {
+    // Check if this is a virtual version (version 0 with empty GUID)
+    if (versionId === '00000000-0000-0000-0000-000000000000') {
+      setError('Cannot delete the original version (version 0). This is a virtual version preserved for history.')
+      return
+    }
+
     if (!window.confirm('Are you sure you want to delete this version?')) {
       return
     }
 
     setDeleting(versionId)
+    setError(null) // Clear any previous errors
+
     try {
+      // Delete the version
       await documentApi.deleteVersion(versionId)
-      await fetchVersions() // Refresh the list
+
+      // Immediately remove from local state for instant UI update
+      if (versionData) {
+        setVersionData({
+          ...versionData,
+          versions: versionData.versions.filter(v => v.id !== versionId),
+          totalVersions: versionData.totalVersions - 1
+        })
+      }
+
+      // Then fetch the updated list from server to ensure consistency
+      await fetchVersions()
     } catch (err: any) {
       console.error('Error deleting version:', err)
       setError(err.response?.data?.error || 'Failed to delete version. Cannot delete current version.')
+      // Refresh the list to restore the correct state if deletion failed
+      await fetchVersions()
     } finally {
       setDeleting(null)
     }
@@ -164,7 +186,7 @@ export default function DocumentVersionHistory({
                           <DownloadIcon />
                         )}
                       </IconButton>
-                      {allowDelete && !version.isCurrent && (
+                      {allowDelete && !version.isCurrent && version.id !== '00000000-0000-0000-0000-000000000000' && (
                         <IconButton
                           edge="end"
                           onClick={(e) => {
@@ -213,7 +235,7 @@ export default function DocumentVersionHistory({
                       </Box>
                     }
                     secondary={
-                      <Box sx={{ mt: 0.5 }}>
+                      <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
                         <Typography variant="caption" display="block" color="text.secondary">
                           {version.fileName} • {formatFileSize(version.fileSize)}
                         </Typography>
@@ -233,6 +255,7 @@ export default function DocumentVersionHistory({
                         )}
                       </Box>
                     }
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                 </ListItem>
               </React.Fragment>

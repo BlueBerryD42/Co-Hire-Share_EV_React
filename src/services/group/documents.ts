@@ -146,11 +146,6 @@ export const documentApi = {
     return data
   },
 
-  // Cancel signature request
-  async cancelSignatureRequest(documentId: UUID, reason?: string): Promise<void> {
-    await http.post(`/${documentId}/cancel-signing`, { reason })
-  },
-
   // Remind signers
   async remindSigners(documentId: UUID, signerIds?: UUID[]): Promise<void> {
     await http.post(`/${documentId}/remind-signers`, { signerIds })

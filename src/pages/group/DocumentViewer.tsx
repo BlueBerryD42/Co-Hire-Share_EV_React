@@ -611,19 +611,26 @@ export default function DocumentViewer() {
             </ListItemIcon>
             <ListItemText>View Version History</ListItemText>
           </MenuItem>
-          <MenuItem onClick={handleUploadNewVersion}>
-            <ListItemIcon>
-              <UploadIcon fontSize="small" sx={{ color: '#7a9b76' }} />
-            </ListItemIcon>
-            <ListItemText>Upload New Version</ListItemText>
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleDeleteDocument} sx={{ color: '#b87d6f' }}>
-            <ListItemIcon>
-              <DeleteIcon fontSize="small" sx={{ color: '#b87d6f' }} />
-            </ListItemIcon>
-            <ListItemText>Delete Document</ListItemText>
-          </MenuItem>
+
+          {/* Only show Upload New Version if document is not in signing process */}
+          {(!signatureStatus ||
+            signatureStatus.status === SignatureStatus.Draft ||
+            signatureStatus.status === SignatureStatus.Cancelled ||
+            signatureStatus.status === SignatureStatus.Expired) && [
+            <MenuItem key="upload" onClick={handleUploadNewVersion}>
+              <ListItemIcon>
+                <UploadIcon fontSize="small" sx={{ color: '#7a9b76' }} />
+              </ListItemIcon>
+              <ListItemText>Upload New Version</ListItemText>
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem key="delete" onClick={handleDeleteDocument} sx={{ color: '#b87d6f' }}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" sx={{ color: '#b87d6f' }} />
+              </ListItemIcon>
+              <ListItemText>Delete Document</ListItemText>
+            </MenuItem>
+          ]}
         </Menu>
 
         {/* PDF Display Area */}
@@ -707,6 +714,7 @@ export default function DocumentViewer() {
           onClose={() => setUploadVersionOpen(false)}
           onSuccess={() => {
             fetchDocument()
+            fetchSignatureStatus()
             loadPdfPreview()
           }}
         />
