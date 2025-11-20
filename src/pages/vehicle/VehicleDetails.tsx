@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Badge, Button } from '@/components/shared'
 import { StatCard } from '@/components/vehicle'
+import { useAppSelector } from '@/store/hooks';
+import { groupApi } from '@/services/group/groups';
 import {
   Car,
   Calendar,
@@ -9,20 +11,14 @@ import {
   Gauge,
   Battery,
   ArrowLeft,
-  MapPin,
-  Users,
   Wrench,
   FileText,
   TrendingUp,
-} from 'lucide-react'
-import vehicleService from '@/services/vehicleService'
-import maintenanceService from '@/services/maintenanceService'
-import {
-  type MaintenanceSchedule,
-  type MaintenanceRecord,
-  ServiceType,
-  MaintenanceStatus,
-} from '@/models/maintenance'
+  Users, // Make sure Users is imported
+  MapPin, // Make sure MapPin is imported
+} from 'lucide-react';
+import vehicleService from '@/services/vehicleService';
+import maintenanceService from '@/services/maintenanceService';
 
 /**
  * VehicleDetails Page - Màn hình 11: Vehicle Details
@@ -40,12 +36,35 @@ const VehicleDetails = () => {
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  const { user } = useAppSelector((state) => state.auth);
+  const [ownershipPercentage, setOwnershipPercentage] = useState(0);
+
   useEffect(() => {
     if (id) {
       fetchVehicleDetails()
     }
   }, [id])
 
+  // New useEffect to fetch group details and find ownership
+  useEffect(() => {
+    const fetchOwnership = async () => {
+      if (vehicle?.groupId && user?.id) {
+        try {
+          const group = await groupApi.getGroup(vehicle.groupId);
+          const currentUserMember = group.members.find(m => m.userId === user.id);
+          if (currentUserMember) {
+            // Backend provides sharePercentage as a decimal (e.g., 0.25 for 25%)
+            setOwnershipPercentage(currentUserMember.sharePercentage * 100);
+          }
+        } catch (err) {
+          console.error("Failed to fetch group details for ownership:", err);
+        }
+      }
+    };
+
+    fetchOwnership();
+  }, [vehicle, user]);
+  
   const fetchVehicleDetails = async () => {
     try {
       setLoading(true)
@@ -263,7 +282,7 @@ const VehicleDetails = () => {
           <StatCard
             icon={Users}
             label="Phần sở hữu của bạn"
-            value={vehicle.ownershipPercentage || 0}
+            value={ownershipPercentage.toFixed(0)}
             unit="%"
             variant="primary"
           />
@@ -285,8 +304,8 @@ const VehicleDetails = () => {
           />
           <StatCard
             icon={DollarSign}
-            label="Chi phí tháng này"
-            value={statistics?.costs?.thisMonth?.toLocaleString() || 0}
+            label="Chi phí (30 ngày qua)"
+            value={statistics?.efficiency?.totalCosts?.toLocaleString() || 0}
             unit="đ"
           />
         </div>
