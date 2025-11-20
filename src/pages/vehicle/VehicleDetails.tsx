@@ -16,6 +16,13 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import vehicleService from '@/services/vehicleService'
+import maintenanceService from '@/services/maintenanceService'
+import {
+  type MaintenanceSchedule,
+  type MaintenanceRecord,
+  ServiceType,
+  MaintenanceStatus,
+} from '@/models/maintenance'
 
 /**
  * VehicleDetails Page - Màn hình 11: Vehicle Details
@@ -482,12 +489,181 @@ const StatsTab = ({ statistics }) => (
 )
 
 // Maintenance Tab Component
-const MaintenanceTab = ({ vehicleId }) => (
-  <Card>
-    <h3 className="text-xl font-semibold text-neutral-800 mb-4">Lịch sử bảo trì</h3>
-    <p className="text-neutral-600">Đang phát triển...</p>
-  </Card>
-)
+const MaintenanceTab = ({ vehicleId }) => {
+  const navigate = useNavigate()
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([])
+  const [records, setRecords] = useState<MaintenanceRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null); // Add error state
+
+  const fetchMaintenanceData = async () => {
+    try {
+      setLoading(true)
+      setError(null); // Reset error on new fetch
+      const [scheduleData, historyData] = await Promise.all([
+        maintenanceService.getVehicleMaintenanceSchedule(vehicleId, { pageNumber: 1, pageSize: 20 }),
+        maintenanceService.getVehicleMaintenanceHistory(vehicleId, { pageNumber: 1, pageSize: 20 }),
+      ])
+      
+      // --- DEBUG LOGGING ---
+      console.log("DEBUG: Raw Schedule Data:", scheduleData);
+      console.log("DEBUG: Raw History Data:", historyData);
+      // --- END DEBUG LOGGING ---
+
+              setSchedules(scheduleData?.items || [])
+              setRecords(historyData?.items || [])
+    } catch (err: any) {
+      console.error("Error fetching maintenance data:", err)
+      setError(err.response?.data?.message || "Không thể tải dữ liệu bảo trì. Vui lòng thử lại.");
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (vehicleId) {
+      fetchMaintenanceData()
+    }
+  }, [vehicleId])
+  
+  const getServiceTypeText = (serviceType: string) => {
+    const map: { [key: string]: string } = {
+      'OilChange': "Thay dầu",
+      'TireRotation': "Đảo lốp",
+      'BrakeInspection': "Kiểm tra phanh",
+      'BatteryCheck': "Kiểm tra ắc quy",
+      'AirFilterReplacement': "Thay lọc gió",
+      'TransmissionService': "Dịch vụ hộp số",
+      'CoolantService': "Dịch vụ hệ thống làm mát",
+      'WheelAlignment': "Cân chỉnh bánh xe",
+      'TireReplacement': "Thay lốp",
+      'EngineTuneUp': "Tinh chỉnh động cơ",
+      'WiperReplacement': "Thay gạt nước",
+      'LightingService': "Dịch vụ hệ thống chiếu sáng",
+      'AirConditioningService': "Dịch vụ điều hòa",
+      'GeneralInspection': "Kiểm tra tổng quát",
+      'SuspensionService': "Dịch vụ hệ thống treo",
+      'ExhaustService': "Dịch vụ hệ thống xả",
+      'EVBatteryCheck': "Kiểm tra pin xe điện",
+      'EVChargingSystemService': "Dịch vụ hệ thống sạc",
+      'EVSoftwareUpdate': "Cập nhật phần mềm xe điện",
+      'Other': "Khác",
+    };
+    return map[serviceType] || serviceType; // Fallback to raw string if not found
+  }
+
+  const getStatusText = (status: string) => {
+    const map: { [key: string]: { text: string, color: string } } = {
+      'Scheduled': { text: "Đã lên lịch", color: "text-blue-600" },
+      'InProgress': { text: "Đang tiến hành", color: "text-primary" },
+      'Completed': { text: "Đã hoàn thành", color: "text-success" },
+      'Cancelled': { text: "Đã hủy", color: "text-neutral-500" },
+      'Overdue': { text: "Quá hạn", color: "text-error" },
+    };
+    return map[status] || { text: "Không xác định", color: "text-neutral-500" };
+  }
+
+
+  if (loading) {
+    return (
+      <Card>
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-neutral-200 rounded w-1/3"></div>
+          <div className="h-24 bg-neutral-200 rounded"></div>
+          <div className="h-8 bg-neutral-200 rounded w-1/3 mt-6"></div>
+          <div className="h-24 bg-neutral-200 rounded"></div>
+        </div>
+      </Card>
+    )
+  }
+
+  // Display error message if fetching fails
+  if (error) {
+    return (
+        <Card>
+            <div className="text-center py-8">
+                <p className="text-error font-semibold">Đã xảy ra lỗi</p>
+                <p className="text-neutral-600 mt-2">{error}</p>
+                <Button onClick={fetchMaintenanceData} className="mt-4">Thử lại</Button>
+            </div>
+        </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Action Button */}
+      <div className="flex justify-end">
+        <Button onClick={() => navigate(`/vehicles/${vehicleId}/maintenance/create`)}>
+          <Wrench className="w-4 h-4 mr-2" />+ Lên lịch bảo trì mới
+        </Button>
+      </div>
+
+      {/* Upcoming Schedules */}
+      <Card>
+        <h3 className="text-xl font-semibold text-neutral-800 mb-4">Lịch trình sắp tới</h3>
+        {schedules.length > 0 ? (
+          <ul className="divide-y divide-neutral-200">
+            {schedules.map(item => {
+              console.log("DEBUG: Rendering schedule item:", item); // Add debug log for each item
+              return (
+              <li 
+                key={item.id} 
+                className="py-4 flex justify-between items-center cursor-pointer hover:bg-neutral-50"
+                onClick={() => navigate(`/vehicles/${vehicleId}/maintenance/${item.id}`)}
+              >
+                <div>
+                  <p className="font-semibold text-neutral-800">{getServiceTypeText(item.serviceType)}</p>
+                  <p className="text-sm text-neutral-600">
+                    {new Date(item.scheduledDate).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+                <div>
+                  <span className={`text-sm font-medium ${getStatusText(item.status).color}`}>
+                    {getStatusText(item.status).text}
+                  </span>
+                </div>
+              </li>
+            )})}
+          </ul>
+        ) : (
+          <p className="text-neutral-600 text-center py-8">Không có lịch trình bảo trì nào sắp tới.</p>
+        )}
+      </Card>
+
+      {/* Completed History */}
+      <Card>
+        <h3 className="text-xl font-semibold text-neutral-800 mb-4">Lịch sử đã hoàn thành</h3>
+        {records.length > 0 ? (
+          <ul className="divide-y divide-neutral-200">
+            {records.map(item => (
+              <li key={item.id} className="py-4">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="font-semibold text-neutral-800">{getServiceTypeText(item.serviceType)}</p>
+                  <p className="text-sm text-neutral-600">
+                    {new Date(item.serviceDate).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-neutral-500">Chi phí</p>
+                    <p className="font-medium text-neutral-700">{item.actualCost.toLocaleString()} đ</p>
+                  </div>
+                  <div>
+                    <p className="text-neutral-500">Số km</p>
+                    <p className="font-medium text-neutral-700">{item.odometerReading.toLocaleString()} km</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-neutral-600 text-center py-8">Chưa có lịch sử bảo trì nào.</p>
+        )}
+      </Card>
+    </div>
+  )
+}
 
 // Documents Tab Component
 const DocumentsTab = ({ vehicleId }) => (
