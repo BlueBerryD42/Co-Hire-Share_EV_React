@@ -1,5 +1,10 @@
 import { createApiClient } from "@/services/api";
 import type { User } from "@/models/auth";
+import type {
+  KycDocumentDto,
+  UploadKycDocumentRequest,
+  KycDocumentType,
+} from "@/models/kyc";
 
 const http = createApiClient("/api/User");
 
@@ -25,8 +30,20 @@ export const userApi = {
   /**
    * Search user by email to get user ID (for adding members to groups)
    */
-  searchByEmail: async (email: string): Promise<{ id: string; email: string; firstName: string; lastName: string }> => {
-    const { data } = await http.get<{ Id: string; Email: string; FirstName: string; LastName: string }>(`/search?email=${encodeURIComponent(email)}`);
+  searchByEmail: async (
+    email: string
+  ): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  }> => {
+    const { data } = await http.get<{
+      Id: string;
+      Email: string;
+      FirstName: string;
+      LastName: string;
+    }>(`/search?email=${encodeURIComponent(email)}`);
     return {
       id: data.Id || data.id || "",
       email: data.Email || data.email || "",
@@ -80,6 +97,64 @@ export const userApi = {
       kycStatus: data.KycStatus ?? data.kycStatus ?? 0,
       createdAt: data.CreatedAt || data.createdAt || new Date().toISOString(),
     };
+  },
+
+  /**
+   * Upload KYC document
+   */
+  uploadKycDocument: async (
+    request: UploadKycDocumentRequest
+  ): Promise<KycDocumentDto> => {
+    // Transform to PascalCase for backend
+    const backendData = {
+      DocumentType: request.documentType,
+      FileName: request.fileName,
+      Base64Content: request.base64Content,
+      Notes: request.notes,
+    };
+    const { data } = await http.post<KycDocumentDtoResponse>(
+      "/kyc/upload",
+      backendData
+    );
+    // Backend returns PascalCase, transform to camelCase
+    return {
+      id: data.Id || data.id || "",
+      userId: data.UserId || data.userId || "",
+      userName: data.UserName || data.userName || "",
+      documentType: data.DocumentType ?? data.documentType ?? 0,
+      fileName: data.FileName || data.fileName || "",
+      storageUrl: data.StorageUrl || data.storageUrl || "",
+      status: data.Status ?? data.status ?? 0,
+      reviewNotes: data.ReviewNotes || data.reviewNotes,
+      reviewedBy: data.ReviewedBy || data.reviewedBy,
+      reviewerName: data.ReviewerName || data.reviewerName,
+      reviewedAt: data.ReviewedAt || data.reviewedAt,
+      uploadedAt:
+        data.UploadedAt || data.uploadedAt || new Date().toISOString(),
+    };
+  },
+
+  /**
+   * Get current user's KYC documents
+   */
+  getKycDocuments: async (): Promise<KycDocumentDto[]> => {
+    const { data } = await http.get<KycDocumentDtoResponse[]>("/kyc/documents");
+    // Backend returns PascalCase array, transform to camelCase
+    return (Array.isArray(data) ? data : []).map((item) => ({
+      id: item.Id || item.id || "",
+      userId: item.UserId || item.userId || "",
+      userName: item.UserName || item.userName || "",
+      documentType: item.DocumentType ?? item.documentType ?? 0,
+      fileName: item.FileName || item.fileName || "",
+      storageUrl: item.StorageUrl || item.storageUrl || "",
+      status: item.Status ?? item.status ?? 0,
+      reviewNotes: item.ReviewNotes || item.reviewNotes,
+      reviewedBy: item.ReviewedBy || item.reviewedBy,
+      reviewerName: item.ReviewerName || item.reviewerName,
+      reviewedAt: item.ReviewedAt || item.reviewedAt,
+      uploadedAt:
+        item.UploadedAt || item.uploadedAt || new Date().toISOString(),
+    }));
   },
 };
 
@@ -145,3 +220,30 @@ interface UpdateUserProfileDto {
   dateOfBirth?: string;
 }
 
+// KYC DTOs matching backend structure (backend uses PascalCase)
+interface KycDocumentDtoResponse {
+  Id?: string;
+  id?: string;
+  UserId?: string;
+  userId?: string;
+  UserName?: string;
+  userName?: string;
+  DocumentType?: KycDocumentType;
+  documentType?: KycDocumentType;
+  FileName?: string;
+  fileName?: string;
+  StorageUrl?: string;
+  storageUrl?: string;
+  Status?: number;
+  status?: number;
+  ReviewNotes?: string;
+  reviewNotes?: string;
+  ReviewedBy?: string;
+  reviewedBy?: string;
+  ReviewerName?: string;
+  reviewerName?: string;
+  ReviewedAt?: string;
+  reviewedAt?: string;
+  UploadedAt?: string;
+  uploadedAt?: string;
+}

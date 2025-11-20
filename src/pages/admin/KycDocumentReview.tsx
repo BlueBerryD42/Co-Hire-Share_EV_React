@@ -524,6 +524,7 @@ const KycDocumentReview = () => {
         <DocumentViewer
           documentUrl={viewingDocument.storageUrl}
           fileName={viewingDocument.fileName}
+          documentId={viewingDocument.id}
           onClose={() => setViewingDocument(null)}
           onDownload={() => handleDownloadDocument(viewingDocument)}
         />
