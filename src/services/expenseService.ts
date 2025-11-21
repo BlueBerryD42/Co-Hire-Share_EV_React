@@ -41,10 +41,37 @@ const expenseService = {
    * Lấy danh sách chi phí của group (lọc theo groupId)
    */
   getVehicleExpenses: async (vehicleId: string, params: ExpenseQueryParams = {}): Promise<Expense[]> => {
-    // Backend không có filter theo vehicleId, chỉ có groupId
-    // Cần truyền groupId thay vì vehicleId
-    const response = await apiClient.get<Expense[]>('/Payment/expenses', { params })
-    return response.data
+    const response = await apiClient.get<any[]>('/Payment/expenses', { params })
+
+    const expenseTypeMapping: { [key: number]: Expense['category'] } = {
+      0: 'Charging', // Fuel -> Charging for EV context
+      1: 'Maintenance',
+      2: 'Insurance',
+      3: 'Registration',
+      4: 'Cleaning',
+      5: 'Other', // Repair
+      6: 'Other', // Upgrade
+      7: 'Parking',
+      8: 'Other', // Toll
+      9: 'Other',
+    }
+
+    // Backend DTO is different from frontend Expense model, so we map it here.
+    return response.data.map((dto: any) => ({
+      id: dto.id,
+      vehicleId: dto.vehicleId,
+      category: expenseTypeMapping[dto.expenseType] || 'Other',
+      totalAmount: dto.amount,
+      yourShare: dto.amount, // Placeholder: Should be calculated based on user's share
+      date: dto.dateIncurred, // The crucial mapping
+      description: dto.description,
+      status: 'Pending', // Placeholder: This should come from invoice status
+      hasReceipt: false, // Placeholder
+      addedBy: dto.createdBy,
+      notes: dto.notes,
+      createdAt: dto.createdAt,
+      updatedAt: dto.createdAt, // Placeholder
+    }))
   },
 
   /**
@@ -52,11 +79,37 @@ const expenseService = {
    * CHƯA CÓ Ở BACKEND - cần implement hoặc dùng filter từ getExpenses
    */
   getExpenseById: async (expenseId: string): Promise<Expense> => {
-    // Workaround: Lấy tất cả rồi filter
-    const response = await apiClient.get<Expense[]>('/Payment/expenses')
-    const expense = response.data.find((e: any) => e.id === expenseId)
-    if (!expense) throw new Error('Expense not found')
-    return expense as Expense
+    const response = await apiClient.get<any>(`/Payment/expenses/${expenseId}`)
+    const dto = response.data
+
+    const expenseTypeMapping: { [key: number]: Expense['category'] } = {
+      0: 'Charging', // Fuel -> Charging for EV context
+      1: 'Maintenance',
+      2: 'Insurance',
+      3: 'Registration',
+      4: 'Cleaning',
+      5: 'Other', // Repair
+      6: 'Other', // Upgrade
+      7: 'Parking',
+      8: 'Other', // Toll
+      9: 'Other',
+    }
+
+    return {
+      id: dto.id,
+      vehicleId: dto.vehicleId,
+      category: expenseTypeMapping[dto.expenseType] || 'Other',
+      totalAmount: dto.amount,
+      yourShare: dto.amount, // Placeholder
+      date: dto.dateIncurred,
+      description: dto.description,
+      status: 'Pending', // Placeholder
+      hasReceipt: false, // Placeholder
+      addedBy: dto.createdBy,
+      notes: dto.notes,
+      createdAt: dto.createdAt,
+      updatedAt: dto.createdAt, // Placeholder
+    }
   },
 
   /**
@@ -64,8 +117,51 @@ const expenseService = {
    * Thêm chi phí mới
    */
   createExpense: async (expenseData: CreateExpenseDto): Promise<Expense> => {
-    const response = await apiClient.post<Expense>('/Payment/expenses', expenseData)
-    return response.data
+    
+    const expenseTypeMapping: { [key: string]: number } = {
+      'Charging': 0,
+      'Maintenance': 1,
+      'Insurance': 2,
+      'Registration': 3,
+      'Cleaning': 4,
+      'Other': 9, 
+      'Parking': 7,
+    }
+
+    const backendData = {
+      groupId: expenseData.groupId,
+      vehicleId: expenseData.vehicleId,
+      expenseType: expenseTypeMapping[expenseData.category] ?? 9,
+      amount: expenseData.amount,
+      description: expenseData.description,
+      dateIncurred: expenseData.date,
+      notes: expenseData.notes,
+      isRecurring: expenseData.isRecurring,
+    };
+
+    const response = await apiClient.post<Expense>('/Payment/expenses', backendData)
+    // The response is an ExpenseDto from the backend, we need to map it back to the frontend Expense model
+    const dto = response.data as any;
+
+    const categoryMapping: { [key: number]: Expense['category'] } = {
+        0: 'Charging', 1: 'Maintenance', 2: 'Insurance', 3: 'Registration', 4: 'Cleaning', 5: 'Other', 6: 'Other', 7: 'Parking', 8: 'Other', 9: 'Other',
+    };
+    
+    return {
+      id: dto.id,
+      vehicleId: dto.vehicleId,
+      category: categoryMapping[dto.expenseType] || 'Other',
+      totalAmount: dto.amount,
+      yourShare: dto.amount, // Placeholder
+      date: dto.dateIncurred,
+      description: dto.description,
+      status: 'Pending', // Placeholder
+      hasReceipt: false, // Placeholder
+      addedBy: dto.createdBy,
+      notes: dto.notes,
+      createdAt: dto.createdAt,
+      updatedAt: dto.createdAt, // Placeholder
+    } as Expense;
   },
 
   /**

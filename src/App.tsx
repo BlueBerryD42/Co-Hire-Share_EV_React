@@ -59,6 +59,9 @@ import {
   ReportIssue,
   AiRecommendations,
   SuccessFeedback,
+  ExpensesPayments as BookingExpensesPayments,
+  PaymentScreen as BookingPaymentScreen,
+  AddExpense as BookingAddExpense,
 } from "@/pages/user/booking";
 
 // Group Pages
@@ -226,6 +229,18 @@ const App = () => {
             <Route
               path="/booking/success-feedback"
               element={<SuccessFeedback />}
+            />
+            <Route
+              path="/booking/:bookingId/expenses"
+              element={<BookingExpensesPayments />}
+            />
+            <Route
+              path="/booking/:bookingId/expenses/add"
+              element={<BookingAddExpense />}
+            />
+            <Route
+              path="/booking/:bookingId/payments"
+              element={<BookingPaymentScreen />}
             />
 
             {/* Group Routes - All wrapped in GroupLayout */}

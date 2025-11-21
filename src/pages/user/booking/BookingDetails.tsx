@@ -22,7 +22,7 @@ const formatCurrency = (value?: number | null) => {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "N/A";
   }
-  return `$${value.toFixed(2)}`;
+  return `${value.toLocaleString('vi-VN')} đ`;
 };
 
 const formatDateTime = (iso?: string) =>
@@ -96,6 +96,36 @@ const BookingDetails = () => {
 
   const summaryStats = useMemo(() => {
     if (!booking) return [];
+
+    // Determine trip fee status
+    const isCompleted = booking.status === "Completed";
+    const hasDistance = booking.distanceKm != null && booking.distanceKm > 0;
+    const hasTripFee = booking.tripFeeAmount && booking.tripFeeAmount > 0;
+
+    // Calculate estimated trip fee if not available
+    let displayTripFee = booking.tripFeeAmount || 0;
+    let tripFeeDetail = "";
+
+    if (isCompleted && hasDistance && booking.distanceKm) {
+      // Completed trip with actual distance
+      tripFeeDetail = `Tính từ ${booking.distanceKm.toFixed(1)} km thực tế`;
+    } else if (hasTripFee) {
+      // Has trip fee but not completed
+      tripFeeDetail = "Ước tính - phí cuối cùng tính sau check-out";
+    } else {
+      // No trip fee yet - estimate based on duration
+      const startTime = parseServerIso(booking.startAt).getTime();
+      const endTime = parseServerIso(booking.endAt).getTime();
+      const hours = Math.max((endTime - startTime) / 3_600_000, 0);
+
+      // Estimate: 30 km/hour average speed * 1.5 VND/km
+      const estimatedDistance = hours * 30;
+      const costPerKm = 1.5;
+      displayTripFee = Math.round(estimatedDistance * costPerKm);
+
+      tripFeeDetail = `Ước tính dựa trên ${hours.toFixed(1)}h (${estimatedDistance.toFixed(0)} km @ ${costPerKm} đ/km)`;
+    }
+
     return [
       {
         label: "Duration",
@@ -106,15 +136,15 @@ const BookingDetails = () => {
       },
       {
         label: "Trip fee",
-        value: formatCurrency(booking.tripFeeAmount),
-        detail: "Estimated from booking data",
+        value: formatCurrency(displayTripFee),
+        detail: tripFeeDetail,
       },
       {
-        label: "Distance target",
-        value: booking.distanceKm
+        label: "Distance",
+        value: hasDistance && booking.distanceKm
           ? `${booking.distanceKm.toFixed(1)} km`
-          : "N/A",
-        detail: "Planned distance",
+          : "Chưa ghi nhận",
+        detail: isCompleted ? "Quãng đường thực tế" : "Sẽ được ghi nhận khi check-out",
       },
     ];
   }, [booking]);
@@ -234,6 +264,12 @@ const BookingDetails = () => {
                     {path.replace("/booking/", "").split("-").join(" ")}
                   </Link>
                 ))}
+                <Link
+                  to={`/booking/${booking.id}/expenses`}
+                  className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+                >
+                  Chi phí & Thanh toán
+                </Link>
               </div>
               <div className="mt-4 space-y-3">
                 <label className="text-xs text-black">
@@ -262,9 +298,14 @@ const BookingDetails = () => {
           ) : (
             <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
               <p className="text-xs uppercase text-black">Actions</p>
-              <p className="mt-3 text-sm text-black">
-                No actions available for this booking.
-              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link
+                  to={`/booking/${booking.id}/expenses`}
+                  className="rounded-2xl border border-slate-800 px-4 py-2 text-black"
+                >
+                  Chi phí & Thanh toán
+                </Link>
+              </div>
             </div>
           )}
         </div>

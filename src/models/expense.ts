@@ -66,16 +66,14 @@ export interface ExpenseSummary {
 
 // Create Expense DTO
 export interface CreateExpenseDto {
-  vehicleId: string
-  category: ExpenseCategory
-  amount: number
-  date: string
-  description: string
-  splitMethod: SplitMethod
-  customSplits?: Array<{
-    userId: string
-    percentage: number
-  }>
+  groupId: string;
+  vehicleId?: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
+  description: string;
+  notes?: string;
+  isRecurring?: boolean;
 }
 
 // Payment
