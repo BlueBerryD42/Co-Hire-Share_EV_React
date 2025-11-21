@@ -6,15 +6,35 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import LoadingSpinner from "@/components/ui/Loading";
 
+interface Vehicle {
+  id: string;
+  vin: string;
+  plateNumber: string;
+  model: string;
+  year: number;
+  color?: string | null;
+  status: number | string;
+  lastServiceDate?: string | null;
+  odometer: number;
+  groupId?: string | null;
+  groupName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rejectionReason?: string | null;
+  submittedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+}
+
 const ManageVehicles = () => {
-  const [vehicles, setVehicles] = useState([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
-  const searchTimeoutRef = useRef(null);
+  const searchTimeoutRef = useRef<number | null>(null);
   const isInitialMount = useRef(true);
 
   // Debounced search effect
@@ -84,18 +104,60 @@ const ManageVehicles = () => {
     setAppliedSearch(search);
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      Available: { variant: "success", label: "Available" },
-      InUse: { variant: "primary", label: "In Use" },
-      Maintenance: { variant: "warning", label: "Maintenance" },
-      Inactive: { variant: "error", label: "Inactive" },
+  // Map numeric status to string label
+  const getStatusLabel = (status: number | string): string => {
+    // Handle both numeric and string status values
+    const statusNum =
+      typeof status === "number" ? status : parseInt(String(status), 10);
+
+    const statusMap: Record<number, string> = {
+      0: "Pending Approval",
+      1: "Available",
+      2: "In Use",
+      3: "Maintenance",
+      4: "Unavailable",
+      5: "Rejected",
     };
-    const statusInfo = statusMap[status] || {
-      variant: "default",
-      label: status,
+
+    // If status is a string name, try to match it directly
+    if (isNaN(statusNum) && typeof status === "string") {
+      return status;
+    }
+
+    return statusMap[statusNum] || "Unknown";
+  };
+
+  const getStatusBadge = (status: number | string) => {
+    // Handle both numeric and string status values
+    const statusNum =
+      typeof status === "number" ? status : parseInt(String(status), 10);
+    const statusLabel = getStatusLabel(status);
+
+    // Map numeric status to badge variant
+    const variantMap: Record<number, string> = {
+      0: "default", // Pending Approval
+      1: "success", // Available
+      2: "primary", // In Use
+      3: "warning", // Maintenance
+      4: "error", // Unavailable
+      5: "error", // Rejected
     };
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
+
+    // If status is a string, try to match by label
+    let variant: string = variantMap[statusNum] || "default";
+    if (!variantMap[statusNum] && typeof status === "string") {
+      const stringMap: Record<string, string> = {
+        PendingApproval: "default",
+        Available: "success",
+        InUse: "primary",
+        Maintenance: "warning",
+        Unavailable: "error",
+        Rejected: "error",
+      };
+      variant = stringMap[status] || "default";
+    }
+
+    return <Badge variant={variant || "default"}>{statusLabel}</Badge>;
   };
 
   // Show loading spinner only on initial load
@@ -107,7 +169,9 @@ const ManageVehicles = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-800">Manage Vehicles</h1>
-        <Button variant="accent">Add Vehicle</Button>
+        <Button variant="accent" onClick={() => {}}>
+          Add Vehicle
+        </Button>
       </div>
 
       <Card>
@@ -116,8 +180,11 @@ const ManageVehicles = () => {
             label="Search"
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearch(e.target.value)
+            }
             placeholder="Search by make, model, plate..."
+            error=""
           />
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -125,14 +192,18 @@ const ManageVehicles = () => {
             </label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setStatusFilter(e.target.value)
+              }
               className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-3 text-neutral-700 focus:outline-none focus:border-accent-blue"
             >
               <option value="">All Status</option>
-              <option value="Available">Available</option>
-              <option value="InUse">In Use</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="Inactive">Inactive</option>
+              <option value="0">Pending Approval</option>
+              <option value="1">Available</option>
+              <option value="2">In Use</option>
+              <option value="3">Maintenance</option>
+              <option value="4">Unavailable</option>
+              <option value="5">Rejected</option>
             </select>
           </div>
           <div className="flex items-end">
@@ -176,13 +247,13 @@ const ManageVehicles = () => {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="text-lg font-bold text-neutral-800">
-                            {vehicle.make} {vehicle.model}
+                            {vehicle.model}
                           </h3>
                           <p className="text-sm text-neutral-600">
                             {vehicle.year}
                           </p>
                           <p className="text-sm text-neutral-600">
-                            {vehicle.licensePlate}
+                            {vehicle.plateNumber}
                           </p>
                         </div>
                         {getStatusBadge(vehicle.status)}
@@ -190,19 +261,27 @@ const ManageVehicles = () => {
 
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-neutral-600">
-                            Battery
-                          </span>
+                          <span className="text-sm text-neutral-600">VIN</span>
                           <span className="text-sm font-medium text-neutral-800">
-                            {vehicle.batteryCapacity} kWh
+                            {vehicle.vin}
                           </span>
                         </div>
+                        {vehicle.color && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-600">
+                              Color
+                            </span>
+                            <span className="text-sm font-medium text-neutral-800">
+                              {vehicle.color}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-sm text-neutral-600">
-                            Range
+                            Odometer
                           </span>
                           <span className="text-sm font-medium text-neutral-800">
-                            {vehicle.range} km
+                            {vehicle.odometer.toLocaleString()} km
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -213,27 +292,18 @@ const ManageVehicles = () => {
                             {vehicle.groupName || "N/A"}
                           </span>
                         </div>
-                      </div>
-
-                      <div className="flex gap-2 pt-4 border-t border-neutral-200">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            // View details
-                          }}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          variant="accent"
-                          size="sm"
-                          onClick={() => {
-                            // Edit vehicle
-                          }}
-                        >
-                          Edit
-                        </Button>
+                        {vehicle.lastServiceDate && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-600">
+                              Last Service
+                            </span>
+                            <span className="text-sm font-medium text-neutral-800">
+                              {new Date(
+                                vehicle.lastServiceDate
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>
