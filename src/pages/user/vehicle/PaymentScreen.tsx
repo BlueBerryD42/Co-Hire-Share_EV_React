@@ -167,11 +167,10 @@ const PaymentScreen = () => {
                 {paymentMethods.map((method) => (
                   <label
                     key={method.id}
-                    className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedMethod === method.id
+                    className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method.id
                         ? 'border-primary bg-primary/5'
                         : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -281,10 +280,11 @@ const PaymentScreen = () => {
                 onClick={handlePayment}
                 loading={processing}
                 disabled={processing}
-                className="mt-6"
+                className="mt-6 !text-black"
               >
                 {processing ? 'Đang xử lý...' : `Thanh toán ${finalAmount.toLocaleString()} đ`}
               </Button>
+
 
               {/* Terms */}
               <p className="text-xs text-neutral-600 text-center mt-4">
