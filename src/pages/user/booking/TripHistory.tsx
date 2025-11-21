@@ -54,10 +54,10 @@ const formatDateTime = (iso?: string) =>
 
 const getStatusBadgeClass = (status: TripStatus) => {
   const map: Record<TripStatus, string> = {
-    Completed: "bg-amber-50 text-black",
-    Cancelled: "bg-amber-50 text-black",
+    Completed: "bg-[#f5ebe0] text-black",
+    Cancelled: "bg-[#f5ebe0] text-black",
   };
-  return map[status] ?? "bg-amber-50 text-black";
+  return map[status] ?? "bg-[#f5ebe0] text-black";
 };
 
 const buildHistoryCards = (entries: BookingHistoryEntryDto[]) =>
@@ -134,7 +134,7 @@ const TripHistory = () => {
   );
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <h1 className="text-4xl font-semibold text-black">Trip history</h1>
       </header>
@@ -143,7 +143,7 @@ const TripHistory = () => {
         {["Date", "Vehicle", "Status"].map((label) => (
           <label key={label} className="space-y-2 text-sm text-black">
             <span>{label}</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
               <option>All</option>
               <option>Option A</option>
               <option>Option B</option>
@@ -166,7 +166,7 @@ const TripHistory = () => {
         {cards.map((trip) => (
           <article
             key={trip.id}
-            className="rounded-3xl border border-slate-800 bg-amber-50 p-6"
+            className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6"
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
@@ -188,17 +188,17 @@ const TripHistory = () => {
             </div>
 
             <div className="mt-4 grid gap-4 text-sm text-black md:grid-cols-3">
-              <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4">
                 <p className="text-xs uppercase text-black">Check-in</p>
                 <p>Odo {trip.checkIn.odo}</p>
                 <p>{trip.checkIn.time}</p>
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4">
                 <p className="text-xs uppercase text-black">Check-out</p>
                 <p>Odo {trip.checkOut.odo}</p>
                 <p>{trip.checkOut.time}</p>
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4">
                 <p className="text-xs uppercase text-black">Cost</p>
                 <p className="text-2xl font-semibold text-black">{trip.cost}</p>
                 {trip.issues.length > 0 ? (

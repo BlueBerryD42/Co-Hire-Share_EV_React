@@ -46,6 +46,9 @@ import {
   CompleteMaintenance,
 } from "@/pages/user/vehicle";
 
+// Payment Pages
+import PaymentCallback from "@/pages/user/payment/PaymentCallback";
+
 // Booking Pages
 import {
   BookingHub,
@@ -166,6 +169,8 @@ const App = () => {
           <Route element={<MainLayout />}>
             {/* Home Dashboard */}
             <Route path="/home" element={<Home />} />
+            {/* Payment Callback - No layout needed for redirect page */}
+            <Route path="/payment/callback" element={<PaymentCallback />} />
 
             {/* KYC Verification */}
             <Route path="/kyc-verification" element={<KycVerification />} />

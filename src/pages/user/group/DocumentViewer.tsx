@@ -26,12 +26,13 @@ import {
   LinearProgress,
   Tooltip,
   Avatar,
+  Menu,
+  MenuItem,
 } from '@mui/material'
 import {
   ArrowBack as ArrowBackIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
-  Share as ShareIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   NavigateBefore as NavigateBeforeIcon,
@@ -42,9 +43,15 @@ import {
   Cancel as CancelIcon,
   History as HistoryIcon,
   Notifications as NotificationsIcon,
+  CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon,
+  EditNote as EditNoteIcon,
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import SendForSigningDialog from '@/components/group/SendForSigningDialog'
+import DocumentVersionHistory from '@/components/group/DocumentVersionHistory'
+import UploadNewVersionDialog from '@/components/group/UploadNewVersionDialog'
 import {
   type DocumentDetailResponse,
   type DocumentSignatureStatusResponse,
@@ -76,8 +83,10 @@ export default function DocumentViewer() {
   const [totalPages, setTotalPages] = useState(1)
 
   // Dialog states
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
+  const [uploadVersionOpen, setUploadVersionOpen] = useState(false)
+  const [versionMenuAnchor, setVersionMenuAnchor] = useState<null | HTMLElement>(null)
 
   useEffect(() => {
     if (documentId) {
@@ -178,6 +187,41 @@ export default function DocumentViewer() {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
   }
 
+  const handleVersionMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setVersionMenuAnchor(event.currentTarget)
+  }
+
+  const handleVersionMenuClose = () => {
+    setVersionMenuAnchor(null)
+  }
+
+  const handleViewVersionHistory = () => {
+    setVersionMenuAnchor(null)
+    setVersionHistoryOpen(true)
+  }
+
+  const handleUploadNewVersion = () => {
+    setVersionMenuAnchor(null)
+    setUploadVersionOpen(true)
+  }
+
+  const handleDeleteDocument = async () => {
+    if (!documentId) return
+
+    if (!window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await documentApi.deleteDocument(documentId as UUID)
+      setVersionMenuAnchor(null)
+      navigate(`/groups/${groupId}/documents`)
+    } catch (err: any) {
+      console.error('Error deleting document:', err)
+      setError(err.response?.data?.error || 'Failed to delete document')
+    }
+  }
+
   const renderSignatureTimeline = () => {
     if (!signatureStatus) return null
 
@@ -253,11 +297,6 @@ export default function DocumentViewer() {
                       {sig.signedAt && (
                         <Typography variant="caption" display="block" color="text.secondary">
                           Signed on {new Date(sig.signedAt).toLocaleString()}
-                        </Typography>
-                      )}
-                      {signatureStatus.signingMode === SigningMode.Sequential && (
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          Order: {sig.signatureOrder}
                         </Typography>
                       )}
                     </Box>
@@ -419,27 +458,6 @@ export default function DocumentViewer() {
             </Typography>
           </Box>
         </Stack>
-
-        <Divider sx={{ my: 3 }} />
-
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<HistoryIcon />}
-          sx={{ mb: 1, borderColor: '#7a9b76', color: '#7a9b76' }}
-        >
-          View Version History
-        </Button>
-
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<ShareIcon />}
-          onClick={() => setShareDialogOpen(true)}
-          sx={{ borderColor: '#7a9b76', color: '#7a9b76' }}
-        >
-          Share Document
-        </Button>
       </Box>
     )
   }
@@ -468,43 +486,58 @@ export default function DocumentViewer() {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+    <Box sx={{
+      display: 'flex',
+      height: 'calc(100vh - 64px)',
+      overflow: 'hidden',
+      width: 'calc(100% + 48px)',
+      margin: '-24px',
+      marginRight: 0,
+      marginTop: 0,
+    }}>
       {/* Main PDF Viewer Area */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
+      <Box sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: '#f5f5f5',
+        minWidth: 0,
+        overflow: 'hidden'
+      }}>
         {/* Toolbar */}
-        <Paper sx={{ p: 2, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Paper sx={{ p: 2, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, overflow: 'hidden' }}>
             <IconButton onClick={() => navigate(`/groups/${groupId}/documents`)}>
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h6" noWrap sx={{ maxWidth: 400 }}>
+            <Typography variant="h6" noWrap sx={{ maxWidth: { xs: 200, sm: 300, md: 400 } }}>
               {documentData.fileName}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
             {/* Page Navigation */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <IconButton size="small" onClick={handlePreviousPage} disabled={currentPage === 1}>
-                <NavigateBeforeIcon />
+                <NavigateBeforeIcon fontSize="small" />
               </IconButton>
-              <Typography variant="body2">
-                {currentPage} / {totalPages}
+              <Typography variant="caption" sx={{ fontSize: '0.75rem', minWidth: 40, textAlign: 'center' }}>
+                {currentPage}/{totalPages}
               </Typography>
               <IconButton size="small" onClick={handleNextPage} disabled={currentPage === totalPages}>
-                <NavigateNextIcon />
+                <NavigateNextIcon fontSize="small" />
               </IconButton>
             </Box>
 
             {/* Zoom Controls */}
-            <IconButton onClick={handleZoomOut} disabled={zoom <= 50}>
-              <ZoomOutIcon />
+            <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 50}>
+              <ZoomOutIcon fontSize="small" />
             </IconButton>
-            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', minWidth: 60, justifyContent: 'center' }}>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', minWidth: 45, textAlign: 'center' }}>
               {zoom}%
             </Typography>
-            <IconButton onClick={handleZoomIn} disabled={zoom >= 200}>
-              <ZoomInIcon />
+            <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 200}>
+              <ZoomInIcon fontSize="small" />
             </IconButton>
 
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
@@ -520,13 +553,68 @@ export default function DocumentViewer() {
                 <PrintIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Share">
-              <IconButton onClick={() => setShareDialogOpen(true)}>
-                <ShareIcon />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+            {/* Version Control Button */}
+            <Tooltip title="Version Control">
+              <IconButton
+                onClick={handleVersionMenuClick}
+                sx={{
+                  bgcolor: versionMenuAnchor ? '#7a9b76' : 'transparent',
+                  color: versionMenuAnchor ? 'white' : 'inherit',
+                  '&:hover': {
+                    bgcolor: versionMenuAnchor ? '#6a8b66' : 'rgba(122, 155, 118, 0.1)',
+                  },
+                }}
+              >
+                <HistoryIcon />
               </IconButton>
             </Tooltip>
           </Box>
         </Paper>
+
+        {/* Version Control Menu */}
+        <Menu
+          anchorEl={versionMenuAnchor}
+          open={Boolean(versionMenuAnchor)}
+          onClose={handleVersionMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={handleViewVersionHistory}>
+            <ListItemIcon>
+              <HistoryIcon fontSize="small" sx={{ color: '#7a9b76' }} />
+            </ListItemIcon>
+            <ListItemText>View Version History</ListItemText>
+          </MenuItem>
+
+          {/* Only show Upload New Version if document is not in signing process */}
+          {(!signatureStatus ||
+            signatureStatus.status === SignatureStatus.Draft ||
+            signatureStatus.status === SignatureStatus.Cancelled ||
+            signatureStatus.status === SignatureStatus.Expired) && [
+            <MenuItem key="upload" onClick={handleUploadNewVersion}>
+              <ListItemIcon>
+                <UploadIcon fontSize="small" sx={{ color: '#7a9b76' }} />
+              </ListItemIcon>
+              <ListItemText>Upload New Version</ListItemText>
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem key="delete" onClick={handleDeleteDocument} sx={{ color: '#b87d6f' }}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" sx={{ color: '#b87d6f' }} />
+              </ListItemIcon>
+              <ListItemText>Delete Document</ListItemText>
+            </MenuItem>
+          ]}
+        </Menu>
 
         {/* PDF Display Area */}
         <Box
@@ -535,18 +623,22 @@ export default function DocumentViewer() {
             overflow: 'auto',
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center',
-            p: 3,
+            alignItems: 'flex-start',
+            p: 0.5,
+            pr: 0,
+            bgcolor: '#e0e0e0',
+            minHeight: 0,
           }}
         >
           {pdfUrl ? (
             <iframe
               src={pdfUrl}
               style={{
-                width: `${zoom}%`,
+                width: zoom === 100 ? '100%' : `${zoom}%`,
+                maxWidth: '100%',
                 height: '100%',
                 border: 'none',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                backgroundColor: 'white',
               }}
               title="PDF Viewer"
             />
@@ -562,35 +654,61 @@ export default function DocumentViewer() {
         variant="persistent"
         open={drawerOpen}
         sx={{
-          width: 350,
+          width: { xs: 280, sm: 300, md: 340 },
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: 350,
+            width: { xs: 280, sm: 300, md: 340 },
             boxSizing: 'border-box',
             position: 'relative',
             height: '100%',
           },
         }}
       >
-        <Box sx={{ p: 3, overflow: 'auto' }}>
+        <Box sx={{ p: 2, overflow: 'auto', height: '100%' }}>
           {renderDocumentInfo()}
           {renderSignatureTimeline()}
         </Box>
       </Drawer>
 
       {/* Send for Signing Dialog */}
-      <SendForSigningDialog
-        open={signDialogOpen}
-        onClose={() => setSignDialogOpen(false)}
-        documentId={documentId as UUID}
-        groupId={groupId as UUID}
-        onSuccess={() => {
-          fetchDocument()
-          fetchSignatureStatus()
-        }}
-      />
+      {documentData && (
+        <SendForSigningDialog
+          open={signDialogOpen}
+          onClose={() => setSignDialogOpen(false)}
+          documentId={documentId as UUID}
+          groupId={groupId as UUID}
+          documentType={documentData.type}
+          onSuccess={() => {
+            fetchDocument()
+            fetchSignatureStatus()
+          }}
+        />
+      )}
 
-      {/* TODO: Add Share Dialog */}
+      {/* Version History Dialog */}
+      {documentId && (
+        <DocumentVersionHistory
+          documentId={documentId as UUID}
+          open={versionHistoryOpen}
+          onClose={() => setVersionHistoryOpen(false)}
+          allowDelete={true}
+        />
+      )}
+
+      {/* Upload New Version Dialog */}
+      {documentId && documentData && (
+        <UploadNewVersionDialog
+          documentId={documentId as UUID}
+          documentName={documentData.fileName}
+          open={uploadVersionOpen}
+          onClose={() => setUploadVersionOpen(false)}
+          onSuccess={() => {
+            fetchDocument()
+            fetchSignatureStatus()
+            loadPdfPreview()
+          }}
+        />
+      )}
     </Box>
   )
 }

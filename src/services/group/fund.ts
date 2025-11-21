@@ -9,10 +9,13 @@ import type {
   FundTransactionHistoryDto,
   ReleaseReserveDto,
   WithdrawFundDto,
+  CreateFundDepositPaymentDto,
+  FundDepositPaymentResponse,
 } from '@/models/fund'
-import type { ISODate, UUID } from '@/models/booking'
+import type { UUID } from '@/models/booking'
 
 const http = createApiClient('/api/fund')
+const paymentHttp = createApiClient('/api/payment')
 
 export const fundApi = {
   async getBalance(groupId: UUID) {
@@ -49,6 +52,29 @@ export const fundApi = {
 
   async getSummary(groupId: UUID, period: string) {
     const { data } = await http.get<FundSummaryDto>(`/${groupId}/summary/${period}`)
+    return data
+  },
+
+  async createDepositPayment(groupId: UUID, payload: CreateFundDepositPaymentDto) {
+    const { data } = await paymentHttp.post<FundDepositPaymentResponse>(
+      `/fund/${groupId}/deposit-vnpay`,
+      payload
+    )
+    return data
+  },
+
+  async approveWithdrawal(groupId: UUID, transactionId: UUID) {
+    const { data } = await http.post<FundTransactionDto>(
+      `/${groupId}/withdrawals/${transactionId}/approve`
+    )
+    return data
+  },
+
+  async rejectWithdrawal(groupId: UUID, transactionId: UUID, reason?: string) {
+    const { data } = await http.post<FundTransactionDto>(
+      `/${groupId}/withdrawals/${transactionId}/reject`,
+      reason ? { reason } : undefined
+    )
     return data
   },
 }

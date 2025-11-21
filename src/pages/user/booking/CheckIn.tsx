@@ -34,7 +34,7 @@ const HistoryTable = ({
   title: string;
   records: CheckInDto[];
 }) => (
-  <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+  <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
     <p className="text-xs uppercase tracking-wide text-black">{title}</p>
     {records.length === 0 ? (
       <p className="py-3 text-center text-xs text-black">Chưa có dữ liệu</p>
@@ -273,7 +273,7 @@ const CheckIn = () => {
   };
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Trip tools</p>
         <h1 className="text-4xl font-semibold text-black">Vehicle check-in</h1>
@@ -282,7 +282,7 @@ const CheckIn = () => {
         </p>
       </header>
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4">
         <p className="text-sm font-semibold text-black">
           Sync booking from API
         </p>
@@ -290,7 +290,7 @@ const CheckIn = () => {
           <input
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
-            className="flex-1 rounded-2xl border border-slate-700 bg-amber-50 px-4 py-2 text-sm"
+            className="flex-1 rounded-2xl border border-slate-700 bg-[#f5ebe0] px-4 py-2 text-sm"
             placeholder="Enter BookingId (GUID)"
           />
           <button
@@ -312,16 +312,16 @@ const CheckIn = () => {
       </div>
       {historyMessage && <p className="text-xs text-black">{historyMessage}</p>}
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
         <div className="flex flex-wrap gap-3 text-xs uppercase tracking-wide text-black">
           {stepLabels.map((label, index) => {
             const status = resolveStepStatus(index);
             const badgeClass =
               status === "done"
-                ? "bg-amber-100 text-black border border-slate-700"
+                ? "bg-[#ede0d4] text-black border border-slate-700"
                 : status === "current"
                 ? "bg-brand/30 text-black border border-brand"
-                : "bg-amber-50 text-black border border-slate-400";
+                : "bg-[#f5ebe0] text-black border border-slate-400";
             return (
               <span
                 key={label}
@@ -361,7 +361,7 @@ const CheckIn = () => {
             }
             footerSlot={
               booking && (
-                <div className="rounded-2xl border border-dashed border-slate-500 bg-amber-50/80 p-3 text-xs text-black">
+                <div className="rounded-2xl border border-dashed border-slate-500 bg-[#f5ebe0]/80 p-3 text-xs text-black">
                   {bookingIsReadOnly ? (
                     <p className="text-sm text-rose-600">
                       Booking đã hoàn tất hoặc bị hủy — không thể Check-in hoặc

@@ -44,7 +44,7 @@ const SuccessFeedback = () => {
   }, []);
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 68</p>
         <h1 className="text-4xl font-semibold text-black">
@@ -56,11 +56,11 @@ const SuccessFeedback = () => {
       </header>
 
       <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
           <p className="text-sm font-semibold text-black">
             1. Toast notification
           </p>
-          <div className="mt-4 inline-flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-black">
+          <div className="mt-4 inline-flex items-center gap-3 rounded-2xl bg-[#f5ebe0] px-4 py-3 text-sm text-black">
             <span className="text-2xl">✓</span>
             <div>
               <p className="font-semibold">{toastMessage}</p>
@@ -69,10 +69,10 @@ const SuccessFeedback = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
           <p className="text-sm font-semibold text-black">2. Success modal</p>
-          <div className="mt-4 rounded-3xl border border-emerald-500/30 bg-amber-50 p-6 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-2xl text-black">
+          <div className="mt-4 rounded-3xl border border-emerald-500/30 bg-[#f5ebe0] p-6 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#f5ebe0] text-2xl text-black">
               ✓
             </div>
             <h2 className="text-2xl font-semibold text-black">Success</h2>
@@ -100,9 +100,9 @@ const SuccessFeedback = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
           <p className="text-sm font-semibold text-black">3. Inline success</p>
-          <div className="mt-4 space-y-3 rounded-2xl border border-emerald-500/30 bg-amber-50 px-4 py-3 text-sm text-black">
+          <div className="mt-4 space-y-3 rounded-2xl border border-emerald-500/30 bg-[#f5ebe0] px-4 py-3 text-sm text-black">
             <p className="font-semibold">
               {latestBooking
                 ? `${latestBooking.vehicleModel} validated`
@@ -118,9 +118,9 @@ const SuccessFeedback = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
           <p className="text-sm font-semibold text-black">4. Banner success</p>
-          <div className="mt-4 rounded-2xl bg-amber-50 px-5 py-4 text-sm text-black">
+          <div className="mt-4 rounded-2xl bg-[#f5ebe0] px-5 py-4 text-sm text-black">
             <div className="flex items-center justify-between">
               <p>Your documents are verified.</p>
               <button type="button" className="text-xs text-black">
