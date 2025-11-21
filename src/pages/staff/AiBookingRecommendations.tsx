@@ -191,7 +191,7 @@ const AiBookingRecommendations = () => {
             </select>
           </div>
           <Button
-            variant="accent"
+            variant="primary"
             onClick={handleGetRecommendations}
             disabled={initialLoading}
           >

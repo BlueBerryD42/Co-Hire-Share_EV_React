@@ -49,11 +49,6 @@ interface FilterParams extends Record<string, unknown> {
 
 const KycDocumentReview = () => {
   const { user } = useAppSelector((state) => state.auth);
-  
-  // Role check - SystemAdmin only
-  if (!isSystemAdmin(user)) {
-    return <Unauthorized requiredRole="SystemAdmin" />;
-  }
 
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -85,9 +80,27 @@ const KycDocumentReview = () => {
     fetchPendingKycUsers();
   }, [currentPage, statusFilter, documentTypeFilter, sortBy, sortDirection]);
 
-  // Convert status string to enum number
+  // Convert status string to enum number for User KYC Status
+  // KycStatus (user-level): Pending=0, InReview=1, Approved=2, Rejected=3
+  const convertUserKycStatusToEnum = (status: string): number | null => {
+    switch (status) {
+      case "Pending":
+        return 0; // KycStatus.Pending
+      case "InReview":
+      case "UnderReview": // Map UnderReview to InReview for user status
+        return 1; // KycStatus.InReview
+      case "Approved":
+        return 2; // KycStatus.Approved
+      case "Rejected":
+        return 3; // KycStatus.Rejected
+      default:
+        return null;
+    }
+  };
+
+  // Convert status string to enum number for Document Status
   // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
-  const convertStatusToEnum = (status: string): number | null => {
+  const convertDocumentStatusToEnum = (status: string): number | null => {
     switch (status) {
       case "Pending":
         return 0;
@@ -121,8 +134,31 @@ const KycDocumentReview = () => {
       return numStatus;
     }
 
-    // If string name, convert using convertStatusToEnum
-    return convertStatusToEnum(status);
+    // If string name, convert using convertDocumentStatusToEnum (for document status)
+    return convertDocumentStatusToEnum(status);
+  };
+
+  // Normalize user KYC status to number (handles string, number, or string number)
+  // Kept for potential future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const normalizeUserKycStatusToNumber = (
+    status: string | number | undefined | null
+  ): number | null => {
+    if (status === null || status === undefined) return null;
+
+    // If already a number, return it
+    if (typeof status === "number") {
+      return status;
+    }
+
+    // If string number ("0", "1", "2", etc.), parse it
+    const numStatus = parseInt(status, 10);
+    if (!isNaN(numStatus)) {
+      return numStatus;
+    }
+
+    // If string name, convert using convertUserKycStatusToEnum
+    return convertUserKycStatusToEnum(status);
   };
 
   // Convert document type string to enum number
@@ -156,13 +192,9 @@ const KycDocumentReview = () => {
 
     if (searchTerm) params.search = searchTerm;
 
-    // Convert status string to enum number
-    if (statusFilter) {
-      const statusEnum = convertStatusToEnum(statusFilter);
-      if (statusEnum !== null) {
-        params.status = statusEnum;
-      }
-    }
+    // Note: We filter by user KYC status on frontend, not document status
+    // Backend filter is for document status, but we want to filter by user status
+    // So we don't send status filter to backend, we'll filter on frontend
 
     // Convert document type string to enum number
     if (documentTypeFilter) {
@@ -186,19 +218,69 @@ const KycDocumentReview = () => {
       const data = response.data;
       let filteredUsers = data.users || [];
 
-      // Apply client-side filtering for status and documentType
-      // Backend may return all users, so we need to filter on frontend
+      // Calculate user status based on documents
+      // Logic: If any document is Pending → user is Pending
+      //        If all documents are Approved → user is Approved
+      //        Otherwise → user is InReview
+      const calculateUserStatusFromDocuments = (
+        documents: Document[]
+      ): number => {
+        if (!documents || documents.length === 0) {
+          return 0; // Pending if no documents
+        }
+
+        const docStatuses = documents.map((doc) =>
+          normalizeStatusToNumber(doc.status)
+        );
+
+        // If any document is Pending → user is Pending
+        if (docStatuses.some((status) => status === 0)) {
+          return 0; // Pending
+        }
+
+        // If any document is Rejected → user is Rejected
+        if (docStatuses.some((status) => status === 3)) {
+          return 3; // Rejected
+        }
+
+        // If any document requires update → user is Pending
+        if (docStatuses.some((status) => status === 4)) {
+          return 0; // Pending (RequiresUpdate → treat as Pending)
+        }
+
+        // If all documents are Approved → user is Approved
+        if (docStatuses.every((status) => status === 2)) {
+          return 2; // Approved
+        }
+
+        // Otherwise → user is InReview
+        return 1; // InReview
+      };
+
+      // Update user status based on documents before filtering
+      filteredUsers = filteredUsers.map((user: User) => {
+        const calculatedStatus = calculateUserStatusFromDocuments(
+          user.documents || []
+        );
+        return {
+          ...user,
+          kycStatus: String(calculatedStatus), // Update user status based on documents
+        };
+      });
+
+      // Apply client-side filtering for document status and documentType
+      // Filter by document status: show users that have at least one document with matching status
       if (statusFilter) {
-        const statusEnum = convertStatusToEnum(statusFilter);
-        if (statusEnum !== null) {
+        const docStatusEnum = convertDocumentStatusToEnum(statusFilter);
+        if (docStatusEnum !== null) {
           // Filter users that have at least one document with matching status
           filteredUsers = filteredUsers.filter((user: User) => {
             if (!user.documents || user.documents.length === 0) {
-              return false; // Exclude users with no documents
+              return false;
             }
             return user.documents.some((doc: Document) => {
               const docStatus = normalizeStatusToNumber(doc.status);
-              return docStatus === statusEnum;
+              return docStatus === docStatusEnum;
             });
           });
 
@@ -208,7 +290,7 @@ const KycDocumentReview = () => {
             documents:
               user.documents?.filter((doc: Document) => {
                 const docStatus = normalizeStatusToNumber(doc.status);
-                return docStatus === statusEnum;
+                return docStatus === docStatusEnum;
               }) || [],
           }));
         }
@@ -277,16 +359,53 @@ const KycDocumentReview = () => {
       // KycDocumentStatus: Pending=0, UnderReview=1, Approved=2, Rejected=3, RequiresUpdate=4
       const statusEnum = parseInt(status, 10);
 
-      await adminApi.reviewKycDocument(documentId, {
+      const response = await adminApi.reviewKycDocument(documentId, {
         status: statusEnum,
         reviewNotes: notes,
       });
-      await fetchPendingKycUsers();
+
+      // Update selectedUser's document with the response data
       if (selectedUser) {
-        // Refresh selected user data
-        const updatedUser = users.find((u) => u.id === selectedUser.id);
-        if (updatedUser) setSelectedUser(updatedUser);
+        const responseData = response.data;
+        // Handle both PascalCase and camelCase response formats
+        const updatedStatus =
+          responseData.Status ?? responseData.status ?? statusEnum;
+        const updatedReviewNotes =
+          responseData.ReviewNotes ?? responseData.reviewNotes ?? notes;
+        const updatedReviewedAt =
+          responseData.ReviewedAt ??
+          responseData.reviewedAt ??
+          new Date().toISOString();
+
+        const updatedDocuments = selectedUser.documents.map((doc) =>
+          doc.id === documentId
+            ? {
+                ...doc,
+                status: String(updatedStatus),
+                reviewNotes: updatedReviewNotes,
+                reviewedAt: updatedReviewedAt,
+              }
+            : doc
+        );
+
+        // Update selectedUser with new document status
+        setSelectedUser({
+          ...selectedUser,
+          documents: updatedDocuments,
+        });
       }
+
+      await fetchPendingKycUsers();
+
+      // If user is still in the list, update from the list; otherwise keep the updated selectedUser
+      if (selectedUser) {
+        const updatedUser = users.find((u) => u.id === selectedUser.id);
+        if (updatedUser) {
+          setSelectedUser(updatedUser);
+        }
+        // If user is not in the list (e.g., all documents approved), keep the updated selectedUser
+      }
+
       setShowReviewModal(false);
       setSnackbar({
         open: true,
@@ -319,7 +438,38 @@ const KycDocumentReview = () => {
         status: statusEnum,
         reviewNotes: notes,
       });
+
+      // Update selectedUser's documents with the new status
+      if (selectedUser) {
+        const updatedDocuments = selectedUser.documents.map((doc) =>
+          documentIds.includes(doc.id)
+            ? {
+                ...doc,
+                status: String(statusEnum),
+                reviewNotes: notes,
+                reviewedAt: new Date().toISOString(),
+              }
+            : doc
+        );
+
+        // Update selectedUser with new document statuses
+        setSelectedUser({
+          ...selectedUser,
+          documents: updatedDocuments,
+        });
+      }
+
       await fetchPendingKycUsers();
+
+      // If user is still in the list, update from the list; otherwise keep the updated selectedUser
+      if (selectedUser) {
+        const updatedUser = users.find((u) => u.id === selectedUser.id);
+        if (updatedUser) {
+          setSelectedUser(updatedUser);
+        }
+        // If user is not in the list (e.g., all documents approved), keep the updated selectedUser
+      }
+
       setShowReviewModal(false);
       setSnackbar({
         open: true,
@@ -437,6 +587,11 @@ const KycDocumentReview = () => {
         return "default";
     }
   };
+
+  // Role check - SystemAdmin only
+  if (!isSystemAdmin(user)) {
+    return <Unauthorized requiredRole="SystemAdmin" />;
+  }
 
   return (
     <div className="space-y-6">

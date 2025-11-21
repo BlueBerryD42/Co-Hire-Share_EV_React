@@ -114,7 +114,7 @@ const PredictiveMaintenance = () => {
                 </p>
               )}
               <Button
-                variant="accent"
+                variant="primary"
                 onClick={handleViewMaintenance}
                 disabled={!selectedVehicleId}
               >
@@ -136,7 +136,7 @@ const PredictiveMaintenance = () => {
       <div className="text-center py-12">
         <p className="text-accent-terracotta">{error}</p>
         <Button
-          variant="accent"
+          variant="primary"
           onClick={fetchPredictiveMaintenance}
           className="mt-4"
         >
@@ -293,7 +293,7 @@ const PredictiveMaintenance = () => {
                     </p>
                     <div className="flex gap-2 mt-4">
                       <Button
-                        variant="accent"
+                        variant="primary"
                         size="sm"
                         onClick={() => {
                           // Schedule maintenance
@@ -348,7 +348,7 @@ const PredictiveMaintenance = () => {
                     </Badge>
                   </div>
                   <Button
-                    variant="accent"
+                    variant="primary"
                     size="sm"
                     onClick={() => {
                       // Schedule bundle

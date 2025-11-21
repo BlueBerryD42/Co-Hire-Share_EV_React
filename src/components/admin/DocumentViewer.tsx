@@ -218,7 +218,7 @@ const DocumentViewer = ({
             </div>
           )}
           {isImage ? (
-            imageError ? (
+            !loading && imageError ? (
               <div className="text-center p-8 max-w-md">
                 <div className="mb-4 text-neutral-400">
                   <svg
@@ -252,7 +252,7 @@ const DocumentViewer = ({
                   </Button>
                 )}
               </div>
-            ) : (
+            ) : !loading ? (
               <img
                 src={imageUrl}
                 alt={fileName}
@@ -268,7 +268,7 @@ const DocumentViewer = ({
                   setImageError(true);
                 }}
               />
-            )
+            ) : null
           ) : isPdf ? (
             <iframe
               src={imageUrl}
