@@ -9,12 +9,15 @@ import {
   DialogTitle,
   Snackbar,
   TextField,
+  Chip,
 } from '@mui/material'
-import { AddCircle, Payments, Download } from '@mui/icons-material'
+import { AddCircle, Payments, Download, CheckCircle, Cancel } from '@mui/icons-material'
 import type { UUID } from '@/models/booking'
 import { useFundBalance, useFundTransactions } from '@/hooks/useFund'
 import { useGroup } from '@/hooks/useGroups'
 import { fundApi } from '@/services/group/fund'
+import { useAppSelector } from '@/store/hooks'
+import type { FundTransactionStatus } from '@/models/fund'
 
 type FundAction = 'deposit' | 'withdraw'
 
@@ -33,6 +36,7 @@ const SharedFund = () => {
     loading: txLoading,
     reload: reloadTransactions,
   } = useFundTransactions(groupId, 1, 8)
+  const { user } = useAppSelector((state) => state.auth)
 
   const [dialog, setDialog] = useState<{ type: FundAction | null }>({ type: null })
   const [formValues, setFormValues] = useState(initialFormState)
@@ -59,6 +63,21 @@ const SharedFund = () => {
     }))
   }, [balance])
 
+  // Check if current user is group admin
+  const isGroupAdmin = useMemo(() => {
+    if (!group || !user?.id) return false
+    const currentUserMember = group.members.find((m) => m.userId === user.id)
+    return currentUserMember?.roleInGroup === 'Admin'
+  }, [group, user])
+
+  // Get pending withdrawals
+  const pendingWithdrawals = useMemo(() => {
+    if (!transactions?.transactions) return []
+    return transactions.transactions.filter(
+      (tx) => tx.type === 'Withdrawal' && tx.status === 'Pending'
+    )
+  }, [transactions])
+
   const handleOpenDialog = (type: FundAction) => {
     setDialog({ type })
     setFormValues(initialFormState)
@@ -82,11 +101,24 @@ const SharedFund = () => {
     setSubmitting(true)
     try {
       if (dialog.type === 'deposit') {
-        await fundApi.deposit(groupId, {
+        // Always use VNPay for fund deposits (no manual deposits allowed)
+        const paymentResponse = await fundApi.createDepositPayment(groupId, {
+          groupId,
           amount: amountNumber,
           description: formValues.description || 'Nạp quỹ',
           reference: formValues.reference,
         })
+        
+        // Store deposit info for callback handling
+        sessionStorage.setItem('pendingFundDeposit', JSON.stringify({
+          groupId,
+          amount: amountNumber,
+          orderId: paymentResponse.orderId,
+        }))
+        
+        // Redirect to VNPay
+        window.location.href = paymentResponse.paymentUrl
+        return // Don't close dialog yet, redirect happens
       } else {
         await fundApi.withdraw(groupId, {
           amount: amountNumber,
@@ -105,6 +137,50 @@ const SharedFund = () => {
       setSnackbar({
         open: true,
         message: submitError instanceof Error ? submitError.message : 'Có lỗi xảy ra',
+        severity: 'error',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleApproveWithdrawal = async (transactionId: UUID) => {
+    if (!groupId) return
+    setSubmitting(true)
+    try {
+      await fundApi.approveWithdrawal(groupId, transactionId)
+      setSnackbar({
+        open: true,
+        message: 'Đã phê duyệt yêu cầu rút quỹ',
+        severity: 'success',
+      })
+      await Promise.all([reload(), reloadTransactions()])
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Không thể phê duyệt yêu cầu rút quỹ',
+        severity: 'error',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRejectWithdrawal = async (transactionId: UUID) => {
+    if (!groupId) return
+    setSubmitting(true)
+    try {
+      await fundApi.rejectWithdrawal(groupId, transactionId)
+      setSnackbar({
+        open: true,
+        message: 'Đã từ chối yêu cầu rút quỹ',
+        severity: 'success',
+      })
+      await Promise.all([reload(), reloadTransactions()])
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Không thể từ chối yêu cầu rút quỹ',
         severity: 'error',
       })
     } finally {
@@ -223,6 +299,76 @@ const SharedFund = () => {
         </div>
       </section>
 
+      {/* Pending Withdrawals Section - Only visible to group admins */}
+      {isGroupAdmin && pendingWithdrawals.length > 0 && (
+        <section className="card space-y-4 border-2 border-amber-200 bg-amber-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-neutral-900">
+                Yêu cầu rút quỹ chờ phê duyệt
+              </h2>
+              <p className="text-sm text-neutral-600 mt-1">
+                Có {pendingWithdrawals.length} yêu cầu đang chờ phê duyệt
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {pendingWithdrawals.map((tx) => (
+              <div
+                key={tx.id}
+                className="rounded-lg border border-amber-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Chip
+                        label="Chờ phê duyệt"
+                        color="warning"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                      <span className="text-sm text-neutral-500">
+                        {new Date(tx.transactionDate).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                    <p className="font-semibold text-lg text-neutral-900 mb-1">
+                      {currency.format(tx.amount)}
+                    </p>
+                    <p className="text-sm text-neutral-600 mb-2">{tx.description}</p>
+                    <p className="text-xs text-neutral-500">
+                      Người yêu cầu: {tx.initiatorName}
+                      {tx.reference && ` · Người nhận: ${tx.reference}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      startIcon={<CheckCircle />}
+                      onClick={() => handleApproveWithdrawal(tx.id)}
+                      disabled={submitting}
+                    >
+                      Phê duyệt
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      startIcon={<Cancel />}
+                      onClick={() => handleRejectWithdrawal(tx.id)}
+                      disabled={submitting}
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-2xl font-semibold text-neutral-900">Giao dịch gần nhất</h2>
@@ -237,6 +383,7 @@ const SharedFund = () => {
                 <th className="px-3 py-2">Ngày</th>
                 <th className="px-3 py-2">Loại</th>
                 <th className="px-3 py-2">Người thực hiện</th>
+                <th className="px-3 py-2">Trạng thái</th>
                 <th className="px-3 py-2 text-right">Số tiền</th>
                 <th className="px-3 py-2 text-right">Số dư sau</th>
               </tr>
@@ -244,7 +391,7 @@ const SharedFund = () => {
             <tbody>
               {txLoading && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-400">
+                  <td colSpan={6} className="px-3 py-6 text-center text-neutral-400">
                     Đang tải giao dịch...
                   </td>
                 </tr>
@@ -257,6 +404,20 @@ const SharedFund = () => {
                     </td>
                     <td className="px-3 py-2 font-semibold text-neutral-800">{tx.type}</td>
                     <td className="px-3 py-2">{tx.initiatorName}</td>
+                    <td className="px-3 py-2">
+                      {tx.status === 'Pending' && (
+                        <Chip label="Chờ phê duyệt" color="warning" size="small" />
+                      )}
+                      {tx.status === 'Completed' && (
+                        <Chip label="Hoàn thành" color="success" size="small" />
+                      )}
+                      {tx.status === 'Rejected' && (
+                        <Chip label="Đã từ chối" color="error" size="small" />
+                      )}
+                      {tx.status === 'Approved' && (
+                        <Chip label="Đã phê duyệt" color="info" size="small" />
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right font-semibold">
                       {currency.format(tx.amount)}
                     </td>
@@ -265,7 +426,7 @@ const SharedFund = () => {
                 ))}
               {!txLoading && (!transactions || transactions.transactions.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-400">
+                  <td colSpan={6} className="px-3 py-6 text-center text-neutral-400">
                     Chưa có giao dịch nào.
                   </td>
                 </tr>
@@ -307,7 +468,11 @@ const SharedFund = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Huỷ</Button>
           <Button onClick={() => handleSubmit()} disabled={submitting} variant="contained">
-            {submitting ? 'Đang xử lý...' : 'Xác nhận'}
+            {submitting
+              ? 'Đang xử lý...'
+              : dialog.type === 'deposit'
+                ? 'Thanh toán qua VNPay'
+                : 'Xác nhận'}
           </Button>
         </DialogActions>
       </Dialog>

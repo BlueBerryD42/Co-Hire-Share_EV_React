@@ -84,3 +84,18 @@ export interface FundHistoryFilters {
   toDate?: ISODate
 }
 
+export interface CreateFundDepositPaymentDto {
+  groupId: UUID
+  amount: number
+  description: string
+  reference?: string
+}
+
+export interface FundDepositPaymentResponse {
+  paymentUrl: string
+  orderId: string
+  amount: number
+  paymentId: UUID
+  groupId: UUID
+}
+

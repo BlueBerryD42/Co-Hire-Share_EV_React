@@ -11,11 +11,11 @@ import {
   StepLabel,
   Stepper,
   TextField,
-} from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
-import { groupApi } from "@/services/group/groups";
-import { userApi } from "@/services/user/api";
-import { Car } from "lucide-react";
+} from '@mui/material'
+import { Add, Delete } from '@mui/icons-material'
+import { groupApi } from '@/services/group/groups'
+import { userApi } from '@/services/user/api'
+import { Car } from 'lucide-react'
 
 const steps = [
   "Thông tin nhóm",
