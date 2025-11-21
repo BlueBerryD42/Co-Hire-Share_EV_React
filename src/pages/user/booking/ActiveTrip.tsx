@@ -95,7 +95,7 @@ const ActiveTrip = () => {
   }, [activeBooking]);
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 17</p>
         <h1 className="text-4xl font-semibold text-black">Active trip</h1>
@@ -104,7 +104,7 @@ const ActiveTrip = () => {
         </p>
       </header>
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-8">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase text-black">Trip timer</p>
@@ -146,7 +146,7 @@ const ActiveTrip = () => {
             stats.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-2xl border border-slate-800 bg-amber-50 p-4"
+                className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4"
               >
                 <p className="text-xs uppercase text-black">{stat.label}</p>
                 <p className="text-3xl font-semibold text-black">
@@ -156,7 +156,7 @@ const ActiveTrip = () => {
               </div>
             ))
           ) : (
-            <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4">
+            <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4">
               <p className="text-sm text-black">
                 {isLoading
                   ? "Đang tải dữ liệu chuyến..."
@@ -167,11 +167,11 @@ const ActiveTrip = () => {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
+          <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4">
             <p className="text-sm font-semibold text-black">Map view</p>
             <div className="mt-3 h-64 rounded-2xl border border-dashed border-slate-700 bg-[radial-gradient(circle_at_top,#1e293b,#020617)]" />
           </div>
-          <div className="space-y-3 rounded-3xl border border-slate-800 bg-amber-50 p-4">
+          <div className="space-y-3 rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4">
             <p className="text-sm font-semibold text-black">Booking notes</p>
             <p className="text-sm text-black">
               {activeBooking?.notes ?? "Không có ghi chú thêm từ người dùng."}

@@ -24,7 +24,7 @@ const HistoryTable = ({
   title: string;
   records: CheckInDto[];
 }) => (
-  <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+  <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
     <p className="text-xs uppercase tracking-wide text-black">{title}</p>
     {records.length === 0 ? (
       <p className="py-3 text-center text-xs text-black">Chưa có dữ liệu</p>
@@ -272,7 +272,7 @@ const CheckOut = () => {
   }, [booking?.distanceKm, endOdometer, startOdometer]);
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Trip tools</p>
         <h1 className="text-4xl font-semibold text-black">Vehicle check-out</h1>
@@ -281,13 +281,13 @@ const CheckOut = () => {
         </p>
       </header>
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-4">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4">
         <p className="text-sm font-semibold text-black">Select booking</p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           <input
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
-            className="flex-1 rounded-2xl border border-slate-700 bg-amber-50 px-4 py-2 text-sm"
+            className="flex-1 rounded-2xl border border-slate-700 bg-[#f5ebe0] px-4 py-2 text-sm"
             placeholder="Enter BookingId (GUID)"
           />
           <button
@@ -309,27 +309,27 @@ const CheckOut = () => {
       </div>
       {historyMessage && <p className="text-xs text-black">{historyMessage}</p>}
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
         <div className="grid gap-4 text-sm text-black md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+          <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-3">
             <p className="text-xs uppercase text-black">Start odometer</p>
             <p className="text-xl font-semibold text-black">
               {startOdometer ?? "--"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+          <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-3">
             <p className="text-xs uppercase text-black">End odometer</p>
             <p className="text-xl font-semibold text-black">
               {endOdometer ?? "--"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+          <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-3">
             <p className="text-xs uppercase text-black">Distance (km)</p>
             <p className="text-xl font-semibold text-black">
               {distanceKm ?? "--"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-800 bg-amber-50 p-3">
+          <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-3">
             <p className="text-xs uppercase text-black">Trip fee</p>
             <p className="text-xl font-semibold text-black">
               {booking ? `$${booking.tripFeeAmount.toFixed(2)}` : "--"}
