@@ -377,7 +377,7 @@ const BookingCalendar = () => {
   // );
 
   // const renderCheckSummary = (label: string, record?: CheckInDto) => (
-  //   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+  //   <div className="rounded-2xl border border-black/10 bg-[#f5ebe0] p-4">
   //     <p className="text-xs uppercase text-black">{label}</p>
   //     {record ? (
   //       <>
@@ -391,9 +391,9 @@ const BookingCalendar = () => {
   // );
 
   return (
-    <section className="mx-auto max-w-6xl space-y-10 rounded-3xl bg-amber-50 p-8 text-black shadow-2xl">
+    <section className="mx-auto max-w-6xl space-y-10 rounded-3xl bg-[#f5ebe0] p-8 text-black shadow-2xl">
       <div className="space-y-10">
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8">
+        <div className="rounded-3xl border border-black/10 bg-[#f5ebe0] p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold text-black">My Booking</h1>
@@ -416,8 +416,8 @@ const BookingCalendar = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-lg lg:col-span-2">
-            <div className="flex flex-col gap-4 border-b border-amber-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="rounded-3xl border border-black/10 bg-[#f5ebe0] p-6 shadow-lg lg:col-span-2">
+            <div className="flex flex-col gap-4 border-b border-black/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-2xl font-semibold text-black">
                   {currentMonthLabel}
@@ -425,7 +425,7 @@ const BookingCalendar = () => {
               </div>
               <div className="flex gap-3">
                 <button
-                  className="rounded-full border border-amber-300 p-2 text-black transition hover:border-brand hover:text-black"
+                  className="rounded-full border border-black/10 p-2 text-black transition hover:border-brand hover:text-black"
                   type="button"
                   onClick={() => handleMonthChange(-1)}
                   aria-label="Previous month"
@@ -433,7 +433,7 @@ const BookingCalendar = () => {
                   Prev
                 </button>
                 <button
-                  className="rounded-full border border-amber-300 p-2 text-black transition hover:border-brand hover:text-black"
+                  className="rounded-full border border-black/10 p-2 text-black transition hover:border-brand hover:text-black"
                   type="button"
                   onClick={() => handleMonthChange(1)}
                   aria-label="Next month"
@@ -469,11 +469,11 @@ const BookingCalendar = () => {
                       "p-2",
                       "transition",
                       "hover:border-brand/60",
-                      "hover:bg-amber-50",
+                      "hover:bg-[#f5ebe0]",
                     ];
                     if (hasMine)
                       containerClasses.push("border-brand/60 bg-brand/10");
-                    else containerClasses.push("border-amber-200 bg-amber-50");
+                    else containerClasses.push("border-black/10 bg-[#f5ebe0]");
                     if (day.monthType !== "current")
                       containerClasses.push("opacity-60");
                     if (isToday) containerClasses.push("ring-1 ring-brand/60");
@@ -487,7 +487,7 @@ const BookingCalendar = () => {
                         >
                           <span>{day.label}</span>
                           {events.length > 0 && (
-                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-black">
+                            <span className="rounded-full bg-[#f5ebe0] px-2 py-0.5 text-[10px] text-black">
                               {events.length}
                             </span>
                           )}
@@ -505,7 +505,7 @@ const BookingCalendar = () => {
                                 className={`w-full rounded-xl border px-2 py-1 text-left text-xs ${
                                   isSelected
                                     ? "border-brand bg-brand/10 text-black"
-                                    : "border-amber-200 bg-amber-50 text-black"
+                                    : "border-black/10 bg-[#f5ebe0] text-black"
                                 }`}
                               >
                                 <p className="font-semibold">{event.label}</p>
@@ -532,7 +532,7 @@ const BookingCalendar = () => {
             })()}
           </div>
 
-          <aside className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-black shadow-lg lg:sticky lg:top-8 lg:self-start">
+          <aside className="space-y-4 rounded-3xl border border-black/10 bg-[#f5ebe0] p-6 text-sm text-black shadow-lg lg:sticky lg:top-8 lg:self-start">
             <p className="text-xs uppercase tracking-wide text-black">
               Booking info
             </p>
@@ -554,7 +554,7 @@ const BookingCalendar = () => {
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Link
                     to={`/booking/details/${selectedBooking.id}`}
-                    className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                    className="rounded-full border border-black/10 px-4 py-1 text-black hover:bg-[#f5ebe0]"
                   >
                     Details
                   </Link>
@@ -564,20 +564,20 @@ const BookingCalendar = () => {
                     <>
                       <Link
                         to={`/booking/check-in?bookingId=${selectedBooking.id}`}
-                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                        className="rounded-full border border-black/10 px-4 py-1 text-black hover:bg-[#f5ebe0]"
                       >
                         Check-In
                       </Link>
                       <Link
                         to={`/booking/check-out?bookingId=${selectedBooking.id}`}
-                        className="rounded-full border border-amber-300 px-4 py-1 text-black hover:bg-amber-50"
+                        className="rounded-full border border-black/10 px-4 py-1 text-black hover:bg-[#f5ebe0]"
                       >
                         Check-Out
                       </Link>
                     </>
                   ) : null}
                 </div>
-                {/* <div className="space-y-2 border-t border-amber-200 pt-4">
+                {/* <div className="space-y-2 border-t border-black/10 pt-4">
                   <p className="text-xs uppercase tracking-wide text-black">
                     Check-in / Check-out
                   </p>

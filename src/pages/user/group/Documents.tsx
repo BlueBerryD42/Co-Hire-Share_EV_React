@@ -36,7 +36,6 @@ import {
   GridView as GridViewIcon,
   ViewList as ViewListIcon,
   FilterList as FilterListIcon,
-  Share as ShareIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   GetApp as GetAppIcon,
@@ -589,9 +588,6 @@ export default function Documents() {
           }}
         >
           <EditIcon sx={{ mr: 1 }} /> Edit
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ShareIcon sx={{ mr: 1 }} /> Share
         </MenuItem>
         <MenuItem
           onClick={() => {

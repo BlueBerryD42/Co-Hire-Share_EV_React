@@ -36,7 +36,6 @@ import {
   GridView as GridViewIcon,
   ViewList as ViewListIcon,
   FilterList as FilterListIcon,
-  Share as ShareIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   GetApp as GetAppIcon,

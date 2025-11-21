@@ -33,7 +33,6 @@ import {
   ArrowBack as ArrowBackIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
-  Share as ShareIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   NavigateBefore as NavigateBeforeIcon,
@@ -84,7 +83,6 @@ export default function DocumentViewer() {
   const [totalPages, setTotalPages] = useState(1)
 
   // Dialog states
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [signDialogOpen, setSignDialogOpen] = useState(false)
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
   const [uploadVersionOpen, setUploadVersionOpen] = useState(false)
@@ -301,11 +299,6 @@ export default function DocumentViewer() {
                           Signed on {new Date(sig.signedAt).toLocaleString()}
                         </Typography>
                       )}
-                      {signatureStatus.signingMode === SigningMode.Sequential && (
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          Order: {sig.signatureOrder}
-                        </Typography>
-                      )}
                     </Box>
                   }
                   secondaryTypographyProps={{ component: 'div' }}
@@ -518,58 +511,59 @@ export default function DocumentViewer() {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+    <Box sx={{
+      display: 'flex',
+      height: 'calc(100vh - 64px)',
+      overflow: 'hidden',
+      width: 'calc(100% + 48px)',
+      margin: '-24px',
+      marginRight: 0,
+      marginTop: 0,
+    }}>
       {/* Main PDF Viewer Area */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
+      <Box sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: '#f5f5f5',
+        minWidth: 0,
+        overflow: 'hidden'
+      }}>
         {/* Toolbar */}
-        <Paper sx={{ p: 2, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Paper sx={{ p: 2, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, overflow: 'hidden' }}>
             <IconButton onClick={() => navigate(`/groups/${groupId}/documents`)}>
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h6" noWrap sx={{ maxWidth: 400 }}>
+            <Typography variant="h6" noWrap sx={{ maxWidth: { xs: 200, sm: 300, md: 400 } }}>
               {documentData.fileName}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
             {/* Page Navigation */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <IconButton size="small" onClick={handlePreviousPage} disabled={currentPage === 1}>
-                <NavigateBeforeIcon />
+                <NavigateBeforeIcon fontSize="small" />
               </IconButton>
-              <Typography variant="body2">
-                {currentPage} / {totalPages}
+              <Typography variant="caption" sx={{ fontSize: '0.75rem', minWidth: 40, textAlign: 'center' }}>
+                {currentPage}/{totalPages}
               </Typography>
               <IconButton size="small" onClick={handleNextPage} disabled={currentPage === totalPages}>
-                <NavigateNextIcon />
+                <NavigateNextIcon fontSize="small" />
               </IconButton>
             </Box>
 
             {/* Zoom Controls */}
-            <IconButton onClick={handleZoomOut} disabled={zoom <= 50}>
-              <ZoomOutIcon />
+            <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 50}>
+              <ZoomOutIcon fontSize="small" />
             </IconButton>
-            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', minWidth: 60, justifyContent: 'center' }}>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', minWidth: 45, textAlign: 'center' }}>
               {zoom}%
             </Typography>
-            <IconButton onClick={handleZoomIn} disabled={zoom >= 200}>
-              <ZoomInIcon />
+            <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 200}>
+              <ZoomInIcon fontSize="small" />
             </IconButton>
-
-            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-
-            {/* Action Buttons */}
-            <Tooltip title="Download">
-              <IconButton onClick={handleDownload}>
-                <DownloadIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Print">
-              <IconButton onClick={handlePrint}>
-                <PrintIcon />
-              </IconButton>
-            </Tooltip>
 
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
 
@@ -640,18 +634,22 @@ export default function DocumentViewer() {
             overflow: 'auto',
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center',
-            p: 3,
+            alignItems: 'flex-start',
+            p: 0.5,
+            pr: 0,
+            bgcolor: '#e0e0e0',
+            minHeight: 0,
           }}
         >
           {pdfUrl ? (
             <iframe
               src={pdfUrl}
               style={{
-                width: `${zoom}%`,
+                width: zoom === 100 ? '100%' : `${zoom}%`,
+                maxWidth: '100%',
                 height: '100%',
                 border: 'none',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                backgroundColor: 'white',
               }}
               title="PDF Viewer"
             />
@@ -667,33 +665,36 @@ export default function DocumentViewer() {
         variant="persistent"
         open={drawerOpen}
         sx={{
-          width: 350,
+          width: { xs: 280, sm: 300, md: 340 },
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: 350,
+            width: { xs: 280, sm: 300, md: 340 },
             boxSizing: 'border-box',
             position: 'relative',
             height: '100%',
           },
         }}
       >
-        <Box sx={{ p: 3, overflow: 'auto' }}>
+        <Box sx={{ p: 2, overflow: 'auto', height: '100%' }}>
           {renderDocumentInfo()}
           {renderSignatureTimeline()}
         </Box>
       </Drawer>
 
       {/* Send for Signing Dialog */}
-      <SendForSigningDialog
-        open={signDialogOpen}
-        onClose={() => setSignDialogOpen(false)}
-        documentId={documentId as UUID}
-        groupId={groupId as UUID}
-        onSuccess={() => {
-          fetchDocument()
-          fetchSignatureStatus()
-        }}
-      />
+      {documentData && (
+        <SendForSigningDialog
+          open={signDialogOpen}
+          onClose={() => setSignDialogOpen(false)}
+          documentId={documentId as UUID}
+          groupId={groupId as UUID}
+          documentType={documentData.type}
+          onSuccess={() => {
+            fetchDocument()
+            fetchSignatureStatus()
+          }}
+        />
+      )}
 
       {/* Version History Dialog */}
       {documentId && (
@@ -719,8 +720,6 @@ export default function DocumentViewer() {
           }}
         />
       )}
-
-      {/* TODO: Add Share Dialog */}
     </Box>
   )
 }

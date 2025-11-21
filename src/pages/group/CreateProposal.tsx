@@ -36,6 +36,7 @@ import {
   Add as AddIcon,
   Close as CloseIcon,
   Article as PreviewIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import type { UUID } from '@/models/booking'
 import type { ProposalType } from '@/models/proposal'
@@ -85,14 +86,12 @@ const CreateProposal = () => {
   const [availableDocuments, setAvailableDocuments] = useState<DocumentListItemResponse[]>([])
   const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [showDocumentDialog, setShowDocumentDialog] = useState(false)
-  const [selectedDocForSignatures, setSelectedDocForSignatures] = useState<UUID | null>(null)
-  const [documentSignatures, setDocumentSignatures] = useState<DocumentSignatureStatusResponse | null>(null)
-  const [loadingSignatures, setLoadingSignatures] = useState(false)
 
-  // Document preview state
-  const [previewDocId, setPreviewDocId] = useState<UUID | null>(null)
+  // Document detail state (combined preview + signatures)
+  const [detailDocId, setDetailDocId] = useState<UUID | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [documentSignatures, setDocumentSignatures] = useState<DocumentSignatureStatusResponse | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
   const [previewError, setPreviewError] = useState(false)
 
   const isValid = useMemo(() => {
@@ -111,17 +110,28 @@ const CreateProposal = () => {
 
     setLoadingDocuments(true)
     try {
+      console.log('Fetching documents for groupId:', groupId)
       const docs = await documentApi.getGroupDocuments(groupId as UUID, { page: 1, pageSize: 100 })
+      console.log('Fetched documents:', docs)
       setAvailableDocuments(docs.items || [])
-    } catch (err) {
+
+      if (!docs.items || docs.items.length === 0) {
+        console.log('No documents found in this group')
+      }
+    } catch (err: any) {
       console.error('Error fetching documents:', err)
+      console.error('Error details:', err.response?.data || err.message)
+      setSnackbar({
+        open: true,
+        message: `Không thể tải danh sách tài liệu: ${err.response?.data?.error || err.message || 'Lỗi không xác định'}`,
+        severity: 'error',
+      })
     } finally {
       setLoadingDocuments(false)
     }
   }
 
   const fetchSignatureStatus = async (documentId: UUID) => {
-    setLoadingSignatures(true)
     try {
       const status = await documentApi.getSignatureStatus(documentId)
       setDocumentSignatures(status)
@@ -131,8 +141,6 @@ const CreateProposal = () => {
         setDocumentSignatures(null)
       }
       console.error('Error fetching signature status:', err)
-    } finally {
-      setLoadingSignatures(false)
     }
   }
 
@@ -151,40 +159,37 @@ const CreateProposal = () => {
     setAttachedDocuments((prev) => prev.filter((id) => id !== documentId))
   }
 
-  const handleViewSignatures = async (documentId: UUID) => {
-    setSelectedDocForSignatures(documentId)
-    await fetchSignatureStatus(documentId)
-  }
-
-  const handleCloseSignatures = () => {
-    setSelectedDocForSignatures(null)
-    setDocumentSignatures(null)
-  }
-
-  const handlePreviewDocument = async (documentId: UUID) => {
-    setPreviewDocId(documentId)
-    setLoadingPreview(true)
+  const handleViewDetail = async (documentId: UUID) => {
+    setDetailDocId(documentId)
+    setLoadingDetail(true)
     setPreviewError(false)
 
+    // Load both preview and signatures simultaneously
     try {
-      const blob = await documentApi.previewDocument(documentId)
+      const [blob] = await Promise.all([
+        documentApi.previewDocument(documentId),
+        fetchSignatureStatus(documentId)
+      ])
       const url = URL.createObjectURL(blob)
       setPreviewUrl(url)
     } catch (err: any) {
-      console.error('Error loading preview:', err)
+      console.error('Error loading document detail:', err)
       setPreviewError(true)
+      // Still try to load signatures even if preview fails
+      await fetchSignatureStatus(documentId)
     } finally {
-      setLoadingPreview(false)
+      setLoadingDetail(false)
     }
   }
 
-  const handleClosePreview = () => {
+  const handleCloseDetail = () => {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl)
     }
-    setPreviewDocId(null)
+    setDetailDocId(null)
     setPreviewUrl(null)
     setPreviewError(false)
+    setDocumentSignatures(null)
   }
 
   const handleSubmit = async () => {
@@ -320,99 +325,167 @@ const CreateProposal = () => {
               </Box>
 
               {attachedDocuments.length === 0 ? (
-                <Alert severity="info">
-                  Chưa có tài liệu nào được đính kèm. Nhấn "Thêm tài liệu" để chọn.
-                </Alert>
+                <Box
+                  sx={{
+                    textAlign: 'center',
+                    py: 4,
+                    px: 2,
+                    border: '2px dashed #d0d0d0',
+                    borderRadius: 2,
+                    bgcolor: 'white',
+                  }}
+                >
+                  <DescriptionIcon sx={{ fontSize: 48, color: '#d0d0d0', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    Chưa có tài liệu nào được đính kèm
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Nhấn "Thêm tài liệu" để chọn tài liệu từ nhóm
+                  </Typography>
+                </Box>
               ) : (
-                <List>
+                <List sx={{ p: 0 }}>
                   {attachedDocuments.map((docId) => {
                     const doc = availableDocuments.find((d) => d.id === docId)
                     if (!doc) return null
                     return (
-                      <ListItem
+                      <Box
                         key={docId}
                         sx={{
                           bgcolor: 'white',
-                          borderRadius: 1,
-                          mb: 1,
-                          border: '1px solid #e0e0e0',
+                          borderRadius: 2,
+                          mb: 1.5,
+                          border: '2px solid #e0e0e0',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: '#7a9b76',
+                            boxShadow: '0 2px 8px rgba(122, 155, 118, 0.15)',
+                          },
                         }}
-                        secondaryAction={
-                          <Box>
-                            <IconButton
-                              edge="end"
-                              onClick={() => handlePreviewDocument(docId)}
-                              sx={{ mr: 1 }}
-                              title="Xem nội dung tài liệu"
-                            >
-                              <PreviewIcon />
-                            </IconButton>
-                            <IconButton
-                              edge="end"
-                              onClick={() => handleViewSignatures(docId)}
-                              sx={{ mr: 1 }}
-                              title="Xem trạng thái ký"
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
-                            <IconButton
-                              edge="end"
-                              onClick={() => handleRemoveDocument(docId)}
-                              title="Xóa khỏi đề xuất"
-                            >
-                              <CloseIcon />
-                            </IconButton>
-                          </Box>
-                        }
                       >
-                        <ListItemIcon>
-                          <DescriptionIcon sx={{ color: '#7a9b76', fontSize: 32 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                              {doc.fileName}
-                            </Typography>
-                          }
-                          secondary={
-                            <Box sx={{ mt: 0.5 }}>
-                              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
-                                <Chip
-                                  label={getDocumentTypeName(doc.type)}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: getDocumentTypeColor(doc.type),
-                                    color: 'white',
-                                    fontSize: '0.7rem',
-                                  }}
-                                />
-                                <Chip
-                                  label={getSignatureStatusName(doc.signatureStatus)}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: getSignatureStatusColor(doc.signatureStatus),
-                                    color: 'white',
-                                    fontSize: '0.7rem',
-                                  }}
-                                />
-                              </Box>
-                              <Typography variant="caption" color="text.secondary" display="block">
-                                {formatFileSize(doc.fileSize)} • {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
-                              </Typography>
-                              {doc.description && (
-                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                                  {doc.description.length > 60 ? `${doc.description.substring(0, 60)}...` : doc.description}
-                                </Typography>
-                              )}
-                              {doc.uploaderName && (
-                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5, fontStyle: 'italic' }}>
-                                  Người tải: {doc.uploaderName}
-                                </Typography>
-                              )}
+                        <ListItem
+                          sx={{
+                            p: 2,
+                            alignItems: 'flex-start',
+                          }}
+                        >
+                          <ListItemIcon sx={{ mt: 0.5, minWidth: 48 }}>
+                            <Box
+                              sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 1,
+                                bgcolor: '#f5ebe0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <DescriptionIcon sx={{ color: '#7a9b76', fontSize: 28 }} />
                             </Box>
-                          }
-                        />
-                      </ListItem>
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#2c3e50', mb: 0.5 }}>
+                                  {doc.fileName}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Chip
+                                    label={getDocumentTypeName(doc.type)}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: getDocumentTypeColor(doc.type),
+                                      color: 'white',
+                                      fontSize: '0.7rem',
+                                      height: 22,
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                  <Chip
+                                    label={getSignatureStatusName(doc.signatureStatus)}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: getSignatureStatusColor(doc.signatureStatus),
+                                      color: 'white',
+                                      fontSize: '0.7rem',
+                                      height: 22,
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                                  📄 {formatFileSize(doc.fileSize)} • Due Date: {new Date(doc.createdAt).toLocaleDateString('vi-VN')}
+                                </Typography>
+                                {doc.description && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    display="block"
+                                    sx={{
+                                      mt: 0.5,
+                                      p: 1,
+                                      bgcolor: '#f8f9fa',
+                                      borderRadius: 1,
+                                      fontStyle: 'italic',
+                                    }}
+                                  >
+                                    "{doc.description.length > 80 ? `${doc.description.substring(0, 80)}...` : doc.description}"
+                                  </Typography>
+                                )}
+                                {doc.uploaderName && (
+                                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                                   {doc.uploaderName}
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                        <Divider />
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, p: 1.5, bgcolor: '#fafafa' }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => handleViewDetail(docId)}
+                            sx={{
+                              bgcolor: '#7a9b76',
+                              '&:hover': { bgcolor: '#6a8b66' },
+                              textTransform: 'none',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              boxShadow: 1,
+                            }}
+                          >
+                            Chi tiết
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<CloseIcon />}
+                            onClick={() => handleRemoveDocument(docId)}
+                            title="Xóa khỏi đề xuất"
+                            sx={{
+                              borderColor: '#b87d6f',
+                              color: '#b87d6f',
+                              '&:hover': {
+                                borderColor: '#a86d5f',
+                                bgcolor: '#fef5f3',
+                              },
+                              textTransform: 'none',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Xóa
+                          </Button>
+                        </Box>
+                      </Box>
                     )
                   })}
                 </List>
@@ -483,7 +556,26 @@ const CreateProposal = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Chọn tài liệu đính kèm</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6" component="span">
+              Chọn tài liệu đính kèm
+            </Typography>
+            {!loadingDocuments && availableDocuments.length > 0 && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                {availableDocuments.length} tài liệu có sẵn
+              </Typography>
+            )}
+          </Box>
+          <IconButton
+            onClick={fetchDocuments}
+            disabled={loadingDocuments}
+            title="Làm mới danh sách"
+            size="small"
+          >
+            <RefreshIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent>
           {loadingDocuments ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -568,162 +660,209 @@ const CreateProposal = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Signature Status Dialog */}
+      {/* Unified Document Detail Dialog */}
       <Dialog
-        open={selectedDocForSignatures !== null}
-        onClose={handleCloseSignatures}
-        maxWidth="md"
+        open={detailDocId !== null}
+        onClose={handleCloseDetail}
+        maxWidth="xl"
         fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          }
+        }}
       >
-        <DialogTitle>
-          Trạng thái ký tài liệu
-          {selectedDocForSignatures && (() => {
-            const doc = availableDocuments.find((d) => d.id === selectedDocForSignatures)
-            return doc ? ` - ${doc.fileName}` : ''
-          })()}
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+          <Box>
+            <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
+              Chi tiết tài liệu
+            </Typography>
+            {detailDocId && (() => {
+              const doc = availableDocuments.find((d) => d.id === detailDocId)
+              return doc ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {doc.fileName}
+                </Typography>
+              ) : null
+            })()}
+          </Box>
+          <IconButton onClick={handleCloseDetail} disabled={loadingDetail}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
-          {loadingSignatures ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <Typography>Đang tải...</Typography>
-            </Box>
-          ) : !documentSignatures ? (
-            <Alert severity="info">
-              Tài liệu này chưa được gửi để ký. Không có thông tin chữ ký.
-            </Alert>
-          ) : (
-            <Box>
-              {/* Progress Bar */}
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">
-                    {documentSignatures.signedCount} / {documentSignatures.totalSigners} đã ký
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold">
-                    {Math.round(documentSignatures.progressPercentage)}%
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={documentSignatures.progressPercentage}
-                  sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    bgcolor: '#e0e0e0',
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: '#7a9b76',
-                    },
-                  }}
-                />
-              </Box>
-
-              <Divider sx={{ mb: 2 }} />
-
-              {/* Signature List */}
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Danh sách người ký
-              </Typography>
-              <List>
-                {documentSignatures.signatures.map((sig) => (
-                  <ListItem
-                    key={sig.id}
-                    sx={{
-                      bgcolor: sig.isPending ? '#fff8f0' : '#f0f8f0',
-                      borderRadius: 1,
-                      mb: 1,
-                    }}
-                  >
-                    <ListItemIcon>
-                      <Avatar sx={{ bgcolor: sig.isPending ? '#d4a574' : '#7a9b76' }}>
-                        {sig.isPending ? <PendingIcon /> : <CheckCircleIcon />}
-                      </Avatar>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={sig.signerName}
-                      secondary={
-                        <Box>
-                          <Typography variant="caption" display="block">
-                            {sig.signerEmail}
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            Thứ tự: {sig.signatureOrder}
-                          </Typography>
-                          {sig.signedAt && (
-                            <Typography variant="caption" display="block" color="success.main">
-                              Đã ký: {new Date(sig.signedAt).toLocaleString('vi-VN')}
-                            </Typography>
-                          )}
-                        </Box>
-                      }
-                    />
-                    <Chip
-                      label={sig.isPending ? 'Chờ ký' : 'Đã ký'}
-                      size="small"
-                      color={sig.isPending ? 'warning' : 'success'}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseSignatures}>Đóng</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Document Preview Dialog */}
-      <Dialog
-        open={previewDocId !== null}
-        onClose={handleClosePreview}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          Xem trước tài liệu
-          {previewDocId && (() => {
-            const doc = availableDocuments.find((d) => d.id === previewDocId)
-            return doc ? ` - ${doc.fileName}` : ''
-          })()}
-        </DialogTitle>
-        <DialogContent>
-          {loadingPreview ? (
+        <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
+          {loadingDetail ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
               <CircularProgress sx={{ color: '#7a9b76' }} />
             </Box>
-          ) : previewError ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <Alert severity="error" sx={{ mb: 2 }}>
-                Không thể tải xem trước tài liệu
-              </Alert>
-              <Typography variant="body2" color="text.secondary">
-                Có lỗi xảy ra khi tải tài liệu. Vui lòng thử lại hoặc tải xuống tài liệu để xem.
-              </Typography>
+          ) : (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, height: '100%' }}>
+              {/* PDF Preview Section */}
+              <Box sx={{ borderRight: { lg: '1px solid #e0e0e0' }, overflow: 'auto', bgcolor: '#f5f5f5', p: 2 }}>
+                {previewError ? (
+                  <Box sx={{ p: 3, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      Không thể tải xem trước tài liệu
+                    </Alert>
+                    <Typography variant="body2" color="text.secondary">
+                      Có lỗi xảy ra khi tải tài liệu. Vui lòng thử lại.
+                    </Typography>
+                  </Box>
+                ) : previewUrl ? (
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      bgcolor: 'white',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      boxShadow: 1,
+                    }}
+                  >
+                    <iframe
+                      src={previewUrl}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                      }}
+                      title="Xem trước tài liệu"
+                    />
+                  </Box>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                    <PreviewIcon sx={{ fontSize: 80, color: '#d0d0d0', mb: 2 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Xem trước không khả dụng
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Signature Status Section */}
+              <Box sx={{ overflow: 'auto', bgcolor: '#fafafa', p: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#7a9b76' }}>
+                  Trạng thái ký
+                </Typography>
+
+                {!documentSignatures ? (
+                  <Alert severity="info">
+                    Tài liệu này chưa được gửi để ký. Không có thông tin chữ ký.
+                  </Alert>
+                ) : (
+                  <Box>
+                    {/* Progress Bar */}
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'white', borderRadius: 2, boxShadow: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          Tiến độ ký
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold" color="primary">
+                          {Math.round(documentSignatures.progressPercentage)}%
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={documentSignatures.progressPercentage}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          bgcolor: '#e0e0e0',
+                          '& .MuiLinearProgress-bar': {
+                            bgcolor: '#7a9b76',
+                          },
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        {documentSignatures.signedCount} / {documentSignatures.totalSigners} người đã ký
+                      </Typography>
+                    </Box>
+
+                    <Divider sx={{ mb: 2 }} />
+
+                    {/* Signature List */}
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                      Danh sách người ký
+                    </Typography>
+                    <List sx={{ p: 0 }}>
+                      {documentSignatures.signatures.map((sig) => (
+                        <ListItem
+                          key={sig.id}
+                          sx={{
+                            bgcolor: sig.isPending ? '#fff8f0' : '#f0f8f0',
+                            borderRadius: 2,
+                            mb: 1,
+                            border: '1px solid',
+                            borderColor: sig.isPending ? '#d4a574' : '#7a9b76',
+                            p: 1.5,
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 42 }}>
+                            <Avatar sx={{ bgcolor: sig.isPending ? '#d4a574' : '#7a9b76', width: 36, height: 36 }}>
+                              {sig.isPending ? <PendingIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
+                            </Avatar>
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Typography variant="body2" fontWeight={600}>
+                                {sig.signerName}
+                              </Typography>
+                            }
+                            secondary={
+                              <Box>
+                                <Typography variant="caption" display="block" color="text.secondary">
+                                  {sig.signerEmail}
+                                </Typography>
+                                {sig.signedAt && (
+                                  <Typography variant="caption" display="block" sx={{ color: '#7a9b76', mt: 0.5, fontWeight: 600 }}>
+                                    ✓ Đã ký: {new Date(sig.signedAt).toLocaleDateString('vi-VN', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
+                          />
+                          <Chip
+                            label={sig.isPending ? 'Chờ ký' : 'Đã ký'}
+                            size="small"
+                            sx={{
+                              bgcolor: sig.isPending ? '#d4a574' : '#7a9b76',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem'
+                            }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+
+                    {documentSignatures.dueDate && (
+                      <Alert severity="warning" sx={{ mt: 2 }}>
+                        <Typography variant="caption">
+                          Hạn ký: {new Date(documentSignatures.dueDate).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                )}
+              </Box>
             </Box>
-          ) : previewUrl ? (
-            <Box
-              sx={{
-                width: '100%',
-                height: '600px',
-                bgcolor: 'white',
-                borderRadius: 1,
-                overflow: 'hidden',
-              }}
-            >
-              <iframe
-                src={previewUrl}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                }}
-                title="Xem trước tài liệu"
-              />
-            </Box>
-          ) : null}
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClosePreview} sx={{ color: '#7a9b76' }}>
+        <DialogActions sx={{ borderTop: '1px solid #e0e0e0', p: 2 }}>
+          <Button onClick={handleCloseDetail} sx={{ color: '#7a9b76', fontWeight: 600 }}>
             Đóng
           </Button>
         </DialogActions>

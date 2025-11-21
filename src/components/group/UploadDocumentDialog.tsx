@@ -25,11 +25,13 @@ import {
 import { documentApi } from '@/services/group/documents'
 import { DocumentType, getDocumentTypeName, formatFileSize } from '@/models/document'
 import type { UUID } from '@/models/booking'
+import type { GroupRole } from '@/models/group'
 
 interface UploadDocumentDialogProps {
   open: boolean
   onClose: () => void
   groupId: UUID
+  userRole?: GroupRole | null
   onSuccess?: () => void
 }
 
@@ -37,6 +39,7 @@ export default function UploadDocumentDialog({
   open,
   onClose,
   groupId,
+  userRole,
   onSuccess,
 }: UploadDocumentDialogProps) {
   const [file, setFile] = useState<File | null>(null)
@@ -45,6 +48,9 @@ export default function UploadDocumentDialog({
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // All members can create all document types
+  const availableDocumentTypes = Object.values(DocumentType)
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0]
@@ -210,7 +216,7 @@ export default function UploadDocumentDialog({
             label="Document Type"
             disabled={uploading}
           >
-            {Object.values(DocumentType).map((type) => (
+            {availableDocumentTypes.map((type) => (
               <MenuItem key={type} value={type}>
                 {getDocumentTypeName(type as DocumentType)}
               </MenuItem>

@@ -559,16 +559,16 @@ const CreateBooking = () => {
   };
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <div className="grid gap-1">
-        <form className="space-y-6 rounded-3xl border border-slate-800 bg-amber-50 p-8">
+        <form className="space-y-6 rounded-3xl border border-slate-800 bg-[#f5ebe0] p-8">
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2 text-sm text-black">
               <span>Vehicle</span>
               <select
                 value={vehicleId}
                 onChange={(e) => handleVehicleSelect(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                 disabled={availableVehicles.length === 0}
               >
                 {availableVehicles.length === 0 ? (
@@ -582,10 +582,10 @@ const CreateBooking = () => {
                 )}
               </select>
               {vehiclesError && (
-                <p className="text-xs text-amber-800">{vehiclesError}</p>
+                <p className="text-xs text-[#8b7d6b]">{vehiclesError}</p>
               )}
               {availableVehicles.length === 0 && !vehiclesError && (
-                <p className="text-xs text-amber-800">
+                <p className="text-xs text-[#8b7d6b]">
                   Không có xe nào khả dụng để đặt lịch. Vui lòng chọn nhóm khác hoặc đợi nhóm/xe được phê duyệt và hoạt động.
                 </p>
               )}
@@ -600,12 +600,12 @@ const CreateBooking = () => {
                       value={form.date}
                       min={toDateInput(new Date())}
                       onChange={(e) => handleDateChange(e.target.value)}
-                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                     />
                     <select
                       value={startIso}
                       onChange={(e) => handleStartSelect(e.target.value)}
-                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                     >
                       {slotsLoading && (
                         <option value={startIso}>Loading...</option>
@@ -622,7 +622,7 @@ const CreateBooking = () => {
                     </select>
                   </div>
                   {slotsError && (
-                    <p className="text-xs text-amber-800">{slotsError}</p>
+                    <p className="text-xs text-[#8b7d6b]">{slotsError}</p>
                   )}
                 </div>
                 <div className="space-y-2 text-sm text-black">
@@ -633,12 +633,12 @@ const CreateBooking = () => {
                       value={form.endDate}
                       min={form.date}
                       onChange={(e) => updateForm("endDate", e.target.value)}
-                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                     />
                     <select
                       value={endIso}
                       onChange={(e) => handleEndSelect(e.target.value)}
-                      className="w-1/2 rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                      className="w-1/2 rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                     >
                       {slotsLoading && (
                         <option value={endIso}>Loading...</option>
@@ -662,7 +662,7 @@ const CreateBooking = () => {
             <p className="text-xs text-rose-600">{conflictMessage}</p>
           )}
           {!slotsLoading && slots.length > 0 && !isSelectionAvailable && (
-            <p className="text-xs text-amber-800">
+            <p className="text-xs text-[#8b7d6b]">
               The selected time is outside available slots. Pick another
               highlighted slot.
             </p>
@@ -675,7 +675,7 @@ const CreateBooking = () => {
                 type="text"
                 value={userId}
                 readOnly
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 font-mono text-xs text-black"
+                className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3 font-mono text-xs text-black"
               />
             </label>
             <label className="space-y-2 text-sm text-black">
@@ -684,7 +684,7 @@ const CreateBooking = () => {
                 value={groupId}
                 disabled={groupsLoading || joinedGroups.length === 0}
                 onChange={(e) => setGroupId(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 text-sm"
+                className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3 text-sm"
               >
                 {groupsLoading && <option value="">Loading groups...</option>}
                 {!groupsLoading && joinedGroups.length === 0 && (
@@ -730,7 +730,7 @@ const CreateBooking = () => {
                 setPurpose(e.target.value);
                 updateForm("purpose", e.target.value);
               }}
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             >
               <option>Personal</option>
               <option>Business</option>
@@ -745,7 +745,7 @@ const CreateBooking = () => {
               onChange={(e) =>
                 updateForm("priority", e.target.value as BookingPriority)
               }
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             >
               <option value="Low">Low</option>
               <option value="Normal">Normal</option>
@@ -754,7 +754,7 @@ const CreateBooking = () => {
             </select>
           </label>
 
-          {/* <div className="space-y-4 rounded-3xl border border-slate-800 bg-amber-50 p-4">
+          {/* <div className="space-y-4 rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4">
             <div className="flex items-center gap-3">
               <input
                 id="emergency-toggle"
@@ -777,7 +777,7 @@ const CreateBooking = () => {
                     onChange={(e) =>
                       updateForm("emergencyReason", e.target.value)
                     }
-                    className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+                    className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
                     placeholder="Describe why this booking is urgent"
                   />
                 </label>
@@ -805,7 +805,7 @@ const CreateBooking = () => {
               type="number"
               value={form.distance}
               onChange={(e) => updateForm("distance", Number(e.target.value))}
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             />
           </label>
 
@@ -815,7 +815,7 @@ const CreateBooking = () => {
               rows={4}
               value={form.notes}
               onChange={(e) => updateForm("notes", e.target.value)}
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
               placeholder="Add context for other co-owners"
             />
           </label>
@@ -851,7 +851,7 @@ const CreateBooking = () => {
             </div>
           )}
           {lastPayload && (
-            <div className="rounded-2xl border border-emerald-800 bg-amber-50 p-4 text-xs text-black">
+            <div className="rounded-2xl border border-emerald-800 bg-[#f5ebe0] p-4 text-xs text-black">
               <p className="text-black">Payload preview (to API)</p>
               <div className="mt-2 text-[12px]">
                 <p>

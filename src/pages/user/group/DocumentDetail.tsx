@@ -29,7 +29,6 @@ import {
   Download as DownloadIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  Share as ShareIcon,
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
   Person as PersonIcon,

@@ -164,11 +164,6 @@ export default function MyPendingSignatures() {
                     />
                     <Chip
                       size="small"
-                      label={`Order: ${signature.signatureOrder}`}
-                      variant="outlined"
-                    />
-                    <Chip
-                      size="small"
                       label={signature.signingMode === 'Sequential' ? 'Sequential' : 'Parallel'}
                       variant="outlined"
                     />
