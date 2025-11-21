@@ -182,6 +182,47 @@ const KycDocumentReview = () => {
     }
   };
 
+  // Convert document type (number or string) to readable name
+  const getDocumentTypeName = (
+    type: string | number | undefined | null
+  ): string => {
+    if (type === null || type === undefined) return "Unknown";
+
+    // Normalize to number
+    let typeNum: number;
+    if (typeof type === "number") {
+      typeNum = type;
+    } else if (typeof type === "string") {
+      // Try to parse as number first
+      const parsed = parseInt(type, 10);
+      if (!isNaN(parsed)) {
+        typeNum = parsed;
+      } else {
+        // Try to convert from string name
+        const enumVal = convertDocumentTypeToEnum(type);
+        if (enumVal !== null) {
+          typeNum = enumVal;
+        } else {
+          return type; // Return original if can't convert
+        }
+      }
+    } else {
+      return "Unknown";
+    }
+
+    // Map number to readable name
+    const typeNames: Record<number, string> = {
+      0: "CMND/CCCD", // NationalId
+      1: "Passport",
+      2: "Driver License",
+      3: "Proof of Address",
+      4: "Bank Statement",
+      5: "Selfie", // Other (used for selfie verification)
+    };
+
+    return typeNames[typeNum] || `Type ${typeNum}`;
+  };
+
   const buildFilterParams = (): FilterParams => {
     const params: FilterParams = {
       page: currentPage,
@@ -207,7 +248,7 @@ const KycDocumentReview = () => {
     return params;
   };
 
-  const fetchPendingKycUsers = async () => {
+  const fetchPendingKycUsers = async (): Promise<User[]> => {
     try {
       setLoading(true);
       setError(null);
@@ -336,9 +377,11 @@ const KycDocumentReview = () => {
       setUsers(filteredUsers);
       setTotalCount(filteredTotalCount);
       setTotalPages(filteredTotalPages);
+      return filteredUsers;
     } catch (err) {
       console.error("Error fetching pending KYC users:", err);
       setError("Failed to load pending KYC users");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -364,46 +407,43 @@ const KycDocumentReview = () => {
         reviewNotes: notes,
       });
 
-      // Update selectedUser's document with the response data
+      // Reload data from server to get updated statuses
+      const updatedUsers = await fetchPendingKycUsers();
+
+      // Update selectedUser with fresh data from server
       if (selectedUser) {
-        const responseData = response.data;
-        // Handle both PascalCase and camelCase response formats
-        const updatedStatus =
-          responseData.Status ?? responseData.status ?? statusEnum;
-        const updatedReviewNotes =
-          responseData.ReviewNotes ?? responseData.reviewNotes ?? notes;
-        const updatedReviewedAt =
-          responseData.ReviewedAt ??
-          responseData.reviewedAt ??
-          new Date().toISOString();
-
-        const updatedDocuments = selectedUser.documents.map((doc) =>
-          doc.id === documentId
-            ? {
-                ...doc,
-                status: String(updatedStatus),
-                reviewNotes: updatedReviewNotes,
-                reviewedAt: updatedReviewedAt,
-              }
-            : doc
-        );
-
-        // Update selectedUser with new document status
-        setSelectedUser({
-          ...selectedUser,
-          documents: updatedDocuments,
-        });
-      }
-
-      await fetchPendingKycUsers();
-
-      // If user is still in the list, update from the list; otherwise keep the updated selectedUser
-      if (selectedUser) {
-        const updatedUser = users.find((u) => u.id === selectedUser.id);
+        const updatedUser = updatedUsers.find((u) => u.id === selectedUser.id);
         if (updatedUser) {
+          // User found in list, update with fresh data
           setSelectedUser(updatedUser);
+        } else {
+          // User not in list (e.g., all documents approved and filtered out)
+          // Update documents locally using response data as fallback
+          const responseData = response.data;
+          const updatedStatus =
+            responseData.Status ?? responseData.status ?? statusEnum;
+          const updatedReviewNotes =
+            responseData.ReviewNotes ?? responseData.reviewNotes ?? notes;
+          const updatedReviewedAt =
+            responseData.ReviewedAt ??
+            responseData.reviewedAt ??
+            new Date().toISOString();
+
+          const updatedDocuments = selectedUser.documents.map((doc) =>
+            doc.id === documentId
+              ? {
+                  ...doc,
+                  status: String(updatedStatus),
+                  reviewNotes: updatedReviewNotes,
+                  reviewedAt: updatedReviewedAt,
+                }
+              : doc
+          );
+          setSelectedUser({
+            ...selectedUser,
+            documents: updatedDocuments,
+          });
         }
-        // If user is not in the list (e.g., all documents approved), keep the updated selectedUser
       }
 
       setShowReviewModal(false);
@@ -439,35 +479,34 @@ const KycDocumentReview = () => {
         reviewNotes: notes,
       });
 
-      // Update selectedUser's documents with the new status
+      // Reload data from server to get updated statuses
+      const updatedUsers = await fetchPendingKycUsers();
+
+      // Update selectedUser with fresh data from server
       if (selectedUser) {
-        const updatedDocuments = selectedUser.documents.map((doc) =>
-          documentIds.includes(doc.id)
-            ? {
-                ...doc,
-                status: String(statusEnum),
-                reviewNotes: notes,
-                reviewedAt: new Date().toISOString(),
-              }
-            : doc
-        );
-
-        // Update selectedUser with new document statuses
-        setSelectedUser({
-          ...selectedUser,
-          documents: updatedDocuments,
-        });
-      }
-
-      await fetchPendingKycUsers();
-
-      // If user is still in the list, update from the list; otherwise keep the updated selectedUser
-      if (selectedUser) {
-        const updatedUser = users.find((u) => u.id === selectedUser.id);
+        const updatedUser = updatedUsers.find((u) => u.id === selectedUser.id);
         if (updatedUser) {
+          // User found in list, update with fresh data
           setSelectedUser(updatedUser);
+        } else {
+          // User not in list (e.g., all documents approved and filtered out)
+          // Try to fetch user's documents directly or keep current selection
+          // For now, we'll update the documents locally as fallback
+          const updatedDocuments = selectedUser.documents.map((doc) =>
+            documentIds.includes(doc.id)
+              ? {
+                  ...doc,
+                  status: String(statusEnum),
+                  reviewNotes: notes,
+                  reviewedAt: new Date().toISOString(),
+                }
+              : doc
+          );
+          setSelectedUser({
+            ...selectedUser,
+            documents: updatedDocuments,
+          });
         }
-        // If user is not in the list (e.g., all documents approved), keep the updated selectedUser
       }
 
       setShowReviewModal(false);
@@ -732,7 +771,7 @@ const KycDocumentReview = () => {
                           key={doc.id}
                           variant={getStatusBadgeVariant(doc.status)}
                         >
-                          {doc.documentType}
+                          {getDocumentTypeName(doc.documentType)}
                         </Badge>
                       ))}
                     </div>
@@ -806,7 +845,7 @@ const KycDocumentReview = () => {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-neutral-800">
-                        {doc.documentType}
+                        {getDocumentTypeName(doc.documentType)}
                       </h4>
                       <Badge variant={getStatusBadgeVariant(doc.status)}>
                         {formatStatus(doc.status)}
@@ -837,15 +876,6 @@ const KycDocumentReview = () => {
                         onClick={() => handleDownloadDocument(doc)}
                       >
                         Download
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                          setShowReviewModal(true);
-                        }}
-                      >
-                        Review
                       </Button>
                     </div>
                   </div>

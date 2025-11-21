@@ -48,6 +48,7 @@ const KycBanner = () => {
             "Vui lòng hoàn tất xác thực KYC để sử dụng đầy đủ các tính năng của nền tảng.",
           icon: <Warning />,
           actionText: "Xác thực ngay",
+          actionPath: "/kyc-verification",
         };
       case 1: // InReview
         return {
@@ -57,6 +58,7 @@ const KycBanner = () => {
             "Tài liệu KYC của bạn đang được xem xét. Chúng tôi sẽ thông báo khi có kết quả.",
           icon: <VerifiedUser />,
           actionText: "Xem trạng thái",
+          actionPath: "/profile-setup#kyc-status",
         };
       case 3: // Rejected
         return {
@@ -66,6 +68,7 @@ const KycBanner = () => {
             "Tài liệu KYC của bạn đã bị từ chối. Vui lòng cập nhật và gửi lại.",
           icon: <ErrorIcon />,
           actionText: "Cập nhật KYC",
+          actionPath: "/profile-setup#kyc-status",
         };
       default:
         return {
@@ -75,6 +78,7 @@ const KycBanner = () => {
             "Vui lòng hoàn tất xác thực KYC để sử dụng đầy đủ các tính năng.",
           icon: <Warning />,
           actionText: "Xác thực ngay",
+          actionPath: "/kyc-verification",
         };
     }
   };
@@ -90,7 +94,7 @@ const KycBanner = () => {
           <Button
             color="inherit"
             size="small"
-            onClick={() => navigate("/kyc-verification")}
+            onClick={() => navigate(content.actionPath || "/kyc-verification")}
             sx={{ mr: 1 }}
           >
             {content.actionText}

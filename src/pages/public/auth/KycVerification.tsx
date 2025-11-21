@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { getCurrentUser } from "@/store/slices/authSlice";
 import {
   Box,
   Typography,
@@ -87,6 +89,8 @@ interface StepState {
 
 const KycVerification = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   const [activeStep, setActiveStep] = useState(0);
   const [stepsState, setStepsState] = useState<StepState[]>(
     KYC_STEPS.map(() => ({
@@ -104,6 +108,23 @@ const KycVerification = () => {
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Redirect if KYC is already approved or in review (user should not access this page)
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const kycStatus = user.kycStatus ?? 0;
+      const isKycApproved = kycStatus === 2; // 2 = Approved
+      const isKycInReview = kycStatus === 1; // 1 = InReview
+
+      if (isKycApproved) {
+        // KYC approved, redirect to home
+        navigate("/home", { replace: true });
+      } else if (isKycInReview) {
+        // KYC in review, redirect to profile setup
+        navigate("/profile-setup", { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Load existing documents on mount
   useEffect(() => {
@@ -165,11 +186,14 @@ const KycVerification = () => {
           })
         );
         setStepsState(updatedStates);
+
+        // Don't redirect here - let user continue to step 5 (optional) if they want
+        // Redirect will happen in handleNext when they complete step 5 or click "Hoàn Tất"
       };
       loadImages();
     }
     setIsLoading(false);
-  }, [existingDocuments]);
+  }, [existingDocuments, navigate, dispatch]);
 
   const loadExistingDocuments = async () => {
     try {
@@ -278,8 +302,14 @@ const KycVerification = () => {
         return newState;
       });
 
-      // Reload documents
+      // Reload documents to get updated status
       await loadExistingDocuments();
+
+      // If we just completed step 4 (required), automatically move to step 5 (optional)
+      if (activeStep === 3) {
+        // Step 4 (index 3) completed, move to step 5 (optional)
+        setActiveStep(4);
+      }
     } catch (error: unknown) {
       console.error("Error uploading document:", error);
       const axiosError = error as {
@@ -400,14 +430,43 @@ const KycVerification = () => {
     }
   };
 
-  const handleNext = () => {
-    if (activeStep < KYC_STEPS.length - 1) {
+  const handleNext = async () => {
+    // Check if we're on step 4 (index 3) and moving to step 5 (optional)
+    if (activeStep === 3) {
+      // Moving from step 4 to step 5 (optional)
+      setActiveStep((prev) => prev + 1);
+    } else if (activeStep < KYC_STEPS.length - 1) {
+      // Moving to next step (not the last one)
       setActiveStep((prev) => prev + 1);
     } else {
-      // All steps completed
-      navigate("/home", {
-        state: { message: "KYC verification submitted successfully!" },
-      });
+      // We're on step 5 (last step, optional) and clicking "Hoàn Tất"
+      // Check if all 4 required steps are completed
+      const requiredStepsCount = 4;
+      let completedCount = 0;
+      for (let i = 0; i < requiredStepsCount; i++) {
+        if (stepsState[i]?.uploadedDocument !== null) {
+          completedCount++;
+        }
+      }
+
+      // Only redirect if all 4 required steps are completed
+      if (completedCount >= 4) {
+        // Reload user data to update KYC status
+        await dispatch(getCurrentUser());
+
+        // Redirect to Profile Setup
+        navigate("/profile-setup", {
+          replace: true,
+          state: {
+            message:
+              "KYC đang chờ xác nhận. Vui lòng hoàn tất thiết lập hồ sơ.",
+          },
+        });
+      } else {
+        // If required steps not completed, show error or stay on page
+        // This shouldn't happen if validation is correct, but handle it anyway
+        console.warn("Cannot complete: not all required steps are completed");
+      }
     }
   };
 
@@ -415,8 +474,35 @@ const KycVerification = () => {
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleSkip = () => {
-    if (activeStep < KYC_STEPS.length - 1) {
+  const handleSkip = async () => {
+    // If skipping step 5 (optional), complete the process
+    if (activeStep === KYC_STEPS.length - 1) {
+      // We're on step 5 (last step, optional) and clicking "Bỏ Qua"
+      // Check if all 4 required steps are completed
+      const requiredStepsCount = 4;
+      let completedCount = 0;
+      for (let i = 0; i < requiredStepsCount; i++) {
+        if (stepsState[i]?.uploadedDocument !== null) {
+          completedCount++;
+        }
+      }
+
+      // Only redirect if all 4 required steps are completed
+      if (completedCount >= 4) {
+        // Reload user data to update KYC status
+        await dispatch(getCurrentUser());
+
+        // Redirect to Profile Setup
+        navigate("/profile-setup", {
+          replace: true,
+          state: {
+            message:
+              "KYC đang chờ xác nhận. Vui lòng hoàn tất thiết lập hồ sơ.",
+          },
+        });
+      }
+    } else {
+      // Skip to next step
       handleNext();
     }
   };

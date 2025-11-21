@@ -25,6 +25,8 @@ const Home = () => {
           icon: <Warning className="text-warning-600" />,
           buttonText: "Bắt đầu xác thực",
           buttonColor: "bg-neutral-700 hover:bg-neutral-800",
+          showButton: true,
+          onButtonClick: () => navigate("/kyc-verification"),
         };
       case 1: // InReview
         return {
@@ -34,6 +36,8 @@ const Home = () => {
           icon: <VerifiedUser className="text-info-600" />,
           buttonText: "Xem trạng thái",
           buttonColor: "bg-neutral-600 hover:bg-neutral-700",
+          showButton: false, // Don't show button for InReview status
+          onButtonClick: () => {}, // No action
         };
       case 3: // Rejected
         return {
@@ -43,6 +47,8 @@ const Home = () => {
           icon: <ErrorIcon className="text-error-600" />,
           buttonText: "Cập nhật KYC",
           buttonColor: "bg-error-600 hover:bg-error-700",
+          showButton: true,
+          onButtonClick: () => navigate("/kyc-verification"),
         };
       default:
         return null;
@@ -66,12 +72,14 @@ const Home = () => {
                 <p className="mb-4 text-sm text-neutral-600">
                   {kycCard.description}
                 </p>
-                <button
-                  onClick={() => navigate("/kyc-verification")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${kycCard.buttonColor}`}
-                >
-                  {kycCard.buttonText}
-                </button>
+                {kycCard.showButton !== false && kycCard.onButtonClick && (
+                  <button
+                    onClick={kycCard.onButtonClick}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${kycCard.buttonColor}`}
+                  >
+                    {kycCard.buttonText}
+                  </button>
+                )}
               </div>
             </div>
           </div>
