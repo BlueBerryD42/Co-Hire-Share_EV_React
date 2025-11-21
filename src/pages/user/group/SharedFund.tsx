@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useMemo, useState, useEffect } from 'react'
+import { useParams, useLocation } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -37,6 +37,49 @@ const SharedFund = () => {
     reload: reloadTransactions,
   } = useFundTransactions(groupId, 1, 8)
   const { user } = useAppSelector((state) => state.auth)
+  const location = useLocation()
+
+  useEffect(() => {
+    const checkPaymentStatus = () => {
+      const pendingDepositJSON = sessionStorage.getItem('pendingFundDeposit');
+      const searchParams = new URLSearchParams(location.search);
+      const responseCode = searchParams.get('vnp_ResponseCode');
+      const orderIdParam = searchParams.get('vnp_TxnRef');
+  
+      if (!pendingDepositJSON || !responseCode) {
+        return;
+      }
+      
+      const pendingDeposit = JSON.parse(pendingDepositJSON);
+  
+      if (pendingDeposit.orderId === orderIdParam) {
+        if (responseCode === '00') {
+          setSnackbar({
+            open: true,
+            message: 'Giao dịch thành công! Vui lòng chờ trong khi hệ thống cập nhật số dư.',
+            severity: 'success',
+          });
+          // Wait a couple of seconds for backend IPN to be processed before reloading
+          setTimeout(() => {
+            reload();
+            reloadTransactions();
+          }, 3000); // 3-second delay
+        } else {
+          setSnackbar({
+            open: true,
+            message: 'Giao dịch không thành công hoặc đã bị hủy.',
+            severity: 'error',
+          });
+        }
+  
+        // Clean up session storage and URL query params
+        sessionStorage.removeItem('pendingFundDeposit');
+        window.history.replaceState({}, document.title, `${location.pathname}`);
+      }
+    };
+  
+    checkPaymentStatus();
+  }, [location.search, reload, reloadTransactions]);
 
   const [dialog, setDialog] = useState<{ type: FundAction | null }>({ type: null })
   const [formValues, setFormValues] = useState(initialFormState)
@@ -98,6 +141,14 @@ const SharedFund = () => {
       })
       return
     }
+    if (amountNumber < 10000) {
+      setSnackbar({
+        open: true,
+        message: 'Số tiền phải lớn hơn hoặc bằng 10,000 VND',
+        severity: 'error',
+      })
+      return
+    }
     setSubmitting(true)
     try {
       if (dialog.type === 'deposit') {
@@ -133,13 +184,32 @@ const SharedFund = () => {
       })
       handleCloseDialog()
       await Promise.all([reload(), reloadTransactions()])
-    } catch (submitError) {
-      setSnackbar({
-        open: true,
-        message: submitError instanceof Error ? submitError.message : 'Có lỗi xảy ra',
-        severity: 'error',
-      })
-    } finally {
+            } catch (submitError: any) {
+              let errorMessage = 'Có lỗi xảy ra';
+              if (submitError instanceof Error) {
+                errorMessage = submitError.message;
+              } else if (submitError.response && submitError.response.data && submitError.response.data.message) {
+                errorMessage = submitError.response.data.message;
+              }
+    
+                        if (
+                          (submitError.response && submitError.response.status === 400) ||
+                          errorMessage.includes('Insufficient funds') ||
+                          errorMessage.includes('Số dư không đủ') ||
+                          errorMessage.includes('Không đủ tiền trong quỹ')
+                        ) {
+                          setSnackbar({
+                            open: true,
+                            message: 'Số dư quỹ không đủ để thực hiện giao dịch này.',
+                            severity: 'error',
+                          });
+                        } else {                setSnackbar({
+                  open: true,
+                  message: errorMessage,
+                  severity: 'error',
+                });
+              }
+            } finally {
       setSubmitting(false)
     }
   }
@@ -155,12 +225,32 @@ const SharedFund = () => {
         severity: 'success',
       })
       await Promise.all([reload(), reloadTransactions()])
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: error instanceof Error ? error.message : 'Không thể phê duyệt yêu cầu rút quỹ',
-        severity: 'error',
-      })
+    } catch (error: any) {
+      let errorMessage = 'Không thể phê duyệt yêu cầu rút quỹ';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      if (
+        (error.response && error.response.status === 400) ||
+        errorMessage.includes('Insufficient funds') ||
+        errorMessage.includes('Số dư không đủ') ||
+        errorMessage.includes('Không đủ tiền trong quỹ')
+      ) {
+        setSnackbar({
+          open: true,
+          message: 'Số dư quỹ không đủ để phê duyệt yêu cầu rút này.',
+          severity: 'error',
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: 'error',
+        });
+      }
     } finally {
       setSubmitting(false)
     }
@@ -385,13 +475,12 @@ const SharedFund = () => {
                 <th className="px-3 py-2">Người thực hiện</th>
                 <th className="px-3 py-2">Trạng thái</th>
                 <th className="px-3 py-2 text-right">Số tiền</th>
-                <th className="px-3 py-2 text-right">Số dư sau</th>
               </tr>
             </thead>
             <tbody>
               {txLoading && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-neutral-400">
+                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-400">
                     Đang tải giao dịch...
                   </td>
                 </tr>
@@ -421,12 +510,11 @@ const SharedFund = () => {
                     <td className="px-3 py-2 text-right font-semibold">
                       {currency.format(tx.amount)}
                     </td>
-                    <td className="px-3 py-2 text-right">{currency.format(tx.balanceAfter)}</td>
                   </tr>
                 ))}
               {!txLoading && (!transactions || transactions.transactions.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-neutral-400">
+                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-400">
                     Chưa có giao dịch nào.
                   </td>
                 </tr>
