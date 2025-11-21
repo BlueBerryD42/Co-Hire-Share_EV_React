@@ -15,6 +15,7 @@ import {
 import { Add, Delete } from '@mui/icons-material'
 import { groupApi } from '@/services/group/groups'
 import { userApi } from '@/services/user/api'
+import { Car } from 'lucide-react'
 
 const steps = ['Thông tin nhóm', 'Tỷ lệ sở hữu', 'Quy tắc & xuất bản', 'Thêm xe (Tùy chọn)']
 
