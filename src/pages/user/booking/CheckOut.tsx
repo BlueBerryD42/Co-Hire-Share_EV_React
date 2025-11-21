@@ -7,6 +7,7 @@ import {
   PhotoTypeValue,
   type BookingDto,
   type CheckInDto,
+  type CheckInPhotoDto,
   type CheckInPhotoInputDto,
 } from "@/models/booking";
 import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
@@ -20,9 +21,11 @@ const isCheckInRecord = (record: CheckInDto) =>
 const HistoryTable = ({
   title,
   records,
+  onPhotoPreview,
 }: {
   title: string;
   records: CheckInDto[];
+  onPhotoPreview: (photo: CheckInPhotoDto) => void;
 }) => (
   <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
     <p className="text-xs uppercase tracking-wide text-black">{title}</p>
@@ -35,6 +38,7 @@ const HistoryTable = ({
             <th className="py-2">Time</th>
             <th className="py-2">Odometer</th>
             <th className="py-2">Notes</th>
+            <th className="py-2">Photos</th>
           </tr>
         </thead>
         <tbody>
@@ -45,6 +49,35 @@ const HistoryTable = ({
               </td>
               <td className="py-2">{record.odometer ?? "--"}</td>
               <td className="py-2">{record.notes ?? "--"}</td>
+              <td className="py-2">
+                {record.photos && record.photos.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {record.photos.slice(0, 3).map((photo) => (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => onPhotoPreview(photo)}
+                          className="rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand/60"
+                        >
+                          <img
+                            src={photo.photoUrl}
+                            alt={photo.description ?? "Check-out photo"}
+                            className="h-8 w-8 rounded object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    {record.photos.length > 3 ? (
+                      <span className="text-[11px] text-slate-700">
+                        +{record.photos.length - 3} more
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="text-slate-500">No photos</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -66,6 +99,9 @@ const CheckOut = () => {
   const [startOdometer, setStartOdometer] = useState<number | null>(null);
   const [endOdometer, setEndOdometer] = useState<number | null>(null);
   const [tripCompleted, setTripCompleted] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<CheckInPhotoDto | null>(
+    null
+  );
   const checkInHistory = useMemo(
     () => history.filter(isCheckInRecord),
     [history]
@@ -376,7 +412,41 @@ const CheckOut = () => {
       </div>
 
       {booking && (
-        <HistoryTable title="Check-out history" records={checkInHistory} />
+        <HistoryTable
+          title="Check-out history"
+          records={checkInHistory}
+          onPhotoPreview={setPreviewPhoto}
+        />
+      )}
+
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-2 top-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-black shadow"
+              onClick={() => setPreviewPhoto(null)}
+            >
+              Close
+            </button>
+            <img
+              src={previewPhoto.photoUrl}
+              alt={previewPhoto.description ?? "Check-out photo"}
+              className="max-h-[85vh] w-full rounded-lg object-contain shadow-2xl"
+            />
+            {previewPhoto.description ? (
+              <p className="mt-2 text-center text-sm text-white">
+                {previewPhoto.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
       )}
     </section>
   );
