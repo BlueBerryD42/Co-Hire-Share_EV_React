@@ -82,6 +82,7 @@ interface StepState {
   uploadedDocument: KycDocumentDto | null;
   isUploading: boolean;
   error: string | null;
+  imageUrl: string | null; // Blob URL for downloaded image
 }
 
 const KycVerification = () => {
@@ -94,6 +95,7 @@ const KycVerification = () => {
       uploadedDocument: null,
       isUploading: false,
       error: null,
+      imageUrl: null,
     }))
   );
   const [existingDocuments, setExistingDocuments] = useState<KycDocumentDto[]>(
@@ -108,27 +110,63 @@ const KycVerification = () => {
     loadExistingDocuments();
   }, []);
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      stepsState.forEach((state) => {
+        if (state.imageUrl && state.imageUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(state.imageUrl);
+        }
+        if (state.preview && state.preview.startsWith("blob:")) {
+          URL.revokeObjectURL(state.preview);
+        }
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Update step states when existing documents are loaded
   useEffect(() => {
     if (existingDocuments.length > 0) {
-      setStepsState((prev) =>
-        prev.map((state, index) => {
-          const step = KYC_STEPS[index];
-          const existingDoc = existingDocuments.find(
-            (doc) =>
-              doc.documentType === step.documentType &&
-              doc.fileName.includes(step.fileNamePrefix)
-          );
-          if (existingDoc) {
+      const loadImages = async () => {
+        const updatedStates = await Promise.all(
+          KYC_STEPS.map(async (step) => {
+            const existingDoc = existingDocuments.find(
+              (doc) =>
+                doc.documentType === step.documentType &&
+                doc.fileName.includes(step.fileNamePrefix)
+            );
+            if (existingDoc) {
+              // Load image via API endpoint with authentication
+              let imageUrl = null;
+              try {
+                const blob = await userApi.downloadKycDocument(existingDoc.id);
+                imageUrl = URL.createObjectURL(blob);
+              } catch (error) {
+                console.error("Error loading KYC document image:", error);
+              }
+              return {
+                file: null,
+                preview: null,
+                uploadedDocument: existingDoc,
+                isUploading: false,
+                error: null,
+                imageUrl,
+              };
+            }
             return {
-              ...state,
-              uploadedDocument: existingDoc,
-              preview: existingDoc.storageUrl,
+              file: null,
+              preview: null,
+              uploadedDocument: null,
+              isUploading: false,
+              error: null,
+              imageUrl: null,
             };
-          }
-          return state;
-        })
-      );
+          })
+        );
+        setStepsState(updatedStates);
+      };
+      loadImages();
     }
     setIsLoading(false);
   }, [existingDocuments]);
@@ -137,7 +175,7 @@ const KycVerification = () => {
     try {
       const docs = await userApi.getKycDocuments();
       setExistingDocuments(docs);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error loading KYC documents:", error);
     }
   };
@@ -195,11 +233,73 @@ const KycVerification = () => {
         file,
         preview,
         error: null,
+        isUploading: true,
       };
       return newState;
     });
+
+    // Automatically upload the file
+    try {
+      const currentStep = KYC_STEPS[activeStep];
+      // Convert file to base64
+      const base64Content = await convertFileToBase64(file);
+      const fileName = `${currentStep.fileNamePrefix}-${Date.now()}.${file.name
+        .split(".")
+        .pop()}`;
+
+      // Upload to backend
+      const uploadedDoc = await userApi.uploadKycDocument({
+        documentType: currentStep.documentType,
+        fileName,
+        base64Content,
+        notes: `Uploaded for ${currentStep.title}`,
+      });
+
+      // Load image via API endpoint with authentication
+      let imageUrl = preview; // Fallback to preview
+      try {
+        const blob = await userApi.downloadKycDocument(uploadedDoc.id);
+        imageUrl = URL.createObjectURL(blob);
+      } catch (error) {
+        console.error("Error loading uploaded document image:", error);
+        // Keep preview if download fails
+      }
+
+      // Update state
+      setStepsState((prev) => {
+        const newState = [...prev];
+        newState[activeStep] = {
+          ...newState[activeStep],
+          uploadedDocument: uploadedDoc,
+          isUploading: false,
+          error: null,
+          imageUrl: imageUrl || preview, // Use downloaded image or keep preview
+        };
+        return newState;
+      });
+
+      // Reload documents
+      await loadExistingDocuments();
+    } catch (error: unknown) {
+      console.error("Error uploading document:", error);
+      const axiosError = error as {
+        response?: { data?: { message?: string } };
+      };
+      setStepsState((prev) => {
+        const newState = [...prev];
+        newState[activeStep] = {
+          ...newState[activeStep],
+          isUploading: false,
+          error:
+            axiosError.response?.data?.message ||
+            "Có lỗi xảy ra khi upload. Vui lòng thử lại.",
+        };
+        return newState;
+      });
+    }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpload = async () => {
     const currentState = stepsState[activeStep];
     const currentStep = KYC_STEPS[activeStep];
@@ -256,15 +356,18 @@ const KycVerification = () => {
 
       // Reload documents
       await loadExistingDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error uploading document:", error);
+      const axiosError = error as {
+        response?: { data?: { message?: string } };
+      };
       setStepsState((prev) => {
         const newState = [...prev];
         newState[activeStep] = {
           ...newState[activeStep],
           isUploading: false,
           error:
-            error.response?.data?.message ||
+            axiosError.response?.data?.message ||
             "Có lỗi xảy ra khi upload. Vui lòng thử lại.",
         };
         return newState;
@@ -275,12 +378,17 @@ const KycVerification = () => {
   const handleRetake = () => {
     setStepsState((prev) => {
       const newState = [...prev];
+      // Cleanup blob URL if exists
+      if (newState[activeStep].imageUrl) {
+        URL.revokeObjectURL(newState[activeStep].imageUrl);
+      }
       newState[activeStep] = {
         ...newState[activeStep],
         file: null,
         preview: null,
         uploadedDocument: null,
         error: null,
+        imageUrl: null,
       };
       return newState;
     });
@@ -566,49 +674,51 @@ const KycVerification = () => {
                     </Typography>
                   </Box>
                 )}
-
-                {/* Upload Button */}
-                {currentState.preview && !currentState.isUploading && (
-                  <Button
-                    variant="contained"
-                    onClick={handleUpload}
-                    fullWidth
-                    sx={{
-                      bgcolor: "#7a9aaf",
-                      "&:hover": { bgcolor: "#6a8a9f" },
-                      py: 1.5,
-                    }}
-                  >
-                    Upload
-                  </Button>
-                )}
               </Box>
             ) : (
-              /* Completed State */
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 4,
-                }}
-              >
-                <CheckCircle
-                  sx={{
-                    fontSize: 64,
-                    color: "#7a9b76",
-                    mb: 2,
-                  }}
-                />
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: "#6b5a4d",
-                    mb: 1,
-                  }}
-                >
-                  Đã Upload Thành Công
-                </Typography>
+              /* Completed State - Show uploaded image */
+              <Box>
+                {/* Display uploaded image */}
+                {(currentState.preview || currentState.imageUrl) && (
+                  <Box
+                    sx={{
+                      mb: 2,
+                      position: "relative",
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={currentState.preview || currentState.imageUrl || ""}
+                      alt="Uploaded document"
+                      sx={{
+                        width: "100%",
+                        maxHeight: 400,
+                        objectFit: "contain",
+                        borderRadius: 2,
+                        border: "2px solid #e3d5ca",
+                      }}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleRetake}
+                      sx={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        bgcolor: "rgba(255, 255, 255, 0.9)",
+                        borderColor: "#7a9aaf",
+                        color: "#7a9aaf",
+                      }}
+                    >
+                      Upload Lại
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Status badge and notes */}
                 {currentState.uploadedDocument && (
-                  <Box sx={{ mt: 2 }}>
+                  <Box sx={{ mt: 2, textAlign: "center" }}>
                     {getStatusBadge(currentState.uploadedDocument.status)}
                     {currentState.uploadedDocument.reviewNotes && (
                       <Alert severity="info" sx={{ mt: 2 }}>
@@ -617,17 +727,6 @@ const KycVerification = () => {
                     )}
                   </Box>
                 )}
-                <Button
-                  variant="outlined"
-                  onClick={handleRetake}
-                  sx={{
-                    mt: 2,
-                    borderColor: "#7a9aaf",
-                    color: "#7a9aaf",
-                  }}
-                >
-                  Upload Lại
-                </Button>
               </Box>
             )}
           </CardContent>
@@ -684,5 +783,3 @@ const KycVerification = () => {
 };
 
 export default KycVerification;
-
-
