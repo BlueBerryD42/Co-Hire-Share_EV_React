@@ -41,7 +41,6 @@ import type {
 import {
   PAYMENT_METHODS,
   LANGUAGES,
-  DEFAULT_NOTIFICATION_PREFERENCES,
 } from "@/models/user";
 import type { KycDocumentDto } from "@/models/kyc";
 import { KycDocumentStatus } from "@/models/kyc";
@@ -55,12 +54,14 @@ const ProfileSetup = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ProfileSetupFormData>({
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    phone: user?.phone || "",
     bio: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
     preferredPaymentMethod: "",
     languagePreference: "vi",
-    notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
   });
 
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(
@@ -98,14 +99,14 @@ const ProfileSetup = () => {
         const profile = await userApi.getFullProfile();
         if (profile) {
           setFormData({
+            firstName: profile.firstName || "",
+            lastName: profile.lastName || "",
+            phone: profile.phone || "",
             bio: profile.bio || "",
             emergencyContactName: profile.emergencyContact?.name || "",
             emergencyContactPhone: profile.emergencyContact?.phone || "",
             preferredPaymentMethod: profile.preferredPaymentMethod || "",
             languagePreference: profile.languagePreference || "vi",
-            notificationPreferences: profile.notificationPreferences || {
-              ...DEFAULT_NOTIFICATION_PREFERENCES,
-            },
           });
           if (profile.profilePhotoUrl) {
             // Check if it's a blob URL (shouldn't be, but handle it)
@@ -239,22 +240,7 @@ const ProfileSetup = () => {
     }));
   };
 
-  const handleNotificationToggle = (
-    category: keyof NotificationPreferences,
-    key: string,
-    value: boolean
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      notificationPreferences: {
-        ...prev.notificationPreferences!,
-        [category]: {
-          ...prev.notificationPreferences![category],
-          [key]: value,
-        },
-      },
-    }));
-  };
+
 
   const handleSubmit = async (skip: boolean = false) => {
     setIsSubmitting(true);
@@ -288,14 +274,14 @@ const ProfileSetup = () => {
 
       // Prepare update request
       const updateRequest: UpdateProfileRequest = {
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        phone: formData.phone || undefined,
         bio: formData.bio || undefined,
         emergencyContactName: formData.emergencyContactName || undefined,
         emergencyContactPhone: formData.emergencyContactPhone || undefined,
         preferredPaymentMethod: formData.preferredPaymentMethod || undefined,
         languagePreference: formData.languagePreference || undefined,
-        notificationPreferences: formData.notificationPreferences
-          ? JSON.stringify(formData.notificationPreferences)
-          : undefined,
         profilePhotoUrl,
       };
 
@@ -316,14 +302,14 @@ const ProfileSetup = () => {
       const updatedProfile = await userApi.getFullProfile();
       if (updatedProfile) {
         setFormData({
+          firstName: updatedProfile.firstName || "",
+          lastName: updatedProfile.lastName || "",
+          phone: updatedProfile.phone || "",
           bio: updatedProfile.bio || "",
           emergencyContactName: updatedProfile.emergencyContact?.name || "",
           emergencyContactPhone: updatedProfile.emergencyContact?.phone || "",
           preferredPaymentMethod: updatedProfile.preferredPaymentMethod || "",
           languagePreference: updatedProfile.languagePreference || "vi",
-          notificationPreferences: updatedProfile.notificationPreferences || {
-            ...DEFAULT_NOTIFICATION_PREFERENCES,
-          },
         });
         if (updatedProfile.profilePhotoUrl) {
           if (!updatedProfile.profilePhotoUrl.startsWith("blob:")) {
@@ -614,6 +600,86 @@ const ProfileSetup = () => {
           </CardContent>
         </Card>
 
+        {/* Personal Information Section */}
+        <Card
+          sx={{
+            bgcolor: "#f5ebe0",
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: "0 2px 8px rgba(45, 37, 32, 0.06)",
+          }}
+        >
+          <CardContent>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                color: "#6b5a4d",
+                mb: 3,
+              }}
+            >
+              2. Thông Tin Cá Nhân
+            </Typography>
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Tên"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "#edede9",
+                    "&:hover fieldset": {
+                      borderColor: "#7a9aaf",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#7a9aaf",
+                      boxShadow: "0 0 0 3px rgba(122, 154, 175, 0.15)",
+                    },
+                  },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Họ"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "#edede9",
+                    "&:hover fieldset": {
+                      borderColor: "#7a9aaf",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#7a9aaf",
+                      boxShadow: "0 0 0 3px rgba(122, 154, 175, 0.15)",
+                    },
+                  },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Số điện thoại"
+                value={formData.phone}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "#edede9",
+                    "&:hover fieldset": {
+                      borderColor: "#7a9aaf",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#7a9aaf",
+                      boxShadow: "0 0 0 3px rgba(122, 154, 175, 0.15)",
+                    },
+                  },
+                }}
+              />
+            </Box>
+          </CardContent>
+        </Card>
+
         {/* KYC Status Section */}
         {user && (user.role === 2 || user.role === 3) && (
           <Card
@@ -633,10 +699,9 @@ const ProfileSetup = () => {
                   color: "#6b5a4d",
                   mb: 3,
                 }}
-              >
-                2. Trạng Thái KYC
-              </Typography>
-
+                              >
+                                3. Trạng Thái KYC
+                              </Typography>
               {/* Overall KYC Status */}
               <Box sx={{ mb: 3 }}>
                 <Box
@@ -870,8 +935,8 @@ const ProfileSetup = () => {
               }}
             >
               {user && (user.role === 2 || user.role === 3)
-                ? "3. Giới Thiệu (Tùy Chọn)"
-                : "2. Giới Thiệu (Tùy Chọn)"}
+                ? "4. Giới Thiệu (Tùy Chọn)"
+                : "3. Giới Thiệu (Tùy Chọn)"}
             </Typography>
             <TextField
               fullWidth
@@ -917,8 +982,8 @@ const ProfileSetup = () => {
               }}
             >
               {user && (user.role === 2 || user.role === 3)
-                ? "4. Liên Hệ Khẩn Cấp"
-                : "3. Liên Hệ Khẩn Cấp"}
+                ? "5. Liên Hệ Khẩn Cấp"
+                : "4. Liên Hệ Khẩn Cấp"}
             </Typography>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -986,8 +1051,8 @@ const ProfileSetup = () => {
               }}
             >
               {user && (user.role === 2 || user.role === 3)
-                ? "5. Tùy Chọn Thanh Toán & Ngôn Ngữ"
-                : "4. Tùy Chọn Thanh Toán & Ngôn Ngữ"}
+                ? "6. Tùy Chọn Thanh Toán & Ngôn Ngữ"
+                : "5. Tùy Chọn Thanh Toán & Ngôn Ngữ"}
             </Typography>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1045,235 +1110,6 @@ const ProfileSetup = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Notification Preferences Section */}
-        <Card
-          sx={{
-            bgcolor: "#f5ebe0",
-            mb: 3,
-            borderRadius: 2,
-            boxShadow: "0 2px 8px rgba(45, 37, 32, 0.06)",
-          }}
-        >
-          <CardContent>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 600,
-                color: "#6b5a4d",
-                mb: 3,
-              }}
-            >
-              {user && (user.role === 2 || user.role === 3)
-                ? "6. Tùy Chọn Thông Báo"
-                : "5. Tùy Chọn Thông Báo"}
-            </Typography>
-
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Bookings */}
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 600, color: "#6b5a4d", mb: 1 }}
-                >
-                  Đặt Xe
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.bookings
-                            ?.confirmed ?? false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "bookings",
-                            "confirmed",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Xác nhận đặt xe"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.bookings
-                            ?.reminder ?? false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "bookings",
-                            "reminder",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Nhắc nhở đặt xe"
-                  />
-                </Box>
-              </Box>
-
-              <Divider sx={{ borderColor: "#e3d5ca" }} />
-
-              {/* Payments */}
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 600, color: "#6b5a4d", mb: 1 }}
-                >
-                  Thanh Toán
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.payments?.due ??
-                          false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "payments",
-                            "due",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Thanh toán đến hạn"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.payments
-                            ?.received ?? false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "payments",
-                            "received",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Thanh toán đã nhận"
-                  />
-                </Box>
-              </Box>
-
-              <Divider sx={{ borderColor: "#e3d5ca" }} />
-
-              {/* Group Activity */}
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 600, color: "#6b5a4d", mb: 1 }}
-                >
-                  Hoạt Động Nhóm
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.groupActivity
-                            ?.newMember ?? false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "groupActivity",
-                            "newMember",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Thành viên mới tham gia"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={
-                          formData.notificationPreferences?.groupActivity
-                            ?.ownershipChanged ?? false
-                        }
-                        onChange={(e) =>
-                          handleNotificationToggle(
-                            "groupActivity",
-                            "ownershipChanged",
-                            e.target.checked
-                          )
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#7a9aaf",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              bgcolor: "#7a9aaf",
-                            },
-                        }}
-                      />
-                    }
-                    label="Thay đổi quyền sở hữu"
-                  />
-                </Box>
-              </Box>
             </Box>
           </CardContent>
         </Card>
