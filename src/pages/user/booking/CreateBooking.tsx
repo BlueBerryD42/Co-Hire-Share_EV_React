@@ -11,6 +11,9 @@ import { useAppSelector } from "@/store/hooks";
 import Cookies from "js-cookie";
 import { useGroups } from "@/hooks/useGroups";
 import type { VehicleListItem } from "@/models/vehicle";
+import AiBookingRecommendations from "@/components/booking/AiBookingRecommendations";
+import type { BookingSuggestionItem } from "@/models/ai";
+import { Sparkles } from "lucide-react";
 
 const now = new Date();
 const tomorrow = new Date(now);
@@ -91,6 +94,7 @@ const CreateBooking = () => {
   const [slots, setSlots] = useState<AvailabilitySlotDto[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [showAiRecommendations, setShowAiRecommendations] = useState(false);
 
   useEffect(() => {
     setUserId(derivedUserId);
@@ -148,36 +152,38 @@ const CreateBooking = () => {
 
   const availableVehicles = useMemo(() => {
     // Filter out pending/rejected vehicles - only show Available, InUse, Maintenance, Unavailable
-    const validStatuses = ['Available', 'InUse', 'Maintenance', 'Unavailable']
-    
+    const validStatuses = ["Available", "InUse", "Maintenance", "Unavailable"];
+
     // Create a map of groupId -> group for quick lookup
-    const groupsMap = new Map(groups?.map(g => [g.id, g]) || [])
-    
+    const groupsMap = new Map(groups?.map((g) => [g.id, g]) || []);
+
     // Filter vehicles: must have valid vehicle status AND belong to an Active group
     const filterVehicles = (vehicleList: VehicleListItem[]) => {
       return vehicleList.filter((vehicle) => {
         // Check vehicle status
-        if (!validStatuses.includes(vehicle.status ?? 'Available')) {
-          return false
+        if (!validStatuses.includes(vehicle.status ?? "Available")) {
+          return false;
         }
-        
+
         // Check group status - vehicle must belong to an Active group
         if (vehicle.groupId) {
-          const group = groupsMap.get(vehicle.groupId)
-          if (!group || group.status !== 'Active') {
-            return false // Group not found or not Active
+          const group = groupsMap.get(vehicle.groupId);
+          if (!group || group.status !== "Active") {
+            return false; // Group not found or not Active
           }
         } else {
-          return false // Vehicle has no group
+          return false; // Vehicle has no group
         }
-        
-        return true
-      })
-    }
-    
+
+        return true;
+      });
+    };
+
     const groupVehicles =
       selectedGroup?.vehicles
-        ?.filter((vehicle) => validStatuses.includes(vehicle.status ?? 'Available'))
+        ?.filter((vehicle) =>
+          validStatuses.includes(vehicle.status ?? "Available")
+        )
         ?.map((vehicle) => ({
           id: vehicle.id,
           vin: vehicle.vin ?? "",
@@ -193,20 +199,22 @@ const CreateBooking = () => {
           updatedAt: vehicle.updatedAt ?? new Date().toISOString(),
           healthScore: null,
         })) ?? [];
-    
+
     // Filter group vehicles by group status
-    const filteredGroupVehicles = filterVehicles(groupVehicles)
+    const filteredGroupVehicles = filterVehicles(groupVehicles);
     if (filteredGroupVehicles.length > 0) {
       return filteredGroupVehicles;
     }
-    
+
     if (groupId) {
-      const filtered = filterVehicles(vehicles.filter((vehicle) => vehicle.groupId === groupId))
+      const filtered = filterVehicles(
+        vehicles.filter((vehicle) => vehicle.groupId === groupId)
+      );
       if (filtered.length > 0) {
         return filtered;
       }
     }
-    
+
     return filterVehicles(vehicles);
   }, [groupId, selectedGroup, vehicles, groups]);
 
@@ -469,6 +477,31 @@ const CreateBooking = () => {
     }
   }, [startOptions, startIso, slotsLoading, handleStartSelect]);
 
+  const handleAiSuggestionSelect = useCallback(
+    (suggestion: BookingSuggestionItem) => {
+      const startDate = new Date(suggestion.start);
+      const endDate = new Date(suggestion.end);
+
+      // Update form with selected suggestion
+      updateForm("date", toDateInput(startDate));
+      updateForm("start", toTimeInput(startDate));
+      updateForm("endDate", toDateInput(endDate));
+      updateForm("end", toTimeInput(endDate));
+
+      // Calculate duration in hours for display
+      const durationHours =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+      updateForm("distance", Math.round(durationHours * 60)); // Rough estimate: 60km per hour
+
+      setServerMessage(
+        `AI suggestion applied: ${startDate.toLocaleString(
+          "vi-VN"
+        )} - ${endDate.toLocaleString("vi-VN")}`
+      );
+    },
+    [toDateInput, toTimeInput, updateForm]
+  );
+
   const handleSubmit = async () => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
     if (!resolvedVehicleId) {
@@ -586,7 +619,8 @@ const CreateBooking = () => {
               )}
               {availableVehicles.length === 0 && !vehiclesError && (
                 <p className="text-xs text-[#8b7d6b]">
-                  Không có xe nào khả dụng để đặt lịch. Vui lòng chọn nhóm khác hoặc đợi nhóm/xe được phê duyệt và hoạt động.
+                  Không có xe nào khả dụng để đặt lịch. Vui lòng chọn nhóm khác
+                  hoặc đợi nhóm/xe được phê duyệt và hoạt động.
                 </p>
               )}
             </label>
@@ -667,6 +701,27 @@ const CreateBooking = () => {
               highlighted slot.
             </p>
           )}
+
+          {/* AI Recommendations Trigger */}
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAiRecommendations(true)}
+              disabled={!groupId || !userId}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border rounded-lg ${
+                groupId && userId
+                  ? "text-accent-blue hover:text-accent-blue/80 border-accent-blue/30 hover:bg-accent-blue/5"
+                  : "text-neutral-400 border-neutral-300 cursor-not-allowed opacity-50"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>
+                {!groupId || !userId
+                  ? "Vui lòng chọn Group để sử dụng AI suggestions"
+                  : "Need help finding a time? Try AI suggestions"}
+              </span>
+            </button>
+          </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2 text-sm text-black">
@@ -874,6 +929,20 @@ const CreateBooking = () => {
           )}
         </form>
       </div>
+
+      {/* AI Booking Recommendations Modal */}
+      {groupId && userId && (
+        <AiBookingRecommendations
+          isOpen={showAiRecommendations}
+          onClose={() => setShowAiRecommendations(false)}
+          vehicleId={vehicleId}
+          groupId={groupId}
+          userId={userId}
+          initialPreferredDate={form.date}
+          initialDuration={durationMinutes / 60}
+          onSelectSuggestion={handleAiSuggestionSelect}
+        />
+      )}
     </section>
   );
 };
