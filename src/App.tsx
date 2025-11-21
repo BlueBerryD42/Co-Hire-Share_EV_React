@@ -64,9 +64,6 @@ import {
   ReportIssue,
   AiRecommendations,
   SuccessFeedback,
-  ExpensesPayments as BookingExpensesPayments,
-  PaymentScreen as BookingPaymentScreen,
-  AddExpense as BookingAddExpense,
 } from "@/pages/user/booking";
 
 // Group Pages
@@ -94,8 +91,6 @@ import {
 import StaffDashboard from "@/pages/staff/StaffDashboard";
 import ManageGroups from "@/pages/staff/ManageGroups";
 import ManageVehicles from "@/pages/staff/ManageVehicles";
-import PendingGroups from "@/pages/staff/PendingGroups";
-import PendingVehicles from "@/pages/staff/PendingVehicles";
 import VehicleMaintenance from "@/pages/staff/VehicleMaintenance";
 import CheckInOutManagement from "@/pages/staff/CheckInOutManagement";
 import DisputeManagement from "@/pages/staff/DisputeManagement";
@@ -330,18 +325,6 @@ const App = () => {
               path="/booking/success-feedback"
               element={<SuccessFeedback />}
             />
-            <Route
-              path="/booking/:bookingId/expenses"
-              element={<BookingExpensesPayments />}
-            />
-            <Route
-              path="/booking/:bookingId/expenses/add"
-              element={<BookingAddExpense />}
-            />
-            <Route
-              path="/booking/:bookingId/payments"
-              element={<BookingPaymentScreen />}
-            />
 
             {/* Group Routes - All wrapped in GroupLayout */}
             <Route path="/groups" element={<GroupLayout />}>
@@ -402,9 +385,7 @@ const App = () => {
           >
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<StaffDashboard />} />
-            <Route path="groups/pending" element={<PendingGroups />} />
             <Route path="groups" element={<ManageGroups />} />
-            <Route path="vehicles/pending" element={<PendingVehicles />} />
             <Route path="vehicles" element={<ManageVehicles />} />
             <Route path="maintenance" element={<VehicleMaintenance />} />
             <Route path="checkins" element={<CheckInOutManagement />} />

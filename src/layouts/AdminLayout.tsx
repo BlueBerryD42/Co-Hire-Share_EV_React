@@ -1,30 +1,20 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dashboard,
   Groups,
   DirectionsCar,
-  Build,
-  CheckCircle,
-  Warning,
-  Assessment,
   People,
   Description,
   Article,
-  Analytics,
   History,
-  Settings,
-  SmartToy,
-  Psychology,
-  Lightbulb,
   Gavel,
   Search as SearchIcon,
-  PendingActions,
 } from "@mui/icons-material";
 import GlobalSearch from "@/components/shared/GlobalSearch";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/authSlice";
-import { UserRole, isSystemAdmin } from "@/utils/roles";
+import { UserRole, isSystemAdmin, isStaff } from "@/utils/roles";
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -38,18 +28,12 @@ const AdminLayout = () => {
   const INACTIVE_CLASSES =
     "text-neutral-700 hover:bg-neutral-200 bg-neutral-50";
 
-  // All menu items
-  const allMenuItems = [
+  // Operational menu items - accessible by both SystemAdmin and Staff
+  const operationalMenuItems = [
     {
       path: "/admin/dashboard",
       label: "Dashboard",
       icon: Dashboard,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
-    },
-    {
-      path: "/admin/groups/pending",
-      label: "Pending Groups",
-      icon: PendingActions,
       roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
     {
@@ -59,27 +43,9 @@ const AdminLayout = () => {
       roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
     {
-      path: "/admin/vehicles/pending",
-      label: "Pending Vehicles",
-      icon: PendingActions,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
-    },
-    {
       path: "/admin/vehicles",
       label: "Manage Vehicles",
       icon: DirectionsCar,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
-    },
-    {
-      path: "/admin/maintenance",
-      label: "Maintenance",
-      icon: Build,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
-    },
-    {
-      path: "/admin/checkins",
-      label: "Check-In/Out",
-      icon: CheckCircle,
       roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
     {
@@ -88,19 +54,16 @@ const AdminLayout = () => {
       icon: Gavel,
       roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
-    {
-      path: "/admin/financial-reports",
-      label: "Financial Reports",
-      icon: Assessment,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
-    },
+  ];
+
+  // System management menu items - SystemAdmin only
+  const systemMenuItems = [
     {
       path: "/admin/contracts",
       label: "E-Contracts",
       icon: Article,
-      roles: [UserRole.SystemAdmin, UserRole.Staff],
+      roles: [UserRole.SystemAdmin],
     },
-    // System Admin only items
     {
       path: "/admin/users",
       label: "User Management",
@@ -114,56 +77,21 @@ const AdminLayout = () => {
       roles: [UserRole.SystemAdmin],
     },
     {
-      path: "/admin/analytics",
-      label: "Analytics",
-      icon: Analytics,
-      roles: [UserRole.SystemAdmin],
-    },
-    {
       path: "/admin/audit",
       label: "Audit Log",
       icon: History,
       roles: [UserRole.SystemAdmin],
     },
-    {
-      path: "/admin/settings",
-      label: "Settings",
-      icon: Settings,
-      roles: [UserRole.SystemAdmin],
-    },
   ];
+
+  // Combine all menu items
+  const allMenuItems = [...operationalMenuItems, ...systemMenuItems];
 
   // Filter menu items based on user role
   const menuItems = allMenuItems.filter((item) => {
     if (!user) return false;
     return item.roles.includes(user.role);
   });
-
-  const aiMenuItems = [
-    {
-      path: "/admin/ai/booking-recommendations",
-      label: "Booking Recommendations",
-      icon: SmartToy,
-    },
-    {
-      path: "/admin/ai/fairness-score",
-      label: "Fairness Score",
-      icon: Psychology,
-      requiresParam: true,
-    },
-    {
-      path: "/admin/ai/predictive-maintenance",
-      label: "Predictive Maintenance",
-      icon: Psychology,
-      requiresParam: true,
-    },
-    {
-      path: "/admin/ai/cost-optimization",
-      label: "Cost Optimization",
-      icon: Lightbulb,
-      requiresParam: true,
-    },
-  ];
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -203,7 +131,7 @@ const AdminLayout = () => {
           >
             {sidebarOpen && (
               <h1 className="text-xl font-bold text-neutral-800">
-                Admin Panel
+                {isSystemAdmin(user) ? "Admin Panel" : "Staff Panel"}
               </h1>
             )}
             <button
@@ -221,93 +149,102 @@ const AdminLayout = () => {
             sidebarOpen ? "p-4" : "p-2"
           }`}
         >
+          {/* Operations Section */}
           <div className={sidebarOpen ? "mb-6" : "mb-4"}>
             <h2
               className={`text-xs font-semibold text-neutral-500 uppercase mb-2 ${
                 !sidebarOpen && "hidden"
               }`}
             >
-              {isSystemAdmin(user) ? "Main" : "Operations"}
+              Operations
             </h2>
             <ul className="space-y-1">
-              {menuItems.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center rounded-md transition-all duration-200 ${
-                      sidebarOpen
-                        ? "gap-3 px-4 py-3"
-                        : "justify-center w-full py-3"
-                    } ${
-                      isActive(item.path) ? ACTIVE_CLASSES : INACTIVE_CLASSES
-                    }`}
-                    title={!sidebarOpen ? item.label : ""}
-                  >
-                    <span
-                      className={`flex-shrink-0 flex items-center justify-center ${
-                        !sidebarOpen ? "w-8 h-8" : ""
+              {operationalMenuItems
+                .filter((item) => {
+                  if (!user) return false;
+                  return item.roles.includes(user.role);
+                })
+                .map((item) => (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={`flex items-center rounded-md transition-all duration-200 ${
+                        sidebarOpen
+                          ? "gap-3 px-4 py-3"
+                          : "justify-center w-full py-3"
+                      } ${
+                        isActive(item.path) ? ACTIVE_CLASSES : INACTIVE_CLASSES
                       }`}
+                      title={!sidebarOpen ? item.label : ""}
                     >
-                      {sidebarOpen ? (
-                        <item.icon sx={{ fontSize: 20, color: "inherit" }} />
-                      ) : (
-                        <item.icon sx={{ fontSize: 24, color: "inherit" }} />
-                      )}
-                    </span>
-                    {sidebarOpen && (
-                      <span className="font-medium text-sm leading-tight">
-                        {item.label}
+                      <span
+                        className={`flex-shrink-0 flex items-center justify-center ${
+                          !sidebarOpen ? "w-8 h-8" : ""
+                        }`}
+                      >
+                        {sidebarOpen ? (
+                          <item.icon sx={{ fontSize: 20, color: "inherit" }} />
+                        ) : (
+                          <item.icon sx={{ fontSize: 24, color: "inherit" }} />
+                        )}
                       </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
+                      {sidebarOpen && (
+                        <span className="font-medium text-sm leading-tight">
+                          {item.label}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
             </ul>
           </div>
 
-          <div>
-            <h2
-              className={`text-xs font-semibold text-neutral-500 uppercase mb-2 ${
-                !sidebarOpen && "hidden"
-              }`}
-            >
-              AI Features
-            </h2>
-            <ul className="space-y-1">
-              {aiMenuItems.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center rounded-md transition-all duration-200 ${
-                      sidebarOpen
-                        ? "gap-3 px-4 py-3"
-                        : "justify-center w-full py-3"
-                    } ${
-                      isActive(item.path) ? ACTIVE_CLASSES : INACTIVE_CLASSES
-                    }`}
-                    title={!sidebarOpen ? item.label : ""}
-                  >
-                    <span
-                      className={`flex-shrink-0 flex items-center justify-center ${
-                        !sidebarOpen ? "w-8 h-8" : ""
+          {/* System Management Section - SystemAdmin only */}
+          {isSystemAdmin(user) && systemMenuItems.length > 0 && (
+            <div className={sidebarOpen ? "mb-6" : "mb-4"}>
+              <h2
+                className={`text-xs font-semibold text-neutral-500 uppercase mb-2 ${
+                  !sidebarOpen && "hidden"
+                }`}
+              >
+                System Management
+              </h2>
+              <ul className="space-y-1">
+                {systemMenuItems.map((item) => (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={`flex items-center rounded-md transition-all duration-200 ${
+                        sidebarOpen
+                          ? "gap-3 px-4 py-3"
+                          : "justify-center w-full py-3"
+                      } ${
+                        isActive(item.path) ? ACTIVE_CLASSES : INACTIVE_CLASSES
                       }`}
+                      title={!sidebarOpen ? item.label : ""}
                     >
-                      {sidebarOpen ? (
-                        <item.icon sx={{ fontSize: 20, color: "inherit" }} />
-                      ) : (
-                        <item.icon sx={{ fontSize: 24, color: "inherit" }} />
-                      )}
-                    </span>
-                    {sidebarOpen && (
-                      <span className="font-medium text-sm leading-tight">
-                        {item.label}
+                      <span
+                        className={`flex-shrink-0 flex items-center justify-center ${
+                          !sidebarOpen ? "w-8 h-8" : ""
+                        }`}
+                      >
+                        {sidebarOpen ? (
+                          <item.icon sx={{ fontSize: 20, color: "inherit" }} />
+                        ) : (
+                          <item.icon sx={{ fontSize: 24, color: "inherit" }} />
+                        )}
                       </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+                      {sidebarOpen && (
+                        <span className="font-medium text-sm leading-tight">
+                          {item.label}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -318,8 +255,7 @@ const AdminLayout = () => {
           <div className="flex items-center justify-between gap-2 md:gap-4 flex-wrap">
             <h2 className="text-xl md:text-2xl font-bold text-neutral-800 flex-shrink-0 min-w-0 truncate">
               {menuItems.find((item) => isActive(item.path))?.label ||
-                aiMenuItems.find((item) => isActive(item.path))?.label ||
-                "Admin Panel"}
+                (isSystemAdmin(user) ? "Admin Panel" : "Staff Panel")}
             </h2>
 
             {/* Search Bar */}
@@ -340,11 +276,20 @@ const AdminLayout = () => {
 
             <div className="flex items-center gap-4 flex-shrink-0">
               {user && (
-                <span className="text-sm text-neutral-700 whitespace-nowrap">
-                  {user.firstName
-                    ? `${user.firstName} ${user.lastName}`
-                    : user.email}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className="text-sm text-neutral-700 whitespace-nowrap font-medium">
+                    {user.firstName
+                      ? `${user.firstName} ${user.lastName}`
+                      : user.email}
+                  </span>
+                  <span className="text-xs text-neutral-500 whitespace-nowrap">
+                    {isSystemAdmin(user)
+                      ? "System Admin"
+                      : isStaff(user)
+                      ? "Staff"
+                      : "Admin"}
+                  </span>
+                </div>
               )}
               <button
                 onClick={async () => {
