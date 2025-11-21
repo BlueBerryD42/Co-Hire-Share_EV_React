@@ -24,7 +24,7 @@ const Home = () => {
             "Xác thực danh tính của bạn để truy cập đầy đủ các tính năng và tham gia vào các nhóm chia sẻ xe.",
           icon: <Warning className="text-warning-600" />,
           buttonText: "Bắt đầu xác thực",
-          buttonColor: "bg-accent-blue hover:bg-accent-blue/90",
+          buttonColor: "bg-neutral-700 hover:bg-neutral-800",
         };
       case 1: // InReview
         return {
