@@ -151,8 +151,9 @@ const CreateBooking = () => {
   );
 
   const availableVehicles = useMemo(() => {
-    // Filter out pending/rejected vehicles - only show Available, InUse, Maintenance, Unavailable
-    const validStatuses = ["Available", "InUse", "Maintenance", "Unavailable"];
+    // Filter out pending/rejected/maintenance vehicles - only show Available, InUse, Unavailable
+    // Maintenance vehicles are blocked from booking
+    const validStatuses = ["Available", "InUse", "Unavailable"];
 
     // Create a map of groupId -> group for quick lookup
     const groupsMap = new Map(groups?.map((g) => [g.id, g]) || []);
@@ -619,8 +620,8 @@ const CreateBooking = () => {
               )}
               {availableVehicles.length === 0 && !vehiclesError && (
                 <p className="text-xs text-[#8b7d6b]">
-                  Không có xe nào khả dụng để đặt lịch. Vui lòng chọn nhóm khác
-                  hoặc đợi nhóm/xe được phê duyệt và hoạt động.
+                  Không có xe nào khả dụng để đặt lịch. Xe có thể đang bảo trì, chờ phê duyệt,
+                  hoặc thuộc nhóm chưa hoạt động. Vui lòng chọn nhóm khác hoặc đợi xe sẵn sàng.
                 </p>
               )}
             </label>
