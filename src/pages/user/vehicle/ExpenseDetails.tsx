@@ -168,7 +168,7 @@ const ExpenseDetails = () => {
             {expense.status === 'Pending' && (
               <Button
                 variant="accent"
-                onClick={() => navigate(`/vehicles/${vehicleId}/payments`)}
+                onClick={() => navigate(`/vehicles/${vehicleId}/payments?expenses=${expenseId}`)}
                 className="!text-black"
               >
                 <DollarSign className="w-4 h-4 mr-2 !text-black" />

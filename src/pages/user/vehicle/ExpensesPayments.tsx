@@ -27,8 +27,8 @@ const ExpensesPayments = () => {
   const navigate = useNavigate()
 
   // State
-  const [expenses, setExpenses] = useState([])
-  const [summary, setSummary] = useState(null)
+  const [expenses, setExpenses] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedStatus, setSelectedStatus] = useState('All')
@@ -370,7 +370,14 @@ const ExpensesPayments = () => {
                 </div>
                 <Button
                   variant="warning"
-                  onClick={() => navigate(`/vehicles/${vehicleId}/payments`)}
+                  onClick={() => {
+                    // Get all pending expense IDs
+                    const pendingExpenseIds = expenses
+                      .filter(exp => exp.status === 'Pending')
+                      .map(exp => exp.id)
+                      .join(',')
+                    navigate(`/vehicles/${vehicleId}/payments?expenses=${pendingExpenseIds}`)
+                  }}
                 >
                   Thanh toán ngay
                 </Button>

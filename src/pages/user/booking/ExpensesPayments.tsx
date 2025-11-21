@@ -8,7 +8,6 @@ import {
   CreditCard,
   Download,
   ArrowLeft,
-  ChevronRight,
   Plus,
 } from 'lucide-react'
 import expenseService from '@/services/expenseService'
@@ -316,8 +315,7 @@ const ExpensesPayments = () => {
               {expenses.map((expense: any) => (
                 <div
                   key={expense.id}
-                  className="p-4 border border-neutral-200 rounded-lg hover:border-primary hover:shadow-sm transition-all cursor-pointer group"
-                  onClick={() => navigate(`/booking/${bookingId}/expenses/${expense.id}`)}
+                  className="p-4 border border-neutral-200 rounded-lg hover:border-primary hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
@@ -351,8 +349,18 @@ const ExpensesPayments = () => {
                         )}
                       </div>
 
-                      {/* Arrow */}
-                      <ChevronRight className="w-5 h-5 text-neutral-400 group-hover:text-primary transition-colors flex-shrink-0" />
+                      {/* Payment Button for Pending expenses */}
+                      {expense.status === 'Pending' && (
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          onClick={() => navigate(`/booking/${bookingId}/payments?expenses=${expense.id}`)}
+                          className="!text-black ml-4"
+                        >
+                          <CreditCard className="w-4 h-4 mr-2 !text-black" />
+                          Thanh toán
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -376,7 +384,14 @@ const ExpensesPayments = () => {
                 </div>
                 <Button
                   variant="warning"
-                  onClick={() => navigate(`/booking/${bookingId}/payments`)}
+                  onClick={() => {
+                    // Get all pending expense IDs
+                    const pendingExpenseIds = expenses
+                      .filter(exp => exp.status === 'Pending')
+                      .map(exp => exp.id)
+                      .join(',')
+                    navigate(`/booking/${bookingId}/payments?expenses=${pendingExpenseIds}`)
+                  }}
                 >
                   Thanh toán ngay
                 </Button>
