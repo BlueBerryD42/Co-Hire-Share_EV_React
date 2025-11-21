@@ -35,31 +35,102 @@ const AdminLayout = () => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const ACTIVE_CLASSES = "bg-neutral-900 text-neutral-50 shadow-sm";
-  const INACTIVE_CLASSES = "text-neutral-700 hover:bg-neutral-200";
+  const INACTIVE_CLASSES =
+    "text-neutral-700 hover:bg-neutral-200 bg-neutral-50";
 
   // All menu items
   const allMenuItems = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: Dashboard, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/groups/pending", label: "Pending Groups", icon: PendingActions, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/groups", label: "Manage Groups", icon: Groups, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/vehicles/pending", label: "Pending Vehicles", icon: PendingActions, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/vehicles", label: "Manage Vehicles", icon: DirectionsCar, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/maintenance", label: "Maintenance", icon: Build, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/checkins", label: "Check-In/Out", icon: CheckCircle, roles: [UserRole.SystemAdmin, UserRole.Staff] },
-    { path: "/admin/disputes", label: "Disputes", icon: Gavel, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    {
+      path: "/admin/dashboard",
+      label: "Dashboard",
+      icon: Dashboard,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/groups/pending",
+      label: "Pending Groups",
+      icon: PendingActions,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/groups",
+      label: "Manage Groups",
+      icon: Groups,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/vehicles/pending",
+      label: "Pending Vehicles",
+      icon: PendingActions,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/vehicles",
+      label: "Manage Vehicles",
+      icon: DirectionsCar,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/maintenance",
+      label: "Maintenance",
+      icon: Build,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/checkins",
+      label: "Check-In/Out",
+      icon: CheckCircle,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
+    {
+      path: "/admin/disputes",
+      label: "Disputes",
+      icon: Gavel,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
     {
       path: "/admin/financial-reports",
       label: "Financial Reports",
       icon: Assessment,
       roles: [UserRole.SystemAdmin, UserRole.Staff],
     },
-    { path: "/admin/contracts", label: "E-Contracts", icon: Article, roles: [UserRole.SystemAdmin, UserRole.Staff] },
+    {
+      path: "/admin/contracts",
+      label: "E-Contracts",
+      icon: Article,
+      roles: [UserRole.SystemAdmin, UserRole.Staff],
+    },
     // System Admin only items
-    { path: "/admin/users", label: "User Management", icon: People, roles: [UserRole.SystemAdmin] },
-    { path: "/admin/kyc", label: "KYC Review", icon: Description, roles: [UserRole.SystemAdmin] },
-    { path: "/admin/analytics", label: "Analytics", icon: Analytics, roles: [UserRole.SystemAdmin] },
-    { path: "/admin/audit", label: "Audit Log", icon: History, roles: [UserRole.SystemAdmin] },
-    { path: "/admin/settings", label: "Settings", icon: Settings, roles: [UserRole.SystemAdmin] },
+    {
+      path: "/admin/users",
+      label: "User Management",
+      icon: People,
+      roles: [UserRole.SystemAdmin],
+    },
+    {
+      path: "/admin/kyc",
+      label: "KYC Review",
+      icon: Description,
+      roles: [UserRole.SystemAdmin],
+    },
+    {
+      path: "/admin/analytics",
+      label: "Analytics",
+      icon: Analytics,
+      roles: [UserRole.SystemAdmin],
+    },
+    {
+      path: "/admin/audit",
+      label: "Audit Log",
+      icon: History,
+      roles: [UserRole.SystemAdmin],
+    },
+    {
+      path: "/admin/settings",
+      label: "Settings",
+      icon: Settings,
+      roles: [UserRole.SystemAdmin],
+    },
   ];
 
   // Filter menu items based on user role
@@ -270,7 +341,9 @@ const AdminLayout = () => {
             <div className="flex items-center gap-4 flex-shrink-0">
               {user && (
                 <span className="text-sm text-neutral-700 whitespace-nowrap">
-                  {user.firstName ? `${user.firstName} ${user.lastName}` : user.email}
+                  {user.firstName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.email}
                 </span>
               )}
               <button
