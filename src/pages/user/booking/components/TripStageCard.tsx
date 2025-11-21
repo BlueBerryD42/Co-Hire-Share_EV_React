@@ -34,7 +34,7 @@ const TripStageCard = ({
   footerSlot,
 }: TripStageCardProps) => {
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-800 bg-amber-50 p-4">
+    <div className="space-y-3 rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4">
       <div>
         <p className="text-sm font-semibold text-black">{title}</p>
         {subtitle && <p className="text-xs text-black/70">{subtitle}</p>}
@@ -45,7 +45,7 @@ const TripStageCard = ({
           type="number"
           value={form.odometer}
           onChange={(event) => onChange("odometer", event.target.value)}
-          className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-3 py-2"
+          className="mt-1 w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-3 py-2"
         />
       </label>
       <label className="text-xs text-black">
@@ -55,7 +55,7 @@ const TripStageCard = ({
           value={form.notes}
           placeholder={notesPlaceholder}
           onChange={(event) => onChange("notes", event.target.value)}
-          className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-3 py-2"
+          className="mt-1 w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-3 py-2"
         />
       </label>
       <label className="text-xs text-black">
@@ -78,7 +78,7 @@ const TripStageCard = ({
           {photos.map((photo, index) => (
             <div
               key={`${photo.photoUrl}-${index}`}
-              className="rounded-2xl border border-slate-800 bg-amber-50 p-2"
+              className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-2"
             >
               <img
                 src={photo.photoUrl}

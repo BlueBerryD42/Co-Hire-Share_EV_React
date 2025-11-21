@@ -76,7 +76,7 @@ const AiRecommendations = () => {
     transformedRemoteSuggestions ?? fallbackSuggestions;
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 60</p>
         <h1 className="text-4xl font-semibold text-black">
@@ -87,13 +87,13 @@ const AiRecommendations = () => {
         </p>
       </header>
 
-      <div className="grid gap-6 rounded-3xl border border-slate-800 bg-amber-50 p-6 lg:grid-cols-[1.1fr,1fr]">
+      <div className="grid gap-6 rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6 lg:grid-cols-[1.1fr,1fr]">
         <form className="space-y-4">
           <p className="text-sm font-semibold text-black">Input preferences</p>
           <label className="space-y-2 text-sm text-black">
             <span>Vehicle</span>
             <select
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
               value={form.vehicleId}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, vehicleId: event.target.value }))
@@ -118,12 +118,12 @@ const AiRecommendations = () => {
                   preferredDate: event.target.value,
                 }))
               }
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             />
           </label>
           <label className="space-y-2 text-sm text-black">
             <span>Time of day</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
               <option>Morning (05:00 - 11:00)</option>
               <option>Afternoon</option>
               <option>Evening</option>
@@ -132,7 +132,7 @@ const AiRecommendations = () => {
           <label className="space-y-2 text-sm text-black">
             <span>Duration</span>
             <select
-              className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+              className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
               value={form.durationHours}
               onChange={(event) =>
                 setForm((prev) => ({
@@ -150,7 +150,7 @@ const AiRecommendations = () => {
           </label>
           <label className="space-y-2 text-sm text-black">
             <span>Priority</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
               <option>Fairness</option>
               <option>Prime time</option>
               <option>Charging ready</option>
@@ -176,7 +176,7 @@ const AiRecommendations = () => {
           {suggestionsToRender.map((suggestion) => (
             <div
               key={suggestion.slot}
-              className="rounded-2xl border border-slate-800 bg-amber-50 p-4"
+              className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-wide text-black">

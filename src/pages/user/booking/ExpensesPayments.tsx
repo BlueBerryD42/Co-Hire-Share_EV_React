@@ -4,13 +4,13 @@ import { bookingApi } from "@/services/booking/api";
 import type { BookingDto } from "@/models/booking";
 
 const statusStyles: Record<BookingDto["status"], string> = {
-  Pending: "bg-amber-50 text-black border border-slate-800",
-  PendingApproval: "bg-amber-50 text-black border border-slate-800",
-  Confirmed: "bg-amber-50 text-black border border-slate-800",
-  InProgress: "bg-amber-50 text-black border border-emerald-500/40",
-  Completed: "bg-amber-50 text-black border border-slate-800",
-  Cancelled: "bg-amber-50 text-black border border-rose-500/40",
-  NoShow: "bg-amber-50 text-black border border-rose-500/40",
+  Pending: "bg-[#f5ebe0] text-black border border-slate-800",
+  PendingApproval: "bg-[#f5ebe0] text-black border border-slate-800",
+  Confirmed: "bg-[#f5ebe0] text-black border border-slate-800",
+  InProgress: "bg-[#f5ebe0] text-black border border-emerald-500/40",
+  Completed: "bg-[#f5ebe0] text-black border border-slate-800",
+  Cancelled: "bg-[#f5ebe0] text-black border border-rose-500/40",
+  NoShow: "bg-[#f5ebe0] text-black border border-rose-500/40",
 };
 
 const formatCurrency = (value?: number | null) => {
@@ -93,7 +93,7 @@ const ExpensesPayments = () => {
     "Late return fee data requires the finance API and is not yet available.";
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 18</p>
         <h1 className="text-4xl font-semibold text-black">
@@ -108,14 +108,14 @@ const ExpensesPayments = () => {
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-2xl border border-slate-800 bg-amber-50 p-5"
+            className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5"
           >
             <p className="text-xs uppercase text-black">{card.label}</p>
             <p className="text-3xl font-semibold text-black">{card.value}</p>
             <p className="text-sm text-black">{card.sub}</p>
           </div>
         ))}
-        <div className="rounded-2xl border border-slate-800 bg-amber-50 p-5">
+        <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5">
           <p className="text-xs uppercase text-black">Bookings synced</p>
           <p className="text-3xl font-semibold text-black">
             {apiStatus === "loading" ? "..." : bookings.length}
@@ -124,7 +124,7 @@ const ExpensesPayments = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-amber-50 p-5 text-sm text-black">
+      <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5 text-sm text-black">
         <p className="text-xs uppercase text-black">Late return fees</p>
         <p>{lateFeeMessage}</p>
       </div>
@@ -133,7 +133,7 @@ const ExpensesPayments = () => {
         {["Date range", "Category", "Vehicle", "Status"].map((label) => (
           <label key={label} className="space-y-2 text-sm text-black">
             <span>{label}</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
+            <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
               <option>All</option>
               <option>Option A</option>
               <option>Option B</option>
@@ -142,7 +142,7 @@ const ExpensesPayments = () => {
         ))}
       </div>
 
-      <div className="rounded-3xl border border-slate-800 bg-amber-50">
+      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0]">
         <div className="grid grid-cols-5 gap-4 border-b border-slate-800 px-6 py-4 text-xs uppercase tracking-wide text-black">
           <span>ID</span>
           <span>Date</span>

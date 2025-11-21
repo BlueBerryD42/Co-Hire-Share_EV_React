@@ -154,8 +154,8 @@ const BookingHub = () => {
   };
 
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-10 bg-amber-50 p-8 text-black">
-      <section className="rounded-3xl border border-black/10 bg-amber-50 p-6">
+    <section className="mx-auto flex max-w-6xl flex-col gap-10 bg-[#f5ebe0] p-8 text-black">
+      <section className="rounded-3xl border border-black/10 bg-[#f5ebe0] p-6">
         <p className="text-xs uppercase tracking-wide text-[var(--neutral-900)]">
           Booking lifecycle (Screens 12 → 18 → 39 → 40)
         </p>
@@ -164,7 +164,7 @@ const BookingHub = () => {
             <div key={step.id} className="flex items-center gap-3">
               <Link
                 to={step.href}
-                className="rounded-full border border-[var(--neutral-300)] bg-amber-50 px-4 py-2 shadow-sm hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)]"
+                className="rounded-full border border-[var(--neutral-300)] bg-[#f5ebe0] px-4 py-2 shadow-sm hover:border-[var(--accent-blue)] hover:text-[var(--accent-blue)]"
               >
                 {step.id}. {step.label}
               </Link>
@@ -240,7 +240,7 @@ const BookingHub = () => {
           </p>
         )}
 
-        <div className="overflow-x-auto rounded-2xl border border-black/10 bg-amber-50">
+        <div className="overflow-x-auto rounded-2xl border border-black/10 bg-[#f5ebe0]">
           {fetchError ? (
             <p className="p-6 text-sm text-[var(--accent-terracotta)]">
               {fetchError}
@@ -267,7 +267,7 @@ const BookingHub = () => {
               </thead>
               <tbody className="divide-y divide-[var(--neutral-200)]">
                 {myBookings.map((booking) => (
-                  <tr key={booking.id} className="transition hover:bg-amber-50">
+                  <tr key={booking.id} className="transition hover:bg-[#f5ebe0]">
                     <td>
                       <p className="font-medium text-[var(--neutral-900)]">
                         {booking.vehicleModel}

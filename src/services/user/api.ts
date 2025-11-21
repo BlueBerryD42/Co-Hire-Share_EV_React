@@ -156,6 +156,16 @@ export const userApi = {
         item.UploadedAt || item.uploadedAt || new Date().toISOString(),
     }));
   },
+
+  /**
+   * Download KYC document file
+   */
+  downloadKycDocument: async (documentId: string): Promise<Blob> => {
+    const { data } = await http.get(`/kyc/documents/${documentId}/download`, {
+      responseType: "blob",
+    });
+    return data;
+  },
 };
 
 export type UserApi = typeof userApi;

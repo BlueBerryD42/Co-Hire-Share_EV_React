@@ -114,7 +114,7 @@ const CostOptimizationInsights = () => {
                 </p>
               )}
               <Button
-                variant="accent"
+                variant="primary"
                 onClick={handleViewInsights}
                 disabled={!selectedGroupId}
               >
@@ -136,7 +136,7 @@ const CostOptimizationInsights = () => {
       <div className="text-center py-12">
         <p className="text-accent-terracotta">{error}</p>
         <Button
-          variant="accent"
+          variant="primary"
           onClick={fetchCostOptimization}
           className="mt-4"
         >
@@ -187,7 +187,7 @@ const CostOptimizationInsights = () => {
                     </Badge>
                   </div>
                   <Button
-                    variant="accent"
+                    variant="primary"
                     size="sm"
                     onClick={() => {
                       // View suggestion details

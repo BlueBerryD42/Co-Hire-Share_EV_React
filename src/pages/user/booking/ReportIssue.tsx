@@ -39,7 +39,7 @@ const ReportIssue = () => {
   }, []);
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-4xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">Screen 40</p>
         <h1 className="text-4xl font-semibold text-black">Report issue</h1>
@@ -48,11 +48,11 @@ const ReportIssue = () => {
         </p>
       </header>
 
-      <form className="space-y-6 rounded-3xl border border-slate-800 bg-amber-50 p-8">
+      <form className="space-y-6 rounded-3xl border border-slate-800 bg-[#f5ebe0] p-8">
         <label className="space-y-2 text-sm text-black">
           <span>Related to</span>
           <select
-            className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+            className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             value={selectedBookingId}
             onChange={(event) => {
               const bookingId = event.target.value;
@@ -82,7 +82,7 @@ const ReportIssue = () => {
               <button
                 type="button"
                 key={category.value}
-                className="rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3 text-left text-sm text-black hover:border-brand/40"
+                className="rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3 text-left text-sm text-black hover:border-brand/40"
               >
                 {category.label}
               </button>
@@ -99,8 +99,8 @@ const ReportIssue = () => {
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
                   priority === "High"
-                    ? "bg-amber-50 text-black"
-                    : "bg-amber-50 text-black"
+                    ? "bg-[#f5ebe0] text-black"
+                    : "bg-[#f5ebe0] text-black"
                 }`}
               >
                 {priority}
@@ -113,7 +113,7 @@ const ReportIssue = () => {
           <span>Description (min 20 characters)</span>
           <textarea
             rows={5}
-            className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3"
+            className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3"
             placeholder="Describe the incident in detail"
           />
         </label>
@@ -124,7 +124,7 @@ const ReportIssue = () => {
             {[1, 2, 3].map((slot) => (
               <div
                 key={slot}
-                className="flex min-h-[90px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-amber-50 text-xs text-black"
+                className="flex min-h-[90px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-[#f5ebe0] text-xs text-black"
               >
                 <span>Photo {slot}</span>
                 <button
@@ -140,20 +140,20 @@ const ReportIssue = () => {
 
         <label className="space-y-2 text-sm text-black">
           <span>Contact preference</span>
-          <select className="w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-3">
+          <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
             <option>Email</option>
             <option>Phone</option>
             <option>In-app</option>
           </select>
         </label>
 
-        <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+        <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
           <p className="text-xs uppercase text-black">Preview</p>
           <p className="text-lg font-semibold text-black">Issue ID AI-0451</p>
           <p>Expected response: under 2h.</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+        <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
           <p className="text-xs uppercase text-black">
             Existing damage reports
           </p>

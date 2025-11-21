@@ -26,7 +26,10 @@ const AiFairnessScore = () => {
       setSelectedGroupId(groupId);
       setInitialLoading(true);
       setError(null);
-      fetchFairnessScore();
+      // Fetch groups first to get member count, then fetch fairness score
+      fetchGroups().then(() => {
+        fetchFairnessScore();
+      });
     } else {
       setInitialLoading(false);
       setLoadingGroups(true);
@@ -41,9 +44,11 @@ const AiFairnessScore = () => {
       const response = await adminApi.getGroups({ page: 1, pageSize: 100 });
       const groupsData = response.data?.groups || response.data || [];
       setGroups(Array.isArray(groupsData) ? groupsData : []);
+      return Promise.resolve();
     } catch (err) {
       console.error("Error fetching groups:", err);
       setGroups([]);
+      return Promise.resolve();
     } finally {
       setLoadingGroups(false);
     }
@@ -118,7 +123,7 @@ const AiFairnessScore = () => {
                 </p>
               )}
               <Button
-                variant="accent"
+                variant="primary"
                 onClick={handleViewScore}
                 disabled={!selectedGroupId}
               >
@@ -160,6 +165,14 @@ const AiFairnessScore = () => {
       description: rec,
     })) || [];
 
+  // Get the selected group to get actual member count
+  const selectedGroup = groups.find((g) => g.id === groupId);
+  const actualMemberCount =
+    selectedGroup?.members?.length ||
+    selectedGroup?.memberCount ||
+    fairnessData.members?.length ||
+    0;
+
   // Create factors display from members data
   const fairnessFactors = [
     {
@@ -184,7 +197,7 @@ const AiFairnessScore = () => {
           (fairnessData.alerts?.hasSevereOverUtilizers ? 20 : 0) -
           (fairnessData.alerts?.hasSevereUnderUtilizers ? 20 : 0)
       ),
-      description: `${fairnessData.members?.length || 0} members analyzed`,
+      description: `${actualMemberCount} members analyzed`,
     },
   ];
 

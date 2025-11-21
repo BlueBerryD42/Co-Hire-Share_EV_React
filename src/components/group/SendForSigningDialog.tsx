@@ -35,14 +35,16 @@ import {
 } from '@mui/icons-material'
 import { documentApi } from '@/services/group/documents'
 import { groupApi } from '@/services/group/groups'
-import { SigningMode, type SendForSigningRequest } from '@/models/document'
+import { SigningMode, type SendForSigningRequest, DocumentType } from '@/models/document'
 import type { UUID } from '@/models/booking'
+import type { GroupRole } from '@/models/group'
 
 interface SendForSigningDialogProps {
   open: boolean
   onClose: () => void
   documentId: UUID
   groupId: UUID
+  documentType: DocumentType
   onSuccess?: () => void
 }
 
@@ -51,6 +53,7 @@ interface GroupMember {
   userId: UUID
   name: string
   email: string
+  role: GroupRole
 }
 
 export default function SendForSigningDialog({
@@ -58,6 +61,7 @@ export default function SendForSigningDialog({
   onClose,
   documentId,
   groupId,
+  documentType,
   onSuccess,
 }: SendForSigningDialogProps) {
   const [selectedSigners, setSelectedSigners] = useState<UUID[]>([])
@@ -66,6 +70,8 @@ export default function SendForSigningDialog({
   const [message, setMessage] = useState('')
   const [tokenExpirationDays, setTokenExpirationDays] = useState(7)
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
+  const [availableSigners, setAvailableSigners] = useState<GroupMember[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState<GroupRole | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,14 +87,29 @@ export default function SendForSigningDialog({
     setError(null)
 
     try {
+      // Get current user ID from localStorage
+      const currentUserId = localStorage.getItem('userId')
+
       const group = await groupApi.getGroup(groupId)
-      const members = group.members.map((member: any) => ({
+      const members: GroupMember[] = group.members.map((member: any) => ({
         id: member.id,
         userId: member.userId,
         name: `${member.userFirstName} ${member.userLastName}`.trim() || 'Unknown Member',
         email: member.userEmail || '',
+        role: member.roleInGroup as GroupRole,
       }))
+
       setGroupMembers(members)
+
+      // Find current user's role
+      const currentMember = members.find(m => m.userId === currentUserId)
+      if (currentMember) {
+        setCurrentUserRole(currentMember.role)
+      }
+
+      // Filter available signers based on document type and user role
+      filterAvailableSigners(members, currentMember?.role || null)
+
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Failed to load group members'
       setError(errorMessage)
@@ -96,6 +117,41 @@ export default function SendForSigningDialog({
     } finally {
       setLoadingMembers(false)
     }
+  }
+
+  const filterAvailableSigners = (members: GroupMember[], userRole: GroupRole | null) => {
+    // ASSIGNMENT RULES (who can be assigned as signers):
+    // 1. Ownership Agreement, Maintenance Contract, Insurance Policy:
+    //    → Only Admin members can be assigned as signers
+    // 2. Check-In Report, Check-Out Report, Other:
+    //    → All group members can be assigned as signers
+
+    const adminOnlySignerDocTypes = [
+      DocumentType.OwnershipAgreement,
+      DocumentType.MaintenanceContract,
+      DocumentType.InsurancePolicy,
+    ]
+
+    const allMemberSignerDocTypes = [
+      DocumentType.CheckInReport,
+      DocumentType.CheckOutReport,
+      DocumentType.Other,
+    ]
+
+    let filtered: GroupMember[] = []
+
+    if (adminOnlySignerDocTypes.includes(documentType)) {
+      // Only Admin members can be assigned as signers for these document types
+      filtered = members.filter(m => m.role === 'Admin')
+    } else if (allMemberSignerDocTypes.includes(documentType)) {
+      // All members can be assigned as signers for these document types
+      filtered = members
+    } else {
+      // Default: all members can be assigned
+      filtered = members
+    }
+
+    setAvailableSigners(filtered)
   }
 
   const handleToggleSigner = (signerId: UUID) => {
@@ -231,24 +287,42 @@ export default function SendForSigningDialog({
           <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
             Select Signers {signingMode === SigningMode.Sequential && '(order matters)'}
           </Typography>
+
+          {/* Permission Info */}
+          {documentType && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {[DocumentType.OwnershipAgreement, DocumentType.MaintenanceContract, DocumentType.InsurancePolicy].includes(documentType) ? (
+                <Typography variant="caption">
+                  Only <strong>Admin members</strong> can be assigned as signers for this document type.
+                </Typography>
+              ) : (
+                <Typography variant="caption">
+                  <strong>All group members</strong> can be assigned as signers for this document type.
+                </Typography>
+              )}
+            </Alert>
+          )}
+
           {loadingMembers ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress sx={{ color: '#7a9b76' }} />
             </Box>
-          ) : groupMembers.length === 0 ? (
+          ) : availableSigners.length === 0 ? (
             <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f5ebe0', borderRadius: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                No group members found
+                {groupMembers.length === 0
+                  ? 'No group members found'
+                  : 'No eligible signers available for this document type'}
               </Typography>
             </Box>
           ) : (
             <List sx={{ bgcolor: '#f5ebe0', borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
-              {groupMembers.map((member, index) => (
+              {availableSigners.map((member, index) => (
                 <ListItem
   key={member.userId}
   sx={{
     borderBottom:
-      index < groupMembers.length - 1
+      index < availableSigners.length - 1
         ? '1px solid rgba(0,0,0,0.1)'
         : 'none',
   }}
@@ -265,12 +339,31 @@ export default function SendForSigningDialog({
             />
 
             <ListItemAvatar>
-              <Avatar sx={{ bgcolor: '#7a9b76' }}>
+              <Avatar sx={{ bgcolor: member.role === 'Admin' ? '#d4a574' : '#7a9b76' }}>
                 <PersonIcon />
               </Avatar>
             </ListItemAvatar>
 
-            <ListItemText primary={member.name} secondary={member.email} />
+            <ListItemText
+              primary={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span>{member.name}</span>
+                  {member.role === 'Admin' && (
+                    <Chip
+                      label="Admin"
+                      size="small"
+                      sx={{
+                        bgcolor: '#d4a574',
+                        color: 'white',
+                        height: 20,
+                        fontSize: '0.7rem'
+                      }}
+                    />
+                  )}
+                </Box>
+              }
+              secondary={member.email}
+            />
 
             {selectedSigners.includes(member.userId) &&
               signingMode === SigningMode.Sequential && (

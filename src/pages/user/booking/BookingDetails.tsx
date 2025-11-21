@@ -7,13 +7,13 @@ import { parseServerIso, isInactiveStatus } from "@/utils/bookingHelpers";
 // parseServerIso and isInactiveStatus taken from shared utils
 
 const statusStyles: Record<BookingDto["status"], string> = {
-  Pending: "bg-amber-50 text-black border border-slate-800",
-  PendingApproval: "bg-amber-50 text-black border border-slate-800",
-  Confirmed: "bg-amber-50 text-black border border-slate-800",
-  InProgress: "bg-amber-50 text-black border border-emerald-500/40",
-  Completed: "bg-amber-50 text-black border border-slate-800",
-  Cancelled: "bg-amber-50 text-black border border-rose-500/40",
-  NoShow: "bg-amber-50 text-black border border-rose-500/40",
+  Pending: "bg-[#f5ebe0] text-black border border-slate-800",
+  PendingApproval: "bg-[#f5ebe0] text-black border border-slate-800",
+  Confirmed: "bg-[#f5ebe0] text-black border border-slate-800",
+  InProgress: "bg-[#f5ebe0] text-black border border-emerald-500/40",
+  Completed: "bg-[#f5ebe0] text-black border border-slate-800",
+  Cancelled: "bg-[#f5ebe0] text-black border border-rose-500/40",
+  NoShow: "bg-[#f5ebe0] text-black border border-rose-500/40",
 };
 
 // shared `isInactiveStatus` is imported from utils
@@ -141,7 +141,7 @@ const BookingDetails = () => {
   const canShowDetails = Boolean(booking && bookingKey);
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-amber-50 p-8 text-black">
+    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-wide text-black">
           Booking details
@@ -154,26 +154,26 @@ const BookingDetails = () => {
       </header>
 
       {!bookingKey && (
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6 text-sm text-black">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6 text-sm text-black">
           Provide a booking id in the route (e.g.
           /booking/details/&lt;bookingId&gt;) to view details.
         </div>
       )}
 
       {loading && (
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6 text-sm text-black">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6 text-sm text-black">
           Loading booking from the server...
         </div>
       )}
 
       {error && (
-        <div className="rounded-3xl border border-rose-500/40 bg-amber-50 p-6 text-sm text-black">
+        <div className="rounded-3xl border border-rose-500/40 bg-[#f5ebe0] p-6 text-sm text-black">
           <p>{error}</p>
         </div>
       )}
 
       {canShowDetails && booking && (
-        <div className="rounded-3xl border border-slate-800 bg-amber-50 p-6">
+        <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0] p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm text-black">Vehicle</p>
@@ -195,7 +195,7 @@ const BookingDetails = () => {
             {summaryStats.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-2xl border border-slate-800 bg-amber-50 p-4"
+                className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4"
               >
                 <p className="text-xs uppercase text-black">{stat.label}</p>
                 <p className="text-2xl font-semibold text-black">
@@ -207,13 +207,13 @@ const BookingDetails = () => {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+            <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
               <p className="text-xs uppercase text-black">Purpose</p>
               <p>{booking.purpose ?? "Purpose not provided"}</p>
               <p className="mt-3 text-xs uppercase text-black">Notes</p>
               <p>{booking.notes ?? "No notes attached"}</p>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+            <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
               <p className="text-xs uppercase text-black">Ownership</p>
               <p>{booking.groupName || booking.userId}</p>
               <p className="mt-3 text-xs uppercase text-black">Priority</p>
@@ -222,7 +222,7 @@ const BookingDetails = () => {
           </div>
 
           {!bookingIsReadOnly ? (
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
               <p className="text-xs uppercase text-black">Actions</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 {["/booking/check-in", "/booking/check-out"].map((path) => (
@@ -242,7 +242,7 @@ const BookingDetails = () => {
                     rows={2}
                     value={cancelReason}
                     onChange={(event) => setCancelReason(event.target.value)}
-                    className="mt-1 w-full rounded-2xl border border-slate-800 bg-amber-50 px-4 py-2 text-sm text-black"
+                    className="mt-1 w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-2 text-sm text-black"
                     placeholder="Explain why you are cancelling"
                   />
                 </label>
@@ -260,7 +260,7 @@ const BookingDetails = () => {
               </div>
             </div>
           ) : (
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-amber-50 p-4 text-sm text-black">
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-[#f5ebe0] p-4 text-sm text-black">
               <p className="text-xs uppercase text-black">Actions</p>
               <p className="mt-3 text-sm text-black">
                 No actions available for this booking.
