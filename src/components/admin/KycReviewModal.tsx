@@ -3,6 +3,7 @@ import { Snackbar, Alert } from "@mui/material";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
+import { KycDocumentType } from "@/models/kyc";
 
 interface Document {
   id: string;
@@ -219,6 +220,50 @@ const KycReviewModal = ({
     }
   };
 
+  // Convert document type (number or string) to readable name
+  const getDocumentTypeName = (
+    type: string | number | undefined | null
+  ): string => {
+    if (type === null || type === undefined) return "Unknown";
+
+    // Normalize to number
+    let typeNum: number;
+    if (typeof type === "number") {
+      typeNum = type;
+    } else if (typeof type === "string") {
+      // Try to parse as number first
+      const parsed = parseInt(type, 10);
+      if (!isNaN(parsed)) {
+        typeNum = parsed;
+      } else {
+        // Try to convert from string name to enum
+        const typeMap: Record<string, number> = {
+          NationalId: KycDocumentType.NationalId,
+          Passport: KycDocumentType.Passport,
+          DriverLicense: KycDocumentType.DriverLicense,
+          ProofOfAddress: KycDocumentType.ProofOfAddress,
+          BankStatement: KycDocumentType.BankStatement,
+          Other: KycDocumentType.Other,
+        };
+        typeNum = typeMap[type] ?? -1;
+      }
+    } else {
+      return "Unknown";
+    }
+
+    // Map number to readable name
+    const typeNames: Record<number, string> = {
+      [KycDocumentType.NationalId]: "CMND/CCCD",
+      [KycDocumentType.Passport]: "Passport",
+      [KycDocumentType.DriverLicense]: "Driver License",
+      [KycDocumentType.ProofOfAddress]: "Proof of Address",
+      [KycDocumentType.BankStatement]: "Bank Statement",
+      [KycDocumentType.Other]: "Selfie", // Other (used for selfie verification)
+    };
+
+    return typeNames[typeNum] || `Type ${typeNum}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -289,7 +334,7 @@ const KycReviewModal = ({
                       />
                       <div className="flex-1">
                         <p className="font-medium text-neutral-800">
-                          {doc.documentType}
+                          {getDocumentTypeName(doc.documentType)}
                         </p>
                         <p className="text-sm text-neutral-600">
                           {doc.fileName}
