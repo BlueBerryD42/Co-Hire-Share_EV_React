@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   TextField,
@@ -11,146 +11,164 @@ import {
   CircularProgress,
   IconButton,
   InputAdornment,
-} from '@mui/material'
-import { Visibility, VisibilityOff } from '@mui/icons-material'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { login, clearError, setRememberMe } from '@/store/slices/authSlice'
-import type { LoginRequest } from '@/models/auth'
-import { UserRole } from '@/utils/roles'
+} from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { login, clearError, setRememberMe } from "@/store/slices/authSlice";
+import type { LoginRequest } from "@/models/auth";
+import { UserRole } from "@/utils/roles";
 
 const Login = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const dispatch = useAppDispatch()
-  const { isLoading, error, isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useAppDispatch();
+  const { isLoading, error, isAuthenticated, user } = useAppSelector(
+    (state) => state.auth
+  );
 
   const [formData, setFormData] = useState<LoginRequest>({
-    Email: '',
-    Password: '',
+    Email: "",
+    Password: "",
     RememberMe: false,
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string>('')
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<{
-    Email?: string
-    Password?: string
-  }>({})
+    Email?: string;
+    Password?: string;
+  }>({});
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
       // Redirect SystemAdmin and Staff to admin dashboard
       if (user.role === UserRole.SystemAdmin || user.role === UserRole.Staff) {
-        navigate('/admin/dashboard')
+        navigate("/admin/dashboard");
       } else {
-        navigate('/home')
+        navigate("/home");
       }
     } else if (isAuthenticated) {
       // If authenticated but user data not loaded yet, go to home
-      navigate('/home')
+      navigate("/home");
     }
-  }, [isAuthenticated, user, navigate])
+  }, [isAuthenticated, user, navigate]);
 
   // Check for success message from email verification
   useEffect(() => {
-    const state = location.state as { message?: string }
+    const state = location.state as { message?: string };
     if (state?.message) {
-      setSuccessMessage(state.message)
+      setSuccessMessage(state.message);
       // Clear the state to prevent showing message on refresh
-      navigate(location.pathname, { replace: true })
+      navigate(location.pathname, { replace: true });
     }
-  }, [location, navigate])
+  }, [location, navigate]);
 
   // Clear errors when component mounts
   useEffect(() => {
-    dispatch(clearError())
-  }, [dispatch])
+    dispatch(clearError());
+  }, [dispatch]);
 
   const validateField = (name: string, value: string): string | undefined => {
     switch (name) {
-      case 'Email':
-        if (!value.trim()) return 'Email is required'
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(value)) return 'Please enter a valid email address'
-        return undefined
-      case 'Password':
-        if (!value) return 'Password is required'
-        if (value.length < 6) return 'Password must be at least 6 characters'
-        return undefined
+      case "Email":
+        if (!value.trim()) return "Email is required";
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value))
+          return "Please enter a valid email address";
+        return undefined;
+      case "Password":
+        if (!value) return "Password is required";
+        if (value.length < 6) return "Password must be at least 6 characters";
+        return undefined;
       default:
-        return undefined
+        return undefined;
     }
-  }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, checked } = e.target
+    const { name, value, checked } = e.target;
 
-    if (name === 'RememberMe') {
-      setFormData({ ...formData, RememberMe: checked })
-      dispatch(setRememberMe(checked))
+    if (name === "RememberMe") {
+      setFormData({ ...formData, RememberMe: checked });
+      dispatch(setRememberMe(checked));
     } else {
-      setFormData({ ...formData, [name]: value })
+      setFormData({ ...formData, [name]: value });
 
       // Clear field error on change
       if (fieldErrors[name as keyof typeof fieldErrors]) {
-        setFieldErrors({ ...fieldErrors, [name]: undefined })
+        setFieldErrors({ ...fieldErrors, [name]: undefined });
       }
 
       // Clear global error
       if (error) {
-        dispatch(clearError())
+        dispatch(clearError());
       }
     }
-  }
+  };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    const error = validateField(name, value)
+    const { name, value } = e.target;
+    const error = validateField(name, value);
     if (error) {
-      setFieldErrors({ ...fieldErrors, [name]: error })
+      setFieldErrors({ ...fieldErrors, [name]: error });
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Validate all fields
     const errors = {
-      Email: validateField('Email', formData.Email),
-      Password: validateField('Password', formData.Password),
-    }
+      Email: validateField("Email", formData.Email),
+      Password: validateField("Password", formData.Password),
+    };
 
-    setFieldErrors(errors)
+    setFieldErrors(errors);
 
     // Check if there are any errors
     if (Object.values(errors).some((error) => error)) {
-      return
+      return;
     }
 
     // Dispatch login action
-    const result = await dispatch(login(formData))
+    const result = await dispatch(login(formData));
 
     if (login.fulfilled.match(result)) {
-      // Login successful, check user role and redirect accordingly
-      const loggedInUser = result.payload.user
-      if (loggedInUser?.role === UserRole.SystemAdmin || loggedInUser?.role === UserRole.Staff) {
-        navigate('/admin/dashboard')
+      // Login successful, check user role and KYC status
+      const loggedInUser = result.payload.user;
+
+      // Redirect admins/staff to admin dashboard
+      if (
+        loggedInUser?.role === UserRole.SystemAdmin ||
+        loggedInUser?.role === UserRole.Staff
+      ) {
+        navigate("/admin/dashboard");
       } else {
-        navigate('/home')
+        // For regular users, check KYC status
+        const kycStatus = loggedInUser?.kycStatus ?? 0;
+        const isKycApproved = kycStatus === 2; // 2 = Approved
+
+        if (!isKycApproved) {
+          // First-time login: redirect to KYC verification
+          navigate("/kyc-verification", { replace: true });
+        } else {
+          // KYC already approved: go to home
+          navigate("/home");
+        }
       }
     }
-  }
+  };
 
   return (
     <Box className="auth-container">
       <Box className="auth-card">
         {/* Logo */}
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <Box sx={{ textAlign: "center", mb: 4 }}>
           <Typography
             variant="h4"
             sx={{
-              fontFamily: 'var(--font-display)',
-              color: 'var(--neutral-800)',
+              fontFamily: "var(--font-display)",
+              color: "var(--neutral-800)",
               fontWeight: 700,
               mb: 1,
             }}
@@ -160,8 +178,8 @@ const Login = () => {
           <Typography
             variant="body2"
             sx={{
-              color: 'var(--neutral-600)',
-              fontSize: '0.875rem',
+              color: "var(--neutral-600)",
+              fontSize: "0.875rem",
             }}
           >
             Welcome back! Please login to your account
@@ -174,13 +192,13 @@ const Login = () => {
             severity="success"
             sx={{
               mb: 3,
-              backgroundColor: 'rgba(144, 195, 153, 0.15)',
-              color: '#4a7c59',
-              '& .MuiAlert-icon': {
-                color: 'var(--accent-green)',
+              backgroundColor: "rgba(144, 195, 153, 0.15)",
+              color: "#4a7c59",
+              "& .MuiAlert-icon": {
+                color: "var(--accent-green)",
               },
             }}
-            onClose={() => setSuccessMessage('')}
+            onClose={() => setSuccessMessage("")}
           >
             {successMessage}
           </Alert>
@@ -192,10 +210,10 @@ const Login = () => {
             severity="error"
             sx={{
               mb: 3,
-              backgroundColor: '#b87d6f20',
-              color: '#8a504a',
-              '& .MuiAlert-icon': {
-                color: '#b87d6f',
+              backgroundColor: "#b87d6f20",
+              color: "#8a504a",
+              "& .MuiAlert-icon": {
+                color: "#b87d6f",
               },
             }}
             onClose={() => dispatch(clearError())}
@@ -227,7 +245,7 @@ const Login = () => {
             fullWidth
             label="Password"
             name="Password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             value={formData.Password}
             onChange={handleChange}
             onBlur={handleBlur}
@@ -254,9 +272,9 @@ const Login = () => {
           {/* Remember Me & Forgot Password */}
           <Box
             sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               mb: 3,
             }}
           >
@@ -268,15 +286,18 @@ const Login = () => {
                   onChange={handleChange}
                   disabled={isLoading}
                   sx={{
-                    color: 'var(--accent-blue)',
-                    '&.Mui-checked': {
-                      color: 'var(--accent-blue)',
+                    color: "var(--accent-blue)",
+                    "&.Mui-checked": {
+                      color: "var(--accent-blue)",
                     },
                   }}
                 />
               }
               label={
-                <Typography variant="body2" sx={{ color: 'var(--neutral-600)' }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "var(--neutral-600)" }}
+                >
                   Remember me
                 </Typography>
               }
@@ -284,9 +305,9 @@ const Login = () => {
             <Link
               to="/forgot-password"
               style={{
-                color: 'var(--accent-blue)',
-                textDecoration: 'none',
-                fontSize: '0.875rem',
+                color: "var(--accent-blue)",
+                textDecoration: "none",
+                fontSize: "0.875rem",
               }}
             >
               Forgot password?
@@ -302,28 +323,32 @@ const Login = () => {
             className="btn-primary"
             sx={{
               mb: 2,
-              height: '48px',
-              textTransform: 'none',
-              fontSize: '1rem',
+              height: "48px",
+              textTransform: "none",
+              fontSize: "1rem",
             }}
           >
-            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Sign In"
+            )}
           </Button>
 
           {/* Register Link */}
           <Typography
             variant="body2"
             sx={{
-              textAlign: 'center',
-              color: 'var(--neutral-600)',
+              textAlign: "center",
+              color: "var(--neutral-600)",
             }}
           >
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link
               to="/register"
               style={{
-                color: 'var(--accent-blue)',
-                textDecoration: 'none',
+                color: "var(--accent-blue)",
+                textDecoration: "none",
                 fontWeight: 600,
               }}
             >
@@ -333,7 +358,7 @@ const Login = () => {
         </form>
       </Box>
     </Box>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

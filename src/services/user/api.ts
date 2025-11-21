@@ -5,6 +5,12 @@ import type {
   UploadKycDocumentRequest,
   KycDocumentType,
 } from "@/models/kyc";
+import type {
+  UserProfile,
+  UpdateProfileRequest,
+  NotificationPreferences,
+} from "@/models/user";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/models/user";
 
 const http = createApiClient("/api/User");
 
@@ -71,6 +77,54 @@ export const userApi = {
   },
 
   /**
+   * Get full user profile with extended fields
+   */
+  getFullProfile: async (): Promise<UserProfile> => {
+    const { data } = await http.get<ExtendedUserProfileDto>("/profile");
+    // Parse notification preferences if present
+    let notificationPreferences: NotificationPreferences | undefined;
+    if (data.NotificationPreferences || data.notificationPreferences) {
+      try {
+        const prefsJson =
+          data.NotificationPreferences || data.notificationPreferences || "{}";
+        notificationPreferences = JSON.parse(prefsJson);
+      } catch {
+        notificationPreferences = DEFAULT_NOTIFICATION_PREFERENCES;
+      }
+    }
+
+    return {
+      id: data.Id || data.id || "",
+      email: data.Email || data.email || "",
+      firstName: data.FirstName || data.firstName || "",
+      lastName: data.LastName || data.lastName || "",
+      phone: data.Phone || data.phone,
+      address: data.Address || data.address,
+      city: data.City || data.city,
+      country: data.Country || data.country,
+      postalCode: data.PostalCode || data.postalCode,
+      dateOfBirth: data.DateOfBirth || data.dateOfBirth,
+      profilePhotoUrl: data.ProfilePhotoUrl || data.profilePhotoUrl,
+      bio: data.Bio || data.bio,
+      emergencyContact:
+        data.EmergencyContactName || data.emergencyContactName
+          ? {
+              name:
+                data.EmergencyContactName || data.emergencyContactName || "",
+              phone:
+                data.EmergencyContactPhone || data.emergencyContactPhone || "",
+            }
+          : undefined,
+      preferredPaymentMethod:
+        data.PreferredPaymentMethod || data.preferredPaymentMethod,
+      notificationPreferences,
+      languagePreference: data.LanguagePreference || data.languagePreference,
+      createdAt: data.CreatedAt || data.createdAt || new Date().toISOString(),
+      updatedAt: data.UpdatedAt || data.updatedAt,
+    };
+  },
+
+  /**
    * Update current user profile
    */
   updateProfile: async (updates: UpdateUserProfileDto): Promise<User> => {
@@ -97,6 +151,147 @@ export const userApi = {
       kycStatus: data.KycStatus ?? data.kycStatus ?? 0,
       createdAt: data.CreatedAt || data.createdAt || new Date().toISOString(),
     };
+  },
+
+  /**
+   * Update profile with extended fields (for Profile Setup)
+   */
+  updateProfileExtended: async (
+    updates: UpdateProfileRequest
+  ): Promise<UserProfile> => {
+    // Transform camelCase to PascalCase for backend
+    const backendData: any = {
+      FirstName: updates.firstName,
+      LastName: updates.lastName,
+      Phone: updates.phone,
+      Address: updates.address,
+      City: updates.city,
+      Country: updates.country,
+      PostalCode: updates.postalCode,
+      DateOfBirth: updates.dateOfBirth,
+      ProfilePhotoUrl: updates.profilePhotoUrl,
+      Bio: updates.bio,
+      EmergencyContactName: updates.emergencyContactName,
+      EmergencyContactPhone: updates.emergencyContactPhone,
+      PreferredPaymentMethod: updates.preferredPaymentMethod,
+      NotificationPreferences: updates.notificationPreferences,
+      LanguagePreference: updates.languagePreference,
+    };
+
+    // Remove undefined values
+    Object.keys(backendData).forEach(
+      (key) => backendData[key] === undefined && delete backendData[key]
+    );
+
+    const { data } = await http.put<ExtendedUserProfileDto>(
+      "/profile",
+      backendData
+    );
+
+    // Parse notification preferences
+    let notificationPreferences: NotificationPreferences | undefined;
+    if (data.NotificationPreferences || data.notificationPreferences) {
+      try {
+        const prefsJson =
+          data.NotificationPreferences || data.notificationPreferences || "{}";
+        notificationPreferences = JSON.parse(prefsJson);
+      } catch {
+        notificationPreferences = DEFAULT_NOTIFICATION_PREFERENCES;
+      }
+    }
+
+    return {
+      id: data.Id || data.id || "",
+      email: data.Email || data.email || "",
+      firstName: data.FirstName || data.firstName || "",
+      lastName: data.LastName || data.lastName || "",
+      phone: data.Phone || data.phone,
+      address: data.Address || data.address,
+      city: data.City || data.city,
+      country: data.Country || data.country,
+      postalCode: data.PostalCode || data.postalCode,
+      dateOfBirth: data.DateOfBirth || data.dateOfBirth,
+      profilePhotoUrl: data.ProfilePhotoUrl || data.profilePhotoUrl,
+      bio: data.Bio || data.bio,
+      emergencyContact:
+        data.EmergencyContactName || data.emergencyContactName
+          ? {
+              name:
+                data.EmergencyContactName || data.emergencyContactName || "",
+              phone:
+                data.EmergencyContactPhone || data.emergencyContactPhone || "",
+            }
+          : undefined,
+      preferredPaymentMethod:
+        data.PreferredPaymentMethod || data.preferredPaymentMethod,
+      notificationPreferences,
+      languagePreference: data.LanguagePreference || data.languagePreference,
+      createdAt: data.CreatedAt || data.createdAt || new Date().toISOString(),
+      updatedAt: data.UpdatedAt || data.updatedAt,
+    };
+  },
+
+  /**
+   * Upload profile photo
+   */
+  uploadProfilePhoto: async (file: File): Promise<string> => {
+    // Convert file to base64
+    const base64Content = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const fileName = `profile-photo-${Date.now()}.${file.name
+      .split(".")
+      .pop()}`;
+
+    // Use similar pattern to KYC upload
+    const backendData = {
+      FileName: fileName,
+      Base64Content: base64Content,
+    };
+
+    const { data } = await http.post<{
+      StorageUrl: string;
+      storageUrl: string;
+    }>("/profile/photo", backendData);
+
+    return data.StorageUrl || data.storageUrl || "";
+  },
+
+  /**
+   * Download profile photo file
+   */
+  downloadProfilePhoto: async (storageUrl: string): Promise<Blob> => {
+    // Don't try to download blob URLs (they're local browser URLs)
+    if (storageUrl.startsWith("blob:")) {
+      throw new Error("Cannot download blob URL. Use storage URL from server.");
+    }
+
+    // Extract fileName from storageUrl
+    // Format from backend: /api/User/profile/photos/{fileName}
+    // But http client baseURL is already /api/User, so we need just /profile/photos/{fileName}
+    let fileName = storageUrl;
+
+    // Extract fileName from various URL formats
+    if (storageUrl.includes("/profile/photos/")) {
+      fileName = storageUrl.substring(storageUrl.lastIndexOf("/") + 1);
+    } else if (storageUrl.includes("/photos/")) {
+      fileName = storageUrl.substring(storageUrl.lastIndexOf("/") + 1);
+    }
+
+    // http client baseURL is /api/User, so endpoint should be /profile/photos/{fileName}
+    const { data } = await http.get(`/profile/photos/${fileName}`, {
+      responseType: "blob",
+    });
+    return data;
   },
 
   /**
@@ -228,6 +423,24 @@ interface UpdateUserProfileDto {
   country?: string;
   postalCode?: string;
   dateOfBirth?: string;
+}
+
+// Extended User Profile DTO with new fields
+interface ExtendedUserProfileDto extends UserProfileDto {
+  ProfilePhotoUrl?: string | null;
+  profilePhotoUrl?: string | null;
+  Bio?: string | null;
+  bio?: string | null;
+  EmergencyContactName?: string | null;
+  emergencyContactName?: string | null;
+  EmergencyContactPhone?: string | null;
+  emergencyContactPhone?: string | null;
+  PreferredPaymentMethod?: string | null;
+  preferredPaymentMethod?: string | null;
+  NotificationPreferences?: string | null;
+  notificationPreferences?: string | null;
+  LanguagePreference?: string | null;
+  languagePreference?: string | null;
 }
 
 // KYC DTOs matching backend structure (backend uses PascalCase)
