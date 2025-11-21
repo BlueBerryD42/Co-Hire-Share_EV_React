@@ -99,13 +99,13 @@ const DisputeManagement = () => {
           </h1>
           <div className="flex gap-2">
             <Button
-              variant={view === "kanban" ? "accent" : "secondary"}
+              variant={view === "kanban" ? "primary" : "secondary"}
               onClick={() => setView("kanban")}
             >
               Kanban
             </Button>
             <Button
-              variant={view === "list" ? "accent" : "secondary"}
+              variant={view === "list" ? "primary" : "secondary"}
               onClick={() => setView("list")}
             >
               List
