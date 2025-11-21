@@ -23,7 +23,7 @@ const PaymentCallback = () => {
     // Simulate loading delay for better UX
     const timer = setTimeout(() => {
       setLoading(false)
-      
+
       // Reload fund balance if it's a fund deposit
       if (type === 'fund' && groupId) {
         reloadFundBalance()
@@ -81,9 +81,14 @@ const PaymentCallback = () => {
                   )}
                   <div className="flex gap-4 justify-center">
                     {groupId && (
-                      <Button variant="accent" onClick={handleGoToFund}>
+                      <Button
+                        variant="accent"
+                        onClick={handleGoToFund}
+                        className="!text-black"
+                      >
                         Xem quỹ nhóm
                       </Button>
+
                     )}
                     <Button variant="outline" onClick={handleGoHome}>
                       Về trang chủ
@@ -115,9 +120,14 @@ const PaymentCallback = () => {
               </p>
               <div className="flex gap-4 justify-center">
                 {groupId && type === 'fund' && (
-                  <Button variant="accent" onClick={handleGoToFund}>
+                  <Button
+                    variant="accent"
+                    onClick={handleGoToFund}
+                    className="!text-black"
+                  >
                     Quay lại quỹ nhóm
                   </Button>
+
                 )}
                 <Button variant="outline" onClick={handleGoHome}>
                   Về trang chủ
