@@ -449,12 +449,22 @@ const CreateBooking = () => {
         slotEnd
       );
       const newEndDate = new Date(autoEndMs);
-      updateForm("date", toDateInput(startDate));
+
+      // Only update date if the selected slot is on a different day than the current form.date
+      // This preserves user's date selection when they manually choose a date
+      const slotDateStr = toDateInput(startDate);
+      const currentDateStr = form.date;
+
+      // Update date only if slot is on different day, or if current date is invalid/empty
+      if (slotDateStr !== currentDateStr) {
+        updateForm("date", slotDateStr);
+      }
+
       updateForm("start", toTimeInput(startDate));
       updateForm("endDate", toDateInput(newEndDate));
       updateForm("end", toTimeInput(newEndDate));
     },
-    [slots, durationMinutes, toDateInput, toTimeInput, updateForm]
+    [slots, durationMinutes, toDateInput, toTimeInput, updateForm, form.date]
   );
 
   const handleEndSelect = useCallback(
@@ -473,26 +483,61 @@ const CreateBooking = () => {
       (opt) => opt.value === startIso
     );
 
+    // Only auto-select if current start is not in options AND the first option is on the same day as form.date
     if (!isCurrentStartAnOption && startOptions[0]?.value) {
-      handleStartSelect(startOptions[0].value);
+      const firstOptionDate = new Date(startOptions[0].value);
+      const selectedDate = new Date(`${form.date}T00:00:00`);
+
+      // Only auto-select if the first option is on the same day as the selected date
+      // This prevents resetting to a different day when user selects a future date
+      if (
+        firstOptionDate.getFullYear() === selectedDate.getFullYear() &&
+        firstOptionDate.getMonth() === selectedDate.getMonth() &&
+        firstOptionDate.getDate() === selectedDate.getDate()
+      ) {
+        handleStartSelect(startOptions[0].value);
+      }
     }
-  }, [startOptions, startIso, slotsLoading, handleStartSelect]);
+  }, [startOptions, startIso, slotsLoading, handleStartSelect, form.date]);
 
   const handleAiSuggestionSelect = useCallback(
     (suggestion: BookingSuggestionItem) => {
-      const startDate = new Date(suggestion.start);
-      const endDate = new Date(suggestion.end);
+      // Parse ISO string and convert to local time if needed
+      // This ensures the displayed time matches what AI recommended
+      const parseIsoToLocal = (isoString: string) => {
+        // Parse the ISO string - this handles UTC (Z) and timezone offsets correctly
+        const date = new Date(isoString);
 
-      // Update form with selected suggestion
-      updateForm("date", toDateInput(startDate));
-      updateForm("start", toTimeInput(startDate));
-      updateForm("endDate", toDateInput(endDate));
-      updateForm("end", toTimeInput(endDate));
+        // Extract local date and time from the parsed date
+        // This ensures we get the correct local time representation
+        return {
+          date: toDateInput(date),
+          time: toTimeInput(date),
+        };
+      };
+
+      const startParsed = parseIsoToLocal(suggestion.start);
+      const endParsed = parseIsoToLocal(suggestion.end);
+
+      // Update form with selected suggestion - use setForm directly to ensure state updates
+      setForm((prev) => ({
+        ...prev,
+        date: startParsed.date,
+        start: startParsed.time,
+        endDate: endParsed.date,
+        end: endParsed.time,
+      }));
 
       // Calculate duration in hours for display
+      const startDate = new Date(suggestion.start);
+      const endDate = new Date(suggestion.end);
       const durationHours =
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-      updateForm("distance", Math.round(durationHours * 60)); // Rough estimate: 60km per hour
+
+      setForm((prev) => ({
+        ...prev,
+        distance: Math.round(durationHours * 60), // Rough estimate: 60km per hour
+      }));
 
       setServerMessage(
         `AI suggestion applied: ${startDate.toLocaleString(
@@ -500,7 +545,7 @@ const CreateBooking = () => {
         )} - ${endDate.toLocaleString("vi-VN")}`
       );
     },
-    [toDateInput, toTimeInput, updateForm]
+    [toDateInput, toTimeInput]
   );
 
   const handleSubmit = async () => {
@@ -620,8 +665,9 @@ const CreateBooking = () => {
               )}
               {availableVehicles.length === 0 && !vehiclesError && (
                 <p className="text-xs text-[#8b7d6b]">
-                  Không có xe nào khả dụng để đặt lịch. Xe có thể đang bảo trì, chờ phê duyệt,
-                  hoặc thuộc nhóm chưa hoạt động. Vui lòng chọn nhóm khác hoặc đợi xe sẵn sàng.
+                  Không có xe nào khả dụng để đặt lịch. Xe có thể đang bảo trì,
+                  chờ phê duyệt, hoặc thuộc nhóm chưa hoạt động. Vui lòng chọn
+                  nhóm khác hoặc đợi xe sẵn sàng.
                 </p>
               )}
             </label>

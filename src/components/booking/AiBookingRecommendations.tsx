@@ -51,12 +51,19 @@ const AiBookingRecommendations = ({
 
     for (let h = 0; h < 24; h++) {
       for (let m = 0; m < 60; m += 30) {
-        const timeValue = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        
+        const timeValue = `${String(h).padStart(2, "0")}:${String(m).padStart(
+          2,
+          "0"
+        )}`;
+
         // If preferredDate is today, apply the 30-min future rule
         if (formData.preferredDate === todayDateString) {
           const checkDate = new Date();
-          checkDate.setFullYear(now.getFullYear(), now.getMonth(), now.getDate()); // Ensure same date as 'now' for comparison
+          checkDate.setFullYear(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          ); // Ensure same date as 'now' for comparison
           checkDate.setHours(h, m, 0, 0);
           if (checkDate.getTime() < minAllowedTime.getTime()) {
             continue; // Skip times that are in the past or within 30 mins
@@ -340,7 +347,10 @@ const AiBookingRecommendations = ({
                   <select
                     value={formData.preferredTime}
                     onChange={(e) =>
-                      setFormData({ ...formData, preferredTime: e.target.value })
+                      setFormData({
+                        ...formData,
+                        preferredTime: e.target.value,
+                      })
                     }
                     className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-3 text-neutral-700 focus:outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20"
                   >
@@ -611,7 +621,7 @@ const AiBookingRecommendations = ({
                       {/* Actions */}
                       <div className="flex items-center justify-between pt-2 border-t border-neutral-200">
                         <Button
-                          variant="accent"
+                          variant="primary"
                           size="sm"
                           onClick={() => handleSelectSuggestion(suggestion)}
                           className="flex-1"
