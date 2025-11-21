@@ -16,16 +16,6 @@ import type { Expense } from '@/models/expense'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
-const statusStyles: Record<BookingDto["status"], string> = {
-  Pending: "bg-[#f5ebe0] text-black border border-slate-800",
-  PendingApproval: "bg-[#f5ebe0] text-black border border-slate-800",
-  Confirmed: "bg-[#f5ebe0] text-black border border-slate-800",
-  InProgress: "bg-[#f5ebe0] text-black border border-emerald-500/40",
-  Completed: "bg-[#f5ebe0] text-black border border-slate-800",
-  Cancelled: "bg-[#f5ebe0] text-black border border-rose-500/40",
-  NoShow: "bg-[#f5ebe0] text-black border border-rose-500/40",
-};
-
 interface Summary {
   totalExpenses: number
   paidAmount: number
@@ -170,105 +160,28 @@ const ExpensesPayments = () => {
   }
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 bg-[#f5ebe0] p-8 text-black">
-      <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-black">Screen 18</p>
-        <h1 className="text-4xl font-semibold text-black">
-          Expenses and payments
-        </h1>
-        <p className="text-black">
-          Financial snapshot plus table of shared costs.
-        </p>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {summaryCards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5"
+    <div className="min-h-screen bg-neutral-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center text-neutral-600 hover:text-neutral-800 mb-4"
           >
-            <p className="text-xs uppercase text-black">{card.label}</p>
-            <p className="text-3xl font-semibold text-black">{card.value}</p>
-            <p className="text-sm text-black">{card.sub}</p>
-          </div>
-        ))}
-        <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5">
-          <p className="text-xs uppercase text-black">Bookings synced</p>
-          <p className="text-3xl font-semibold text-black">
-            {apiStatus === "loading" ? "..." : bookings.length}
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Quay lại
+          </button>
+          <h1 className="text-3xl font-bold text-neutral-800">
+            Chi phí & Thanh toán
+          </h1>
+          <p className="text-neutral-600 mt-2">
+            Quản lý chi phí phát sinh trong chuyến đi
           </p>
-          <p className="text-sm text-black">From /api/booking/my-bookings</p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-[#f5ebe0] p-5 text-sm text-black">
-        <p className="text-xs uppercase text-black">Late return fees</p>
-        <p>{lateFeeMessage}</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-4">
-        {["Date range", "Category", "Vehicle", "Status"].map((label) => (
-          <label key={label} className="space-y-2 text-sm text-black">
-            <span>{label}</span>
-            <select className="w-full rounded-2xl border border-slate-800 bg-[#f5ebe0] px-4 py-3">
-              <option>All</option>
-              <option>Option A</option>
-              <option>Option B</option>
-            </select>
-          </label>
-        ))}
-      </div>
-
-      <div className="rounded-3xl border border-slate-800 bg-[#f5ebe0]">
-        <div className="grid grid-cols-5 gap-4 border-b border-slate-800 px-6 py-4 text-xs uppercase tracking-wide text-black">
-          <span>ID</span>
-          <span>Date</span>
-          <span>Vehicle</span>
-          <span>Total</span>
-          <span>Status</span>
-        </div>
-        {bookings.length === 0 ? (
-          <div className="px-6 py-4 text-sm text-black">
-            {apiStatus === "loading"
-              ? "Loading bookings from /api/booking/my-bookings..."
-              : "No expense data available."}
-          </div>
-        ) : (
-          bookings.map((booking) => (
-            <div
-              key={booking.id}
-              className="grid grid-cols-5 gap-4 border-b border-slate-900 px-6 py-4 text-sm text-black"
-            >
-              <span className="font-semibold">{booking.id.slice(0, 8)}</span>
-              <span>{formatDateLabel(booking.startAt)}</span>
-              <span>{booking.vehicleModel}</span>
-              <span>
-                {formatCurrency(booking.tripFeeAmount)}
-                <span className="block text-xs text-black">
-                  Start {formatDateLabel(booking.startAt)}
-                </span>
-              </span>
-              <span
-                className={`inline-flex h-fit w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                  statusStyles[booking.status]
-                }`}
-              >
-                {booking.status}
-              </span>
-            </div>
-            <button
-              onClick={() => navigate(`/booking/${bookingId}/expenses/add`)}
-              className="bg-[#d5bdaf] hover:bg-[#c4ac9e] text-black font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap"
-            >
-              <Plus className="w-5 h-5" />
-              Thêm chi phí
-            </button>
-          </div>
         </div>
 
         {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <StatCard
               icon={Receipt}
               label="Tổng chi phí"
@@ -296,12 +209,12 @@ const ExpensesPayments = () => {
               trendValue={summary.pendingCount > 0 ? `${summary.pendingCount} khoản` : undefined}
               variant={summary.pendingCount > 0 ? 'warning' : 'default'}
             />
-          </div>
-        )}
+        </div>
+      )}
 
-        {/* Filters */}
-        <Card onClick={() => { }} className="mb-6">
-          <div className="space-y-4">
+      {/* Filters */}
+      <Card onClick={() => { }} className="mb-6">
+        <div className="space-y-4">
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -344,12 +257,12 @@ const ExpensesPayments = () => {
                 ))}
               </div>
             </div>
-          </div>
-        </Card>
+        </div>
+      </Card>
 
-        {/* Expenses List */}
-        <Card onClick={() => { }}>
-          <div className="flex items-center justify-between mb-6">
+      {/* Expenses List */}
+      <Card onClick={() => { }}>
+        <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-neutral-800">
               Danh sách chi phí
             </h2>
@@ -435,12 +348,12 @@ const ExpensesPayments = () => {
               ))}
             </div>
           )}
-        </Card>
+      </Card>
 
-        {/* Bottom Actions */}
-        {summary && summary.pendingPayments > 0 && (
-          <div className="mt-6">
-            <Card onClick={() => { }} className="bg-warning/10 border-warning">
+      {/* Bottom Actions */}
+      {summary && summary.pendingPayments > 0 && (
+        <div className="mt-6">
+          <Card onClick={() => { }} className="bg-warning/10 border-warning">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-neutral-800 mb-1">
