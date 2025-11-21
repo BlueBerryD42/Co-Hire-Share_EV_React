@@ -26,16 +26,37 @@ const MaintenanceDetails = () => {
   }, [scheduleId]);
 
   const handleCancelMaintenance = async () => {
-    if (!scheduleId || !cancellationReason) return;
+    if (!scheduleId || !cancellationReason) {
+      console.error('❌ [Cancel] Missing scheduleId or cancellationReason');
+      return;
+    }
+
+    // Trim the reason and validate length
+    const trimmedReason = cancellationReason.trim();
+    if (trimmedReason.length < 10) {
+      console.error('❌ [Cancel] Reason too short:', trimmedReason.length);
+      alert('Lý do hủy phải có ít nhất 10 ký tự');
+      return;
+    }
+
+    const requestData = { cancellationReason: trimmedReason };
+    console.log('🗑️ [Cancel] Attempting to cancel maintenance:', scheduleId);
+    console.log('🗑️ [Cancel] Request data:', requestData);
+    console.log('🗑️ [Cancel] Reason length:', trimmedReason.length);
 
     try {
-      await maintenanceService.cancelMaintenance(scheduleId, { cancellationReason });
+      await maintenanceService.cancelMaintenance(scheduleId, requestData);
       setCancelModalOpen(false);
       // TODO: show success toast
       navigate(`/vehicles/${vehicleId}`);
-    } catch (error) {
-      console.error("Failed to cancel maintenance:", error);
-      // TODO: show error toast
+    } catch (error: any) {
+      console.error('❌ [Cancel] Failed to cancel maintenance:', error);
+      console.error('❌ [Cancel] Response data:', error.response?.data);
+      console.error('❌ [Cancel] Response status:', error.response?.status);
+      console.error('❌ [Cancel] Full error:', JSON.stringify(error.response?.data, null, 2));
+
+      const errorMessage = error.response?.data?.message || error.response?.data?.title || 'Đã xảy ra lỗi khi hủy bảo trì';
+      alert(errorMessage);
     }
   };
   
@@ -151,17 +172,48 @@ const MaintenanceDetails = () => {
 
       <Dialog isOpen={isCancelModalOpen} onClose={() => setCancelModalOpen(false)} title="Xác nhận Hủy">
           <div className="p-4">
-            <p>Bạn có chắc chắn muốn hủy lịch bảo trì này không? Hành động này không thể hoàn tác.</p>
-            <textarea
-                className="w-full mt-4 p-2 border border-neutral-300 rounded-md"
+            <p className="mb-4">Bạn có chắc chắn muốn hủy lịch bảo trì này không? Hành động này không thể hoàn tác.</p>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-neutral-700">
+                  Lý do hủy <span className="text-error">*</span>
+                </label>
+                <span className={`text-sm ${
+                  (cancellationReason?.length || 0) < 10
+                    ? 'text-error font-medium'
+                    : 'text-neutral-500'
+                }`}>
+                  {cancellationReason?.length || 0} / 500 ký tự
+                  {(cancellationReason?.length || 0) < 10 && (
+                    <span className="ml-1">(cần tối thiểu 10)</span>
+                  )}
+                </span>
+              </div>
+              <textarea
+                className={`w-full p-2 border rounded-md ${
+                  cancellationReason && cancellationReason.length > 0 && cancellationReason.length < 10
+                    ? 'border-error'
+                    : 'border-neutral-300'
+                }`}
                 rows={3}
-                placeholder="Nhập lý do hủy..."
+                placeholder="VD: Đã tìm được garage khác có giá tốt hơn, hoặc hoãn lại do lịch trình..."
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}
-            />
+                minLength={10}
+                maxLength={500}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 mt-4">
                 <Button variant="secondary" onClick={() => setCancelModalOpen(false)}>Không</Button>
-                <Button variant="destructive" onClick={handleCancelMaintenance} disabled={!cancellationReason}>Có, Hủy</Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelMaintenance}
+                  disabled={!cancellationReason || cancellationReason.trim().length < 10}
+                >
+                  Có, Hủy
+                </Button>
             </div>
           </div>
       </Dialog>

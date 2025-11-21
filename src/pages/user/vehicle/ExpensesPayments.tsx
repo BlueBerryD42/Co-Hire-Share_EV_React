@@ -27,8 +27,8 @@ const ExpensesPayments = () => {
   const navigate = useNavigate()
 
   // State
-  const [expenses, setExpenses] = useState([])
-  const [summary, setSummary] = useState(null)
+  const [expenses, setExpenses] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedStatus, setSelectedStatus] = useState('All')
@@ -155,10 +155,12 @@ const ExpensesPayments = () => {
             <Button
               variant="accent"
               onClick={() => navigate(`/vehicles/${vehicleId}/expenses/add`)}
+              className="!text-black"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-5 h-5 mr-2 !text-black" />
               Thêm chi phí
             </Button>
+
           </div>
         </div>
 
@@ -200,11 +202,10 @@ const ExpensesPayments = () => {
                   <button
                     key={option.value}
                     onClick={() => setDateRange(option.value)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      dateRange === option.value
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                    }`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${dateRange === option.value
+                      ? 'bg-neutral-800 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                      }`}
                   >
                     {option.label}
                   </button>
@@ -222,11 +223,10 @@ const ExpensesPayments = () => {
                   <button
                     key={cat.value}
                     onClick={() => setSelectedCategory(cat.value)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedCategory === cat.value
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${selectedCategory === cat.value
+                      ? 'bg-neutral-800 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                      }`}
                   >
                     <span>{cat.icon}</span>
                     <span>{cat.label}</span>
@@ -245,11 +245,10 @@ const ExpensesPayments = () => {
                   <button
                     key={option.value}
                     onClick={() => setSelectedStatus(option.value)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedStatus === option.value
-                        ? 'bg-primary text-white'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                    }`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${selectedStatus === option.value
+                      ? 'bg-neutral-800 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                      }`}
                   >
                     {option.label}
                   </button>
@@ -289,10 +288,12 @@ const ExpensesPayments = () => {
               <Button
                 variant="accent"
                 onClick={() => navigate(`/vehicles/${vehicleId}/expenses/add`)}
+                className="border border-black !text-black"
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-5 h-5 mr-2 !text-black" />
                 Thêm chi phí đầu tiên
               </Button>
+
             </div>
           ) : (
             <div className="space-y-3">
@@ -369,7 +370,14 @@ const ExpensesPayments = () => {
                 </div>
                 <Button
                   variant="warning"
-                  onClick={() => navigate(`/vehicles/${vehicleId}/payments`)}
+                  onClick={() => {
+                    // Get all pending expense IDs
+                    const pendingExpenseIds = expenses
+                      .filter(exp => exp.status === 'Pending')
+                      .map(exp => exp.id)
+                      .join(',')
+                    navigate(`/vehicles/${vehicleId}/payments?expenses=${pendingExpenseIds}`)
+                  }}
                 >
                   Thanh toán ngay
                 </Button>

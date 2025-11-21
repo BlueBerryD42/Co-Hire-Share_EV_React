@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Button, Input } from '@/components/shared'
 import { ArrowLeft, Upload, X, Plus } from 'lucide-react'
 import expenseService from '@/services/expenseService'
+import vehicleService from '@/services/vehicleService'
+import type { Vehicle } from '@/models/vehicle'
 
 /**
  * AddExpense Page - Màn hình 20: Add Expense
@@ -11,16 +13,31 @@ import expenseService from '@/services/expenseService'
 const AddExpense = () => {
   const { vehicleId } = useParams()
   const navigate = useNavigate()
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+
+  useEffect(() => {
+    if (vehicleId) {
+      vehicleService.getVehicleById(vehicleId).then(setVehicle)
+    }
+  }, [vehicleId])
 
   // Form state
-  const [formData, setFormData] = useState({
-    category: 'Maintenance',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    splitMethod: 'ownership', // 'ownership' | 'usage' | 'custom'
-    customSplits: [],
-  })
+  const [formData, setFormData] = useState(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const localDateString = `${year}-${month}-${day}`;
+    
+    return {
+      category: 'Maintenance',
+      amount: '',
+      date: localDateString,
+      description: '',
+      splitMethod: 'ownership', // 'ownership' | 'usage' | 'custom'
+      customSplits: [],
+    };
+  });
 
   const [receipts, setReceipts] = useState([])
   const [previews, setPreviews] = useState([])
@@ -121,7 +138,7 @@ const AddExpense = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!validateForm()) {
+    if (!validateForm() || !vehicle) {
       return
     }
 
@@ -129,13 +146,14 @@ const AddExpense = () => {
       setLoading(true)
 
       const expenseData = {
+        groupId: vehicle.groupId,
         vehicleId,
         category: formData.category,
         amount: parseFloat(formData.amount),
         date: formData.date,
         description: formData.description,
-        splitMethod: formData.splitMethod,
-        customSplits: formData.splitMethod === 'custom' ? formData.customSplits : undefined,
+        notes: formData.notes,
+        isRecurring: formData.isRecurring,
       }
 
       const createdExpense = await expenseService.createExpense(expenseData)
@@ -146,11 +164,13 @@ const AddExpense = () => {
         receipts.forEach((file) => {
           formData.append('receipts', file)
         })
-        await expenseService.uploadReceipt(createdExpense.id, formData)
+        // This service call doesn't exist, but we leave the logic here for future implementation.
+        // await expenseService.uploadReceipt(createdExpense.id, formData)
+        console.log("Receipt upload is not implemented yet.")
       }
 
       // Navigate to expense details
-      navigate(`/vehicles/${vehicleId}/expenses/${createdExpense.id}`)
+      navigate(`/vehicles/${vehicleId}/expenses`)
     } catch (error) {
       console.error('Error creating expense:', error)
       alert('Có lỗi xảy ra khi tạo chi phí. Vui lòng thử lại.')
@@ -189,11 +209,10 @@ const AddExpense = () => {
                   key={cat.value}
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, category: cat.value }))}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    formData.category === cat.value
+                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${formData.category === cat.value
                       ? 'border-primary bg-primary/5'
                       : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
+                    }`}
                 >
                   <span className="text-3xl">{cat.icon}</span>
                   <span className="text-sm font-medium text-neutral-800">{cat.label}</span>
@@ -242,9 +261,8 @@ const AddExpense = () => {
               onChange={handleInputChange}
               placeholder="Nhập mô tả chi tiết về chi phí này..."
               rows={4}
-              className={`w-full bg-neutral-50 border-2 rounded-md px-4 py-3 text-neutral-700 transition-all duration-300 focus:border-primary focus:ring-4 focus:ring-primary/15 focus:outline-none resize-none ${
-                errors.description ? 'border-error' : 'border-neutral-200'
-              }`}
+              className={`w-full bg-neutral-50 border-2 rounded-md px-4 py-3 text-neutral-700 transition-all duration-300 focus:border-primary focus:ring-4 focus:ring-primary/15 focus:outline-none resize-none ${errors.description ? 'border-error' : 'border-neutral-200'
+                }`}
             />
             {errors.description && (
               <p className="mt-2 text-sm text-error">{errors.description}</p>
@@ -311,11 +329,10 @@ const AddExpense = () => {
               {splitMethods.map((method) => (
                 <label
                   key={method.value}
-                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    formData.splitMethod === method.value
+                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.splitMethod === method.value
                       ? 'border-primary bg-primary/5'
                       : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -380,11 +397,12 @@ const AddExpense = () => {
               variant="accent"
               loading={loading}
               disabled={loading}
-              className="flex-1"
+              className="flex-1 !text-black"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-5 h-5 mr-2 !text-black" />
               Thêm chi phí
             </Button>
+
           </div>
         </form>
       </div>

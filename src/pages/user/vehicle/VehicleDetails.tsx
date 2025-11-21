@@ -25,10 +25,13 @@ import {
 import vehicleService from '@/services/vehicleService';
 import maintenanceService from '@/services/maintenanceService';
 import vehicleDocumentService from '@/services/vehicle/vehicleDocuments';
+import { bookingApi } from '@/services/booking/api';
 import UploadVehicleDocumentDialog from '@/components/vehicle/UploadVehicleDocumentDialog';
 import { Chip, IconButton, Alert, Snackbar } from '@mui/material';
 import { formatFileSize } from '@/models/document';
 import StatusBadge from '@/components/shared/StatusBadge';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 /**
  * VehicleDetails Page - Màn hình 11: Vehicle Details
@@ -39,9 +42,9 @@ const VehicleDetails = () => {
   const navigate = useNavigate()
 
   // State
-  const [vehicle, setVehicle] = useState(null)
-  const [statistics, setStatistics] = useState(null)
-  const [healthScore, setHealthScore] = useState(null)
+  const [vehicle, setVehicle] = useState<any>(null)
+  const [statistics, setStatistics] = useState<any>(null)
+  const [healthScore, setHealthScore] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('overview') // overview, stats, maintenance, documents, bookings
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -479,10 +482,10 @@ const VehicleDetails = () => {
         {/* Tab Content */}
         <div>
           {activeTab === 'overview' && <OverviewTab vehicle={vehicle} healthScore={healthScore} />}
-          {activeTab === 'stats' && <StatsTab statistics={statistics} />}
-          {activeTab === 'maintenance' && <MaintenanceTab vehicleId={id} groupStatus={groupStatus} />}
-          {activeTab === 'documents' && <DocumentsTab vehicleId={id} groupId={vehicle?.groupId} />}
-          {activeTab === 'bookings' && <BookingsTab vehicleId={id} />}
+          {activeTab === 'stats' && id && <StatsTab vehicleId={id} />}
+          {activeTab === 'maintenance' && id && <MaintenanceTab vehicleId={id} groupStatus={groupStatus} />}
+          {activeTab === 'documents' && id && <DocumentsTab vehicleId={id} groupId={vehicle?.groupId} />}
+          {activeTab === 'bookings' && id && <BookingsTab vehicleId={id} />}
         </div>
       </div>
     </div>
@@ -568,20 +571,89 @@ const OverviewTab = ({ vehicle, healthScore }) => (
             </div>
           )}
 
-          {/* Recommendations */}
-          {healthScore.recommendations && healthScore.recommendations.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-neutral-200">
-              <h4 className="font-semibold text-neutral-800 mb-3">Khuyến nghị</h4>
-              <ul className="space-y-2">
-                {healthScore.recommendations.slice(0, 3).map((rec, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-neutral-700">
-                    <span className="text-primary mt-1">•</span>
-                    <span>{rec.recommendation}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Recommendations based on Health Score */}
+          {(() => {
+            const score = healthScore.score || 0;
+            const getRecommendations = (healthScore: number): string[] => {
+              if (healthScore >= 80) {
+                // 80-100: Excellent condition
+                return [
+                  'Xe đang trong tình trạng tốt. Tiếp tục duy trì lịch bảo trì định kỳ.',
+                  'Kiểm tra mức dầu và áp suất lốp trước mỗi chuyến đi dài.',
+                  'Vệ sinh xe thường xuyên để bảo vệ sơn và nội thất.'
+                ];
+              } else if (healthScore >= 60) {
+                // 60-79: Good condition
+                return [
+                  'Xe hoạt động ổn định. Nên kiểm tra bảo dưỡng sắp tới.',
+                  'Theo dõi tiếng động bất thường từ động cơ hoặc gầm xe.',
+                  'Cân nhắc thay dầu máy nếu đã chạy hơn 5,000 km kể từ lần thay cuối.',
+                  'Kiểm tra độ mài mòn của lốp xe và cân chỉnh nếu cần.'
+                ];
+              } else if (healthScore >= 40) {
+                // 40-59: Fair condition - needs attention
+                return [
+                  'Xe cần được kiểm tra và bảo dưỡng sớm để tránh hư hỏng.',
+                  'Lên lịch bảo trì tổng thể trong vòng 1-2 tuần tới.',
+                  'Kiểm tra hệ thống phanh, đèn và các thiết bị an toàn.',
+                  'Hạn chế các chuyến đi xa cho đến khi hoàn thành bảo dưỡng.',
+                  'Theo dõi chặt chẽ mức nước làm mát và dầu động cơ.'
+                ];
+              } else if (healthScore >= 20) {
+                // 20-39: Poor condition - urgent attention needed
+                return [
+                  '⚠️ Xe trong tình trạng kém, cần bảo trì khẩn cấp ngay!',
+                  'KHÔNG nên sử dụng xe cho các chuyến đi dài.',
+                  'Đưa xe đến trung tâm bảo dưỡng chuyên nghiệp trong vòng 3 ngày.',
+                  'Kiểm tra toàn bộ hệ thống động cơ, phanh và treo.',
+                  'Chuẩn bị ngân sách cho sửa chữa và thay thế linh kiện cần thiết.',
+                  'Cân nhắc tạm ngưng cho thuê xe cho đến khi hoàn thành sửa chữa.'
+                ];
+              } else {
+                // 0-19: Critical condition
+                return [
+                  '🚨 CẢNH BÁO: Xe trong tình trạng nguy hiểm!',
+                  'NGỪNG sử dụng xe ngay lập tức để đảm bảo an toàn.',
+                  'Liên hệ trung tâm bảo dưỡng khẩn cấp NGAY HÔM NAY.',
+                  'Không vận hành xe cho đến khi được kỹ thuật viên chuyên nghiệp kiểm tra.',
+                  'Xe có thể cần sửa chữa lớn hoặc thay thế động cơ/hộp số.',
+                  'Xem xét chi phí sửa chữa so với giá trị xe để quyết định hợp lý.',
+                  'Cập nhật trạng thái xe thành "Bảo trì" để chặn đặt lịch mới.'
+                ];
+              }
+            };
+
+            const recommendations = getRecommendations(score);
+
+            return recommendations.length > 0 ? (
+              <div className="mt-6 pt-6 border-t border-neutral-200">
+                <h4 className="font-semibold text-neutral-800 mb-3">
+                  Khuyến nghị {score < 40 && '(Cần chú ý)'}
+                </h4>
+                <ul className="space-y-2">
+                  {recommendations.map((rec, index) => (
+                    <li
+                      key={index}
+                      className={`flex items-start gap-2 text-sm ${
+                        score < 40 ? 'text-error font-medium' :
+                        score < 60 ? 'text-warning' :
+                        'text-neutral-700'
+                      }`}
+                    >
+                      <span className={`mt-1 ${
+                        score < 40 ? 'text-error' :
+                        score < 60 ? 'text-warning' :
+                        'text-primary'
+                      }`}>
+                        {score < 40 ? '⚠' : '•'}
+                      </span>
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null;
+          })()}
         </div>
       ) : (
         <div className="text-center py-8">
@@ -598,35 +670,128 @@ const OverviewTab = ({ vehicle, healthScore }) => (
 )
 
 // Stats Tab Component
-const StatsTab = ({ statistics }) => (
-  <div className="space-y-6">
-    <Card>
-      <h3 className="text-xl font-semibold text-neutral-800 mb-4">Thống kê sử dụng (30 ngày qua)</h3>
-      {statistics?.usage ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-sm text-neutral-600 mb-2">Tổng số chuyến</p>
-            <p className="text-3xl font-bold text-neutral-800">{statistics.usage.totalTrips}</p>
+const StatsTab = ({ vehicleId }: { vehicleId: string }) => {
+  const [bookings, setBookings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchBookingStats = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Calculate date range for last 30 days
+        const endDate = new Date()
+        const startDate = new Date()
+        startDate.setDate(startDate.getDate() - 30)
+
+        console.log('📊 [Stats] Fetching bookings for vehicle:', vehicleId)
+        console.log('📊 [Stats] Date range:', {
+          from: startDate.toISOString(),
+          to: endDate.toISOString()
+        })
+
+        // Fetch bookings for this vehicle in the last 30 days
+        const bookingData = await bookingApi.getVehicleBookings({
+          vehicleId,
+          from: startDate.toISOString(),
+          to: endDate.toISOString(),
+        })
+
+        console.log('📊 [Stats] Raw booking data:', bookingData)
+        console.log('📊 [Stats] Total bookings fetched:', bookingData.length)
+
+        // Filter bookings - include Completed (4) and InProgress (3)
+        // Backend uses enum: Pending=0, PendingApproval=1, Confirmed=2, InProgress=3, Completed=4, Cancelled=5, NoShow=6
+        const validBookings = bookingData.filter(
+          (booking: any) => {
+            const status = booking.status
+            // Accept both number (from API) and string (if formatted)
+            return status === 4 || status === 'Completed' ||
+                   status === 3 || status === 'InProgress' ||
+                   status === 2 || status === 'Confirmed'
+          }
+        )
+
+        console.log('📊 [Stats] Valid bookings (Confirmed/InProgress/Completed):', validBookings)
+        console.log('📊 [Stats] Valid count:', validBookings.length)
+
+        // Log all statuses to see what we have
+        const statusCounts = bookingData.reduce((acc: any, b: any) => {
+          acc[b.status] = (acc[b.status] || 0) + 1
+          return acc
+        }, {})
+        console.log('📊 [Stats] Status breakdown:', statusCounts)
+
+        setBookings(validBookings)
+      } catch (err) {
+        console.error('❌ [Stats] Error fetching booking statistics:', err)
+        setError('Không thể tải dữ liệu thống kê')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (vehicleId) {
+      fetchBookingStats()
+    }
+  }, [vehicleId])
+
+  // Calculate statistics from bookings
+  const totalTrips = bookings.length
+  const totalDistance = bookings.reduce((sum: number, booking: any) => {
+    return sum + (booking.distanceKm || 0)
+  }, 0)
+  const totalHours = bookings.reduce((sum: number, booking: any) => {
+    const start = new Date(booking.startAt).getTime()
+    const end = new Date(booking.endAt).getTime()
+    const hours = (end - start) / (1000 * 60 * 60) // Convert ms to hours
+    return sum + hours
+  }, 0)
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <h3 className="text-xl font-semibold text-neutral-800 mb-4">
+          Thống kê sử dụng (30 ngày qua)
+        </h3>
+        {loading ? (
+          <div className="animate-pulse space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="h-20 bg-neutral-100 rounded" />
+              <div className="h-20 bg-neutral-100 rounded" />
+              <div className="h-20 bg-neutral-100 rounded" />
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-neutral-600 mb-2">Tổng quãng đường</p>
-            <p className="text-3xl font-bold text-neutral-800">
-              {statistics.usage.totalDistance?.toLocaleString()} km
-            </p>
+        ) : error ? (
+          <p className="text-error">{error}</p>
+        ) : totalTrips > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <p className="text-sm text-neutral-600 mb-2">Tổng số chuyến</p>
+              <p className="text-3xl font-bold text-neutral-800">{totalTrips}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600 mb-2">Tổng quãng đường</p>
+              <p className="text-3xl font-bold text-neutral-800">
+                {totalDistance.toLocaleString()} km
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600 mb-2">Tổng thời gian</p>
+              <p className="text-3xl font-bold text-neutral-800">
+                {totalHours.toFixed(1)} giờ
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-neutral-600 mb-2">Tổng thời gian</p>
-            <p className="text-3xl font-bold text-neutral-800">
-              {statistics.usage.totalHours?.toFixed(1)} giờ
-            </p>
-          </div>
-        </div>
-      ) : (
-        <p className="text-neutral-600">Chưa có dữ liệu thống kê</p>
-      )}
-    </Card>
-  </div>
-)
+        ) : (
+          <p className="text-neutral-600">Chưa có dữ liệu thống kê trong 30 ngày qua</p>
+        )}
+      </Card>
+    </div>
+  )
+}
 
 // Maintenance Tab Component
 const MaintenanceTab = ({ vehicleId, groupStatus }) => {
@@ -1131,11 +1296,230 @@ const DocumentsTab = ({ vehicleId, groupId }) => {
 }
 
 // Bookings Tab Component
-const BookingsTab = ({ vehicleId }) => (
-  <Card>
-    <h3 className="text-xl font-semibold text-neutral-800 mb-4">Lịch sử đặt xe</h3>
-    <p className="text-neutral-600">Đang phát triển...</p>
-  </Card>
-)
+const BookingsTab = ({ vehicleId }: { vehicleId: string }) => {
+  const navigate = useNavigate()
+  const [bookings, setBookings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all')
+
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        console.log('📅 [Bookings] Fetching bookings for vehicle:', vehicleId)
+
+        // Fetch all bookings for this vehicle
+        const bookingData = await bookingApi.getVehicleBookings({
+          vehicleId,
+        })
+
+        console.log('📅 [Bookings] Total bookings fetched:', bookingData.length)
+        console.log('📅 [Bookings] Sample booking data:', bookingData[0])
+
+        // Sort by startAt date (newest first)
+        const sortedBookings = bookingData.sort((a: any, b: any) => {
+          return new Date(b.startAt).getTime() - new Date(a.startAt).getTime()
+        })
+
+        setBookings(sortedBookings)
+      } catch (err) {
+        console.error('❌ [Bookings] Error fetching bookings:', err)
+        setError('Không thể tải danh sách đặt xe')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (vehicleId) {
+      fetchBookings()
+    }
+  }, [vehicleId])
+
+  const getStatusText = (status: number | string) => {
+    const statusMap: Record<number | string, string> = {
+      0: 'Chờ xử lý',
+      1: 'Chờ phê duyệt',
+      2: 'Đã xác nhận',
+      3: 'Đang sử dụng',
+      4: 'Hoàn thành',
+      5: 'Đã hủy',
+      6: 'Không đến',
+      'Pending': 'Chờ xử lý',
+      'PendingApproval': 'Chờ phê duyệt',
+      'Confirmed': 'Đã xác nhận',
+      'InProgress': 'Đang sử dụng',
+      'Completed': 'Hoàn thành',
+      'Cancelled': 'Đã hủy',
+      'NoShow': 'Không đến',
+    }
+    return statusMap[status] || 'Không rõ'
+  }
+
+  const getStatusVariant = (status: number | string): 'default' | 'success' | 'warning' | 'error' | 'primary' => {
+    const variantMap: Record<number | string, 'default' | 'success' | 'warning' | 'error' | 'primary'> = {
+      0: 'warning',
+      1: 'warning',
+      2: 'primary',
+      3: 'primary',
+      4: 'success',
+      5: 'error',
+      6: 'error',
+      'Pending': 'warning',
+      'PendingApproval': 'warning',
+      'Confirmed': 'primary',
+      'InProgress': 'primary',
+      'Completed': 'success',
+      'Cancelled': 'error',
+      'NoShow': 'error',
+    }
+    return variantMap[status] || 'default'
+  }
+
+  const filteredBookings = bookings.filter((booking) => {
+    const now = new Date()
+    const startDate = new Date(booking.startAt)
+
+    if (filter === 'upcoming') {
+      return startDate > now
+    } else if (filter === 'past') {
+      return startDate <= now
+    }
+    return true
+  })
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 bg-neutral-100 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card onClick={() => {}}>
+        <p className="text-error text-center py-8">{error}</p>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filter Buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant={filter === 'all' ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('all')}
+        >
+          Tất cả ({bookings.length})
+        </Button>
+        <Button
+          variant={filter === 'upcoming' ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('upcoming')}
+        >
+          Sắp tới ({bookings.filter(b => new Date(b.startAt) > new Date()).length})
+        </Button>
+        <Button
+          variant={filter === 'past' ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('past')}
+        >
+          Đã qua ({bookings.filter(b => new Date(b.startAt) <= new Date()).length})
+        </Button>
+      </div>
+
+      {/* Bookings List */}
+      {filteredBookings.length === 0 ? (
+        <Card onClick={() => {}}>
+          <div className="text-center py-12">
+            <Calendar className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-neutral-800 mb-2">
+              Chưa có lịch đặt nào
+            </h3>
+            <p className="text-neutral-600">
+              {filter === 'upcoming' && 'Chưa có lịch đặt sắp tới'}
+              {filter === 'past' && 'Chưa có lịch đặt trong quá khứ'}
+              {filter === 'all' && 'Xe này chưa có lịch đặt nào'}
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredBookings.map((booking) => (
+            <Card
+              key={booking.id}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/booking/${booking.id}`)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Badge variant={getStatusVariant(booking.status)}>
+                      {getStatusText(booking.status)}
+                    </Badge>
+                    <span className="text-sm text-neutral-600">
+                      #{booking.id.substring(0, 8)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-neutral-700">
+                      <Calendar className="w-4 h-4 text-neutral-500" />
+                      <span className="font-medium">
+                        {format(new Date(booking.startAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                      </span>
+                      <span className="text-neutral-500">→</span>
+                      <span className="font-medium">
+                        {format(new Date(booking.endAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-neutral-600 text-sm">
+                      <Users className="w-4 h-4 text-neutral-500" />
+                      <span>
+                        Người đặt: {booking.userFirstName && booking.userLastName
+                          ? `${booking.userFirstName} ${booking.userLastName}`
+                          : booking.userId}
+                      </span>
+                    </div>
+
+                    {booking.distanceKm > 0 && (
+                      <div className="flex items-center gap-2 text-neutral-600 text-sm">
+                        <MapPin className="w-4 h-4 text-neutral-500" />
+                        <span>Quãng đường: {booking.distanceKm} km</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  {booking.tripFeeAmount > 0 && (
+                    <div className="text-2xl font-bold text-primary mb-1">
+                      {booking.tripFeeAmount.toLocaleString()} đ
+                    </div>
+                  )}
+                  {booking.notes && (
+                    <p className="text-xs text-neutral-500 max-w-xs truncate">
+                      {booking.notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default VehicleDetails
