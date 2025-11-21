@@ -67,12 +67,14 @@ export interface NotificationPreferences {
 }
 
 export interface ProfileSetupFormData {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   profilePhoto?: File | string; // File for upload, string for existing URL
   bio?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   preferredPaymentMethod?: string;
-  notificationPreferences?: NotificationPreferences;
   languagePreference?: string;
 }
 
