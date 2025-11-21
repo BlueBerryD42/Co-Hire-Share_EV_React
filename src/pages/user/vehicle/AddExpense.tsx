@@ -189,11 +189,10 @@ const AddExpense = () => {
                   key={cat.value}
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, category: cat.value }))}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    formData.category === cat.value
+                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${formData.category === cat.value
                       ? 'border-primary bg-primary/5'
                       : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
+                    }`}
                 >
                   <span className="text-3xl">{cat.icon}</span>
                   <span className="text-sm font-medium text-neutral-800">{cat.label}</span>
@@ -242,9 +241,8 @@ const AddExpense = () => {
               onChange={handleInputChange}
               placeholder="Nhập mô tả chi tiết về chi phí này..."
               rows={4}
-              className={`w-full bg-neutral-50 border-2 rounded-md px-4 py-3 text-neutral-700 transition-all duration-300 focus:border-primary focus:ring-4 focus:ring-primary/15 focus:outline-none resize-none ${
-                errors.description ? 'border-error' : 'border-neutral-200'
-              }`}
+              className={`w-full bg-neutral-50 border-2 rounded-md px-4 py-3 text-neutral-700 transition-all duration-300 focus:border-primary focus:ring-4 focus:ring-primary/15 focus:outline-none resize-none ${errors.description ? 'border-error' : 'border-neutral-200'
+                }`}
             />
             {errors.description && (
               <p className="mt-2 text-sm text-error">{errors.description}</p>
@@ -311,11 +309,10 @@ const AddExpense = () => {
               {splitMethods.map((method) => (
                 <label
                   key={method.value}
-                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    formData.splitMethod === method.value
+                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${formData.splitMethod === method.value
                       ? 'border-primary bg-primary/5'
                       : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -380,11 +377,12 @@ const AddExpense = () => {
               variant="accent"
               loading={loading}
               disabled={loading}
-              className="flex-1"
+              className="flex-1 !text-black"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-5 h-5 mr-2 !text-black" />
               Thêm chi phí
             </Button>
+
           </div>
         </form>
       </div>
