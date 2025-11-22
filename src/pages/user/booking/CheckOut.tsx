@@ -222,9 +222,17 @@ const CheckOut = () => {
       setMessage("Enter an odometer reading before completing the trip.");
       return;
     }
+    const odo = Number(endForm.odometer);
+    if (Number.isNaN(odo)) {
+      setMessage("Odometer must be a valid number.");
+      return;
+    }
+    if (startOdometer != null && odo < startOdometer) {
+      setMessage("So km khi checkout phai lon hon hoac bang so km luc checkin.");
+      return;
+    }
     setMessage("Submitting checkout payload...");
     try {
-      const odo = Number(endForm.odometer);
       await checkInApi.endTrip({
         bookingId: booking.id,
         odometerReading: odo,
