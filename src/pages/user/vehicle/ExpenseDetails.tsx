@@ -166,10 +166,15 @@ const ExpenseDetails = () => {
           {/* Actions */}
           <div className="flex gap-3 pt-6 border-t border-neutral-200">
             {expense.status === 'Pending' && (
-              <Button variant="accent" onClick={() => navigate(`/vehicles/${vehicleId}/payments`)}>
-                <DollarSign className="w-4 h-4 mr-2" />
+              <Button
+                variant="accent"
+                onClick={() => navigate(`/vehicles/${vehicleId}/payments?expenses=${expenseId}`)}
+                className="!text-black"
+              >
+                <DollarSign className="w-4 h-4 mr-2 !text-black" />
                 Thanh toán phần của bạn
               </Button>
+
             )}
             {expense.receipts && expense.receipts.length > 0 && (
               <Button variant="ghost">

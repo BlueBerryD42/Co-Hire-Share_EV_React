@@ -267,7 +267,7 @@ const AiBookingRecommendations = () => {
                     <p className="text-sm text-neutral-600">{rec.reasoning}</p>
                   )}
                   <Button
-                    variant="accent"
+                    variant="primary"
                     size="sm"
                     onClick={() => {
                       // Book this time slot

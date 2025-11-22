@@ -1,20 +1,21 @@
-import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import useToggle from '@/hooks/useToggle'
-import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
-import { type NavLink, NAV_LINKS } from '@/utils/navigation'
-import { isStaffOrAdmin } from '@/utils/roles'
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Person } from "@mui/icons-material";
+import useToggle from "@/hooks/useToggle";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { logout } from "@/store/slices/authSlice";
+import { type NavLink, NAV_LINKS } from "@/utils/navigation";
+import { isStaffOrAdmin } from "@/utils/roles";
 
 const DEFAULT_ANCHOR = "#overview";
 
 const Header = () => {
-  const [isOpen, toggleOpen] = useToggle(false)
-  const [activeAnchor, setActiveAnchor] = useState(DEFAULT_ANCHOR)
-  const location = useLocation()
-  const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const [isOpen, toggleOpen] = useToggle(false);
+  const [activeAnchor, setActiveAnchor] = useState(DEFAULT_ANCHOR);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (location.pathname === "/" && typeof window !== "undefined") {
@@ -106,15 +107,22 @@ const Header = () => {
   );
 
   const handleLogout = async () => {
-    await dispatch(logout())
-    navigate('/')
-  }
+    await dispatch(logout());
+    navigate("/");
+  };
 
   return (
     <header className="border-b border-neutral-200 bg-neutral-50/80 backdrop-blur w-full">
       <nav className="w-full flex items-center justify-between gap-4 px-6 py-4">
-        <Link to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-neutral-800 hover:text-accent-blue transition-colors flex-shrink-0">
-          <img src="/CoEV_logo.svg" alt="CoEV Logo" className="h-8 w-8 flex-shrink-0" />
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-lg font-semibold tracking-tight text-neutral-800 hover:text-accent-blue transition-colors flex-shrink-0"
+        >
+          <img
+            src="/CoEV_logo.svg"
+            alt="CoEV Logo"
+            className="h-8 w-8 flex-shrink-0"
+          />
           <span className="whitespace-nowrap">Co-Hire Share EV</span>
         </Link>
 
@@ -131,11 +139,11 @@ const Header = () => {
           <ul className="flex gap-4 lg:gap-6 text-sm font-medium text-neutral-600 items-center">
             {NAV_LINKS.map((link) => (
               <li key={link.href} className="whitespace-nowrap">
-                {link.type === 'route' ? (
+                {link.type === "route" ? (
                   <Link
                     to={link.href}
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
+                      isActive(link) ? "text-neutral-900 font-semibold" : ""
                     }`}
                     onClick={handleRouteClick}
                   >
@@ -145,7 +153,7 @@ const Header = () => {
                   <button
                     type="button"
                     className={`transition-colors hover:text-neutral-900 ${
-                      isActive(link) ? 'text-neutral-900 font-semibold' : ''
+                      isActive(link) ? "text-neutral-900 font-semibold" : ""
                     }`}
                     onClick={() => handleAnchorClick(link.href)}
                   >
@@ -169,8 +177,18 @@ const Header = () => {
                   Admin Panel
                 </Link>
               )}
+              <Link
+                to="/profile-setup"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:text-neutral-900 hover:bg-neutral-100 whitespace-nowrap flex items-center gap-2"
+                title="Thiết Lập Hồ Sơ"
+              >
+                <Person sx={{ fontSize: 18 }} />
+                <span>Hồ Sơ</span>
+              </Link>
               <span className="text-sm text-neutral-700 whitespace-nowrap">
-                {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
+                {user?.firstName
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.email}
               </span>
               <button
                 type="button"
@@ -192,16 +210,16 @@ const Header = () => {
                 to="/register"
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-neutral-50 transition-all whitespace-nowrap"
                 style={{
-                  backgroundColor: 'var(--accent-blue)',
-                  boxShadow: '0 2px 8px rgba(122, 154, 175, 0.25)',
+                  backgroundColor: "var(--accent-blue)",
+                  boxShadow: "0 2px 8px rgba(122, 154, 175, 0.25)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#6a8a9f'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.backgroundColor = "#6a8a9f";
+                  e.currentTarget.style.transform = "translateY(-1px)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--accent-blue)'
-                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.backgroundColor = "var(--accent-blue)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
                 Sign Up
@@ -216,11 +234,13 @@ const Header = () => {
           <ul className="space-y-2 text-sm font-medium text-neutral-700">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
-                {link.type === 'route' ? (
+                {link.type === "route" ? (
                   <Link
                     to={link.href}
                     className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-neutral-200 hover:text-neutral-900 ${
-                      isActive(link) ? 'bg-neutral-200 text-neutral-900 font-semibold' : ''
+                      isActive(link)
+                        ? "bg-neutral-200 text-neutral-900 font-semibold"
+                        : ""
                     }`}
                     onClick={handleRouteClick}
                   >
@@ -230,7 +250,9 @@ const Header = () => {
                   <button
                     type="button"
                     className={`block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-neutral-200 hover:text-neutral-900 ${
-                      isActive(link) ? 'bg-neutral-200 text-neutral-900 font-semibold' : ''
+                      isActive(link)
+                        ? "bg-neutral-200 text-neutral-900 font-semibold"
+                        : ""
                     }`}
                     onClick={() => handleAnchorClick(link.href)}
                   >
@@ -254,8 +276,18 @@ const Header = () => {
                     Admin Panel
                   </Link>
                 )}
+                <Link
+                  to="/profile-setup"
+                  className="block w-full rounded-lg border border-neutral-300 px-4 py-2 text-center text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-200 flex items-center justify-center gap-2"
+                  onClick={handleRouteClick}
+                >
+                  <Person sx={{ fontSize: 18 }} />
+                  <span>Thiết Lập Hồ Sơ</span>
+                </Link>
                 <div className="px-3 py-2 text-sm text-neutral-700">
-                  {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
+                  {user?.firstName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user?.email}
                 </div>
                 <button
                   type="button"
@@ -278,8 +310,8 @@ const Header = () => {
                   to="/register"
                   className="block w-full rounded-lg px-4 py-2 text-center text-sm font-semibold text-neutral-50 transition-all"
                   style={{
-                    backgroundColor: 'var(--accent-blue)',
-                    boxShadow: '0 2px 8px rgba(122, 154, 175, 0.25)',
+                    backgroundColor: "var(--accent-blue)",
+                    boxShadow: "0 2px 8px rgba(122, 154, 175, 0.25)",
                   }}
                   onClick={handleRouteClick}
                 >
@@ -291,7 +323,7 @@ const Header = () => {
         </div>
       )}
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

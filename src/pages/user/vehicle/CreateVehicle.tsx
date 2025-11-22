@@ -125,6 +125,27 @@ const CreateVehicle = () => {
     }
   }
 
+  const validateVietnamesePlateNumber = (plateNumber: string): boolean => {
+    // Remove all spaces and dashes for validation
+    const cleaned = plateNumber.replace(/[\s\-\.]/g, '')
+
+    // Format 1: Standard plates - 2 digits + 1 letter + 4-5 digits
+    // Examples: 30A12345, 51B12345, 29C123456
+    const standardFormat = /^[0-9]{2}[A-Z]{1}[0-9]{4,5}$/
+
+    // Format 2: Diplomatic/Official plates
+    // Examples: NG001, CV123, HC123, QT123, NN001
+    const diplomaticFormat = /^(NG|CV|HC|QT|NN)[0-9]{3,4}$/
+
+    // Format 3: Army/Police plates
+    // Examples: QD123456, CA123456, TM123456
+    const militaryFormat = /^(QD|CA|TM|TC|BT)[0-9]{4,6}$/
+
+    return standardFormat.test(cleaned) ||
+           diplomaticFormat.test(cleaned) ||
+           militaryFormat.test(cleaned)
+  }
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
@@ -136,6 +157,8 @@ const CreateVehicle = () => {
 
     if (!formData.plateNumber || formData.plateNumber.trim().length === 0) {
       newErrors.plateNumber = 'Vui lòng nhập biển số xe'
+    } else if (!validateVietnamesePlateNumber(formData.plateNumber)) {
+      newErrors.plateNumber = 'Biển số xe không đúng định dạng Việt Nam (VD: 30A-12345, 51B-123.45)'
     }
 
     if (!formData.model || formData.model.trim().length === 0) {
@@ -414,8 +437,11 @@ const CreateVehicle = () => {
               required
               inputProps={{ maxLength: 20 }}
               error={!!errors.plateNumber}
-              helperText={errors.plateNumber}
-              placeholder="VD: 30A-12345"
+              helperText={
+                errors.plateNumber ||
+                'Định dạng: 30A-12345, 51B-123.45 (xe dân dụng), NG-001 (ngoại giao), QD-12345 (quân đội)'
+              }
+              placeholder="VD: 30A-12345 hoặc 51B-123.45"
               sx={{ mb: 2 }}
             />
 

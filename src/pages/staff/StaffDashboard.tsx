@@ -5,19 +5,19 @@ import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/Loading";
 import { Link } from "react-router-dom";
 import {
-  CalendarToday,
   Description,
   Warning,
-  Build,
   Groups,
   DirectionsCar,
   Assessment,
-  CheckCircle,
+  PendingActions,
 } from "@mui/icons-material";
 import { Alert, AlertTitle } from "@mui/material";
 import { useAppSelector } from "@/store/hooks";
 import { isStaffOrAdmin } from "@/utils/roles";
 import Unauthorized from "@/components/auth/Unauthorized";
+import { groupApi } from "@/services/group/groups";
+import vehicleService from "@/services/vehicleService";
 
 interface DashboardData {
   users?: {
@@ -69,7 +69,7 @@ interface DashboardData {
 
 const StaffDashboard = () => {
   const { user } = useAppSelector((state) => state.auth);
-  
+
   // Role check - Staff or Admin only
   if (!isStaffOrAdmin(user)) {
     return <Unauthorized requiredRole="Staff or SystemAdmin" />;
@@ -78,9 +78,12 @@ const StaffDashboard = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingGroupsCount, setPendingGroupsCount] = useState(0);
+  const [pendingVehiclesCount, setPendingVehiclesCount] = useState(0);
 
   useEffect(() => {
     fetchDashboard();
+    fetchPendingCounts();
   }, []);
 
   const fetchDashboard = async () => {
@@ -98,6 +101,19 @@ const StaffDashboard = () => {
       setError("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingCounts = async () => {
+    try {
+      const [pendingGroups, pendingVehicles] = await Promise.all([
+        groupApi.getPendingGroups().catch(() => []),
+        vehicleService.getPendingVehicles().catch(() => []),
+      ]);
+      setPendingGroupsCount(pendingGroups.length);
+      setPendingVehiclesCount(pendingVehicles.length);
+    } catch (err) {
+      console.error("Error fetching pending counts:", err);
     }
   };
 
@@ -134,10 +150,18 @@ const StaffDashboard = () => {
     alerts,
   } = dashboard;
 
+  // Filter out maintenance-related alerts
+  const filteredAlerts =
+    alerts?.filter(
+      (alert) =>
+        !alert.message?.toLowerCase().includes("maintenance") &&
+        !alert.message?.toLowerCase().includes("require maintenance")
+    ) || [];
+
   return (
     <div className="space-y-6">
       {/* Alerts Banner */}
-      {alerts && alerts.length > 0 && (
+      {filteredAlerts.length > 0 && (
         <Alert
           severity="warning"
           sx={{
@@ -153,7 +177,7 @@ const StaffDashboard = () => {
             Alerts
           </AlertTitle>
           <ul style={{ margin: 0, paddingLeft: "20px" }}>
-            {alerts.map((alert, index: number) => (
+            {filteredAlerts.map((alert, index: number) => (
               <li key={index} style={{ marginBottom: "8px" }}>
                 {alert.message}
               </li>
@@ -167,18 +191,40 @@ const StaffDashboard = () => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-neutral-600">Active Bookings</p>
+              <p className="text-sm text-neutral-600">Pending Groups</p>
               <p className="text-2xl font-bold text-neutral-800">
-                {bookings?.activeBookings || 0}
+                {pendingGroupsCount}
               </p>
             </div>
-            <CalendarToday sx={{ fontSize: 32, color: "var(--accent-blue)" }} />
+            <PendingActions
+              sx={{ fontSize: 32, color: "var(--accent-blue)" }}
+            />
           </div>
           <Link
-            to="/admin/checkins"
+            to="/admin/groups"
             className="mt-4 text-sm text-accent-blue hover:underline"
           >
-            View Check-ins →
+            Review Groups →
+          </Link>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-neutral-600">Pending Vehicles</p>
+              <p className="text-2xl font-bold text-neutral-800">
+                {pendingVehiclesCount}
+              </p>
+            </div>
+            <PendingActions
+              sx={{ fontSize: 32, color: "var(--accent-blue)" }}
+            />
+          </div>
+          <Link
+            to="/admin/vehicles"
+            className="mt-4 text-sm text-accent-blue hover:underline"
+          >
+            Review Vehicles →
           </Link>
         </Card>
 
@@ -215,26 +261,6 @@ const StaffDashboard = () => {
             className="mt-4 text-sm text-accent-blue hover:underline"
           >
             Manage Disputes →
-          </Link>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-neutral-600">
-                Vehicles in Maintenance
-              </p>
-              <p className="text-2xl font-bold text-neutral-800">
-                {vehicles?.maintenanceVehicles || 0}
-              </p>
-            </div>
-            <Build sx={{ fontSize: 32, color: "var(--accent-blue)" }} />
-          </div>
-          <Link
-            to="/admin/maintenance"
-            className="mt-4 text-sm text-accent-blue hover:underline"
-          >
-            View Maintenance →
           </Link>
         </Card>
       </div>
@@ -338,12 +364,6 @@ const StaffDashboard = () => {
             <div className="flex justify-between items-center">
               <span className="text-neutral-600">In Use</span>
               <Badge variant="primary">{vehicles?.inUseVehicles || 0}</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-neutral-600">Maintenance</span>
-              <Badge variant="warning">
-                {vehicles?.maintenanceVehicles || 0}
-              </Badge>
             </div>
           </div>
           <Link
@@ -526,17 +546,6 @@ const StaffDashboard = () => {
             />
             <p className="text-sm font-medium text-neutral-700">
               Manage Vehicles
-            </p>
-          </Link>
-          <Link
-            to="/admin/checkins"
-            className="p-4 bg-neutral-100 hover:bg-neutral-200 rounded-md text-center transition-colors"
-          >
-            <CheckCircle
-              sx={{ fontSize: 32, color: "var(--accent-green)", mb: 1 }}
-            />
-            <p className="text-sm font-medium text-neutral-700">
-              Review Check-ins
             </p>
           </Link>
           <Link

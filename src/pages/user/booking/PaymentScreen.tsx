@@ -1,19 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowBack, CreditCard, Security, Check } from '@mui/icons-material'
-import { Card, Button, Badge } from '@/components/shared'
+import { Card, Button } from '@/components/shared'
+import {
+  ArrowLeft,
+  CreditCard,
+  Shield,
+  Check,
+  Receipt,
+} from 'lucide-react'
 import expenseService from '@/services/expenseService'
 
 /**
- * PaymentScreen Page - Màn hình 21: Payment Screen
- * Màn hình thanh toán với các phương thức: Momo, ZaloPay, VNPay, Bank Transfer
+ * PaymentScreen for Booking - Màn hình thanh toán chi phí booking
+ * Thanh toán các chi phí phát sinh trong chuyến đi (Fuel, Toll, Parking, etc.)
  */
 const PaymentScreen = () => {
-  const { vehicleId } = useParams()
+  const { bookingId } = useParams<{ bookingId: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const [expenses, setExpenses] = useState([])
+  const [expenses, setExpenses] = useState<any[]>([])
   const [selectedMethod, setSelectedMethod] = useState('momo')
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -58,7 +64,7 @@ const PaymentScreen = () => {
     }
   }, [searchParams])
 
-  const fetchExpensesToPay = async (expenseIds) => {
+  const fetchExpensesToPay = async (expenseIds: string[]) => {
     try {
       setLoading(true)
       // Fetch expense details for each ID
@@ -80,13 +86,13 @@ const PaymentScreen = () => {
     try {
       setProcessing(true)
 
-      // Mock payment data
+      // Payment data
       const paymentData = {
         expenseIds: expenses.map(e => e.id),
         amount: finalAmount,
         method: selectedMethod,
-        returnUrl: `${window.location.origin}/vehicles/${vehicleId}/payments/success`,
-        cancelUrl: `${window.location.origin}/vehicles/${vehicleId}/payments/cancel`,
+        returnUrl: `${window.location.origin}/booking/${bookingId}/payments/success`,
+        cancelUrl: `${window.location.origin}/booking/${bookingId}/payments/cancel`,
       }
 
       const paymentResult = await expenseService.createPayment(paymentData)
@@ -96,7 +102,7 @@ const PaymentScreen = () => {
         window.location.href = paymentResult.paymentUrl
       } else {
         // If direct payment (bank transfer)
-        navigate(`/vehicles/${vehicleId}/payments/pending`, {
+        navigate(`/booking/${bookingId}/payments/pending`, {
           state: { paymentId: paymentResult.id }
         })
       }
@@ -125,11 +131,11 @@ const PaymentScreen = () => {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <CreditCard sx={{ fontSize: 64, color: '#d5bdaf', mb: 2 }} />
+          <CreditCard className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-neutral-800 mb-2">
             Không có khoản thanh toán nào
           </h2>
-          <Button onClick={() => navigate(`/vehicles/${vehicleId}/expenses`)}>
+          <Button onClick={() => navigate(`/booking/${bookingId}/expenses`)}>
             Quay lại danh sách chi phí
           </Button>
         </div>
@@ -142,10 +148,10 @@ const PaymentScreen = () => {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <button
-          onClick={() => navigate(`/vehicles/${vehicleId}/expenses`)}
+          onClick={() => navigate(`/booking/${bookingId}/expenses`)}
           className="flex items-center gap-2 text-neutral-700 hover:text-primary mb-6 transition-colors"
         >
-          <ArrowBack fontSize="small" />
+          <ArrowLeft className="w-5 h-5" />
           <span className="font-medium">Quay lại</span>
         </button>
 
@@ -158,7 +164,7 @@ const PaymentScreen = () => {
           {/* Left Column - Payment Methods */}
           <div className="lg:col-span-2 space-y-6">
             {/* Payment Methods */}
-            <Card>
+            <Card onClick={() => { }}>
               <h2 className="text-xl font-semibold text-neutral-800 mb-6">
                 Phương thức thanh toán
               </h2>
@@ -190,7 +196,7 @@ const PaymentScreen = () => {
                           className="max-w-full max-h-full object-contain p-2"
                         />
                       ) : (
-                        <CreditCard sx={{ fontSize: 32, color: '#8f7d70' }} />
+                        <CreditCard className="w-8 h-8 text-neutral-400" />
                       )}
                     </div>
 
@@ -208,7 +214,7 @@ const PaymentScreen = () => {
                     {/* Selected Check */}
                     {selectedMethod === method.id && (
                       <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                        <Check sx={{ fontSize: 16, color: 'white' }} />
+                        <Check className="w-4 h-4 text-white" />
                       </div>
                     )}
                   </label>
@@ -217,7 +223,7 @@ const PaymentScreen = () => {
 
               {/* Security Notice */}
               <div className="mt-6 flex items-start gap-3 p-4 bg-neutral-50 rounded-lg">
-                <Security sx={{ fontSize: 20, color: '#7a9b76', flexShrink: 0, mt: 0.5 }} />
+                <Shield className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-neutral-800">Thanh toán an toàn</p>
                   <p className="text-xs text-neutral-600 mt-1">
@@ -230,7 +236,7 @@ const PaymentScreen = () => {
 
           {/* Right Column - Order Summary */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-8">
+            <Card onClick={() => { }} className="sticky top-8">
               <h2 className="text-xl font-semibold text-neutral-800 mb-6">
                 Tóm tắt thanh toán
               </h2>
@@ -244,11 +250,11 @@ const PaymentScreen = () => {
                         {expense.description || expense.category}
                       </p>
                       <p className="text-xs text-neutral-600">
-                        {expense.category}
+                        {expense.category || expense.expenseType}
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-neutral-800">
-                      {expense.yourShare?.toLocaleString()} đ
+                      {(expense.yourShare || expense.totalAmount || 0).toLocaleString()} đ
                     </p>
                   </div>
                 ))}
@@ -278,7 +284,6 @@ const PaymentScreen = () => {
                 fullWidth
                 size="lg"
                 onClick={handlePayment}
-                loading={processing}
                 disabled={processing}
                 className="mt-6 !text-black"
               >

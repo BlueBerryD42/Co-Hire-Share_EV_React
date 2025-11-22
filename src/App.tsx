@@ -14,6 +14,7 @@ import MainLayout from "@/layouts/MainLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import GroupLayout from "@/layouts/GroupLayout";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
+import UserOnlyRoute from "@/components/auth/UserOnlyRoute";
 import { UserRole } from "@/utils/roles";
 import Home from "@/pages/user/Home";
 import Landing from "@/pages/public/Landing";
@@ -27,6 +28,7 @@ import {
   ForgotPassword,
   ResetPassword,
   KycVerification,
+  ProfileSetup,
 } from "@/pages/public/auth";
 
 // Vehicle Pages
@@ -89,8 +91,6 @@ import {
 import StaffDashboard from "@/pages/staff/StaffDashboard";
 import ManageGroups from "@/pages/staff/ManageGroups";
 import ManageVehicles from "@/pages/staff/ManageVehicles";
-import PendingGroups from "@/pages/staff/PendingGroups";
-import PendingVehicles from "@/pages/staff/PendingVehicles";
 import VehicleMaintenance from "@/pages/staff/VehicleMaintenance";
 import CheckInOutManagement from "@/pages/staff/CheckInOutManagement";
 import DisputeManagement from "@/pages/staff/DisputeManagement";
@@ -130,12 +130,93 @@ const AuthInitializer = () => {
     }
   }, [dispatch, token, user, isAuthenticated]);
 
-  // Redirect admins to admin dashboard if they're on home page
+  // Redirect admins to admin dashboard if they're on home page or any user routes
   useEffect(() => {
-    if (isAuthenticated && user && location.pathname === "/") {
-      // UserRole: SystemAdmin = 0, Staff = 1, GroupAdmin = 2, CoOwner = 3
-      if (user.role === UserRole.SystemAdmin || user.role === UserRole.Staff) {
-        navigate('/admin/dashboard', { replace: true });
+    if (isAuthenticated && user) {
+      const isAdmin =
+        user.role === UserRole.SystemAdmin || user.role === UserRole.Staff;
+
+      if (isAdmin) {
+        // Define routes that admins should not access
+        const userRoutes = [
+          "/",
+          "/home",
+          "/vehicles",
+          "/booking",
+          "/groups",
+          "/kyc-verification",
+          "/profile-setup",
+        ];
+
+        // Check if current path is a user route (starts with any of the user route prefixes)
+        const isOnUserRoute = userRoutes.some(
+          (route) =>
+            location.pathname === route ||
+            location.pathname.startsWith(route + "/")
+        );
+
+        // Public routes that admins can access
+        const publicRoutes = [
+          "/login",
+          "/register",
+          "/confirm-email",
+          "/forgot-password",
+          "/reset-password",
+          "/correct-email",
+        ];
+
+        // Admin routes that admins can access
+        const adminRoutes = ["/admin"];
+
+        // Check if current path is an admin route
+        const isOnAdminRoute = adminRoutes.some((route) =>
+          location.pathname.startsWith(route)
+        );
+
+        // Redirect admin away from user routes (except public and admin routes)
+        if (
+          isOnUserRoute &&
+          !publicRoutes.includes(location.pathname) &&
+          !isOnAdminRoute
+        ) {
+          navigate("/admin/dashboard", { replace: true });
+        }
+      }
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
+
+  // Redirect to KYC verification if user hasn't completed KYC (first-time login)
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Only redirect regular users (GroupAdmin or CoOwner), not admins/staff
+      const isRegularUser =
+        user.role === UserRole.GroupAdmin || user.role === UserRole.CoOwner;
+      const kycStatus = user.kycStatus ?? 0;
+      const isKycApproved = kycStatus === 2; // 2 = Approved
+      const isKycInReview = kycStatus === 1; // 1 = InReview
+      const isOnKycPage = location.pathname === "/kyc-verification";
+      const isOnProfileSetupPage = location.pathname === "/profile-setup";
+
+      // Redirect to KYC if user hasn't started KYC (status = 0) and is not on allowed pages
+      if (
+        isRegularUser &&
+        !isKycApproved &&
+        !isKycInReview &&
+        !isOnKycPage &&
+        !isOnProfileSetupPage
+      ) {
+        // Allow access to public routes (login, register, etc.)
+        const publicRoutes = [
+          "/login",
+          "/register",
+          "/confirm-email",
+          "/forgot-password",
+          "/reset-password",
+          "/correct-email",
+        ];
+        if (!publicRoutes.includes(location.pathname)) {
+          navigate("/kyc-verification", { replace: true });
+        }
       }
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
@@ -168,9 +249,21 @@ const App = () => {
             <Route path="/home" element={<Home />} />
             {/* Payment Callback - No layout needed for redirect page */}
             <Route path="/payment/callback" element={<PaymentCallback />} />
+            {/* Home Dashboard - Block admin access */}
+            <Route
+              path="/home"
+              element={
+                <UserOnlyRoute>
+                  <Home />
+                </UserOnlyRoute>
+              }
+            />
 
             {/* KYC Verification */}
             <Route path="/kyc-verification" element={<KycVerification />} />
+
+            {/* Profile Setup */}
+            <Route path="/profile-setup" element={<ProfileSetup />} />
 
             {/* Vehicle Routes */}
             <Route path="/vehicles">
@@ -274,84 +367,82 @@ const App = () => {
               />
             </Route>
 
-          {/* Catch all - redirect to home */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Route>
-        
-        {/* Admin Routes - Protected by Role (SystemAdmin and Staff only) */}
-        <Route
-          path="/admin"
-          element={
-            <RoleProtectedRoute
-              allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
-              redirectTo="/home"
-            >
-              <AdminLayout />
-            </RoleProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<StaffDashboard />} />
-          <Route path="groups/pending" element={<PendingGroups />} />
-          <Route path="groups" element={<ManageGroups />} />
-          <Route path="vehicles/pending" element={<PendingVehicles />} />
-          <Route path="vehicles" element={<ManageVehicles />} />
-          <Route path="maintenance" element={<VehicleMaintenance />} />
-          <Route path="checkins" element={<CheckInOutManagement />} />
-          <Route path="disputes" element={<DisputeManagement />} />
-          <Route path="financial-reports" element={<FinancialReports />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="kyc" element={<KycDocumentReview />} />
-          <Route path="contracts" element={<EContractTemplates />} />
-          <Route path="settings" element={<SystemSettings />} />
-          <Route path="analytics" element={<AnalyticsDashboard />} />
-          <Route path="audit" element={<AuditLog />} />
-        </Route>
-        
-        {/* Admin AI Routes - Protected by Role (SystemAdmin and Staff only) */}
-        <Route
-          path="/admin/ai"
-          element={
-            <RoleProtectedRoute
-              allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
-              redirectTo="/home"
-            >
-              <AdminLayout />
-            </RoleProtectedRoute>
-          }
-        >
+            {/* Catch all - redirect to home */}
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Route>
+
+          {/* Admin Routes - Protected by Role (SystemAdmin and Staff only) */}
           <Route
-            index
+            path="/admin"
             element={
-              <Navigate to="/admin/ai/booking-recommendations" replace />
+              <RoleProtectedRoute
+                allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
+                redirectTo="/admin/dashboard"
+              >
+                <AdminLayout />
+              </RoleProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<StaffDashboard />} />
+            <Route path="groups" element={<ManageGroups />} />
+            <Route path="vehicles" element={<ManageVehicles />} />
+            <Route path="maintenance" element={<VehicleMaintenance />} />
+            <Route path="checkins" element={<CheckInOutManagement />} />
+            <Route path="disputes" element={<DisputeManagement />} />
+            <Route path="financial-reports" element={<FinancialReports />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="kyc" element={<KycDocumentReview />} />
+            <Route path="contracts" element={<EContractTemplates />} />
+            <Route path="settings" element={<SystemSettings />} />
+            <Route path="analytics" element={<AnalyticsDashboard />} />
+            <Route path="audit" element={<AuditLog />} />
+          </Route>
+
+          {/* Admin AI Routes - Protected by Role (SystemAdmin and Staff only) */}
           <Route
-            path="booking-recommendations"
-            element={<AiBookingRecommendations />}
-          />
-          <Route path="fairness-score" element={<AiFairnessScore />} />
-          <Route
-            path="fairness-score/:groupId"
-            element={<AiFairnessScore />}
-          />
-          <Route
-            path="predictive-maintenance"
-            element={<PredictiveMaintenance />}
-          />
-          <Route
-            path="predictive-maintenance/:vehicleId"
-            element={<PredictiveMaintenance />}
-          />
-          <Route
-            path="cost-optimization"
-            element={<CostOptimizationInsights />}
-          />
-          <Route
-            path="cost-optimization/:groupId"
-            element={<CostOptimizationInsights />}
-          />
-        </Route>
+            path="/admin/ai"
+            element={
+              <RoleProtectedRoute
+                allowedRoles={[UserRole.SystemAdmin, UserRole.Staff]}
+                redirectTo="/admin/dashboard"
+              >
+                <AdminLayout />
+              </RoleProtectedRoute>
+            }
+          >
+            <Route
+              index
+              element={
+                <Navigate to="/admin/ai/booking-recommendations" replace />
+              }
+            />
+            <Route
+              path="booking-recommendations"
+              element={<AiBookingRecommendations />}
+            />
+            <Route path="fairness-score" element={<AiFairnessScore />} />
+            <Route
+              path="fairness-score/:groupId"
+              element={<AiFairnessScore />}
+            />
+            <Route
+              path="predictive-maintenance"
+              element={<PredictiveMaintenance />}
+            />
+            <Route
+              path="predictive-maintenance/:vehicleId"
+              element={<PredictiveMaintenance />}
+            />
+            <Route
+              path="cost-optimization"
+              element={<CostOptimizationInsights />}
+            />
+            <Route
+              path="cost-optimization/:groupId"
+              element={<CostOptimizationInsights />}
+            />
+          </Route>
         </Routes>
       </ErrorBoundary>
     </BrowserRouter>

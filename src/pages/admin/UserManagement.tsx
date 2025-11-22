@@ -40,7 +40,7 @@ interface User {
 
 const UserManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
-  
+
   // Role check - SystemAdmin only
   if (!isSystemAdmin(user)) {
     return <Unauthorized requiredRole="SystemAdmin" />;
@@ -357,15 +357,6 @@ const UserManagement = () => {
                           onClick={() => handleViewUser(user)}
                         >
                           View
-                        </Button>
-                        <Button
-                          variant="accent"
-                          size="sm"
-                          onClick={() => {
-                            // Edit user
-                          }}
-                        >
-                          Edit
                         </Button>
                       </div>
                     </td>
