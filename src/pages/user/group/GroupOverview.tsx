@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import {
   CalendarMonth,
   DirectionsCarFilledOutlined,
-  EventAvailable,
   SavingsOutlined,
   HowToVote,
   Description,
@@ -21,7 +20,9 @@ import { EmptyState } from '@/components/shared'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { documentApi } from '@/services/group/documents'
 import { groupApi } from '@/services/group/groups'
+import vehicleService from '@/services/vehicleService'
 import { DocumentType, SignatureStatus, type DocumentListItemResponse } from '@/models/document'
+import type { GroupVehicleDto } from '@/models/group'
 
 const currency = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -92,13 +93,6 @@ const quickActions: QuickAction[] = [
     disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
   },
   {
-    label: "Create proposal",
-    description: "Start a new rule or budget change",
-    icon: EventAvailable,
-    to: (groupId: UUID) => `/groups/${groupId}/proposals/create`,
-    disabled: (group) => group.status === 'PendingApproval' || group.status === 'Rejected',
-  },
-  {
     label: "E-Contract",
     description: "View, manage & sign documents",
     icon: Description,
@@ -124,6 +118,8 @@ const GroupOverview = () => {
   const [recentContracts, setRecentContracts] = useState<DocumentListItemResponse[]>([])
   const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [resubmitting, setResubmitting] = useState(false)
+  const [groupVehicles, setGroupVehicles] = useState<GroupVehicleDto[]>([])
+  const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -221,6 +217,50 @@ const GroupOverview = () => {
     fetchDocuments()
   }, [selectedGroup?.id])
 
+  // Fetch vehicles for this group
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      if (!selectedGroup?.id) {
+        setGroupVehicles([])
+        return
+      }
+
+      setLoadingVehicles(true)
+      try {
+        // Get all vehicles (they're filtered by user's groups on backend)
+        const allVehicles = await vehicleService.getAllVehicles()
+        
+        // Filter vehicles for this specific group
+        const vehiclesForGroup = allVehicles
+          .filter(v => v.groupId === selectedGroup.id)
+          .map(v => ({
+            id: v.id,
+            vin: v.vin,
+            plateNumber: v.plateNumber,
+            model: v.model,
+            year: v.year,
+            color: v.color,
+            status: v.status as GroupVehicleDto['status'],
+            odometer: v.odometer,
+            groupId: v.groupId,
+            groupName: selectedGroup.name,
+            lastServiceDate: v.lastServiceDate,
+            createdAt: v.createdAt,
+            updatedAt: v.updatedAt,
+          }))
+        
+        setGroupVehicles(vehiclesForGroup)
+      } catch (err) {
+        console.error(`Error fetching vehicles for group ${selectedGroup.id}:`, err)
+        setGroupVehicles([])
+      } finally {
+        setLoadingVehicles(false)
+      }
+    }
+
+    fetchVehicles()
+  }, [selectedGroup?.id, selectedGroup?.name])
+
   if (loading) {
     return (
       <section className="space-y-6">
@@ -269,12 +309,17 @@ const GroupOverview = () => {
     },
     {
       label: "Xe được chia sẻ",
-      value: selectedGroup.vehicles.length.toString(),
+      value: loadingVehicles 
+        ? "..." 
+        : groupVehicles.length > 0 
+          ? groupVehicles[0].model 
+          : "Chưa có xe",
       helper:
-        selectedGroup.vehicles
-          .map((v) => v.model)
-          .slice(0, 2)
-          .join(", ") || "Chưa có xe",
+        loadingVehicles
+          ? "Đang tải..."
+          : groupVehicles.length > 0
+            ? `${groupVehicles[0].year} · ${groupVehicles[0].plateNumber}`
+            : "Nhóm chưa liên kết xe",
     },
     {
       label: "Quỹ khả dụng",
@@ -820,43 +865,49 @@ const GroupOverview = () => {
       </section>
 
       <section className="card space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-neutral-900">
-              Xe trong nhóm
-            </h2>
-            <p className="text-sm text-neutral-600">
-              Theo dõi trạng thái & biển số
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700">
-            <DirectionsCarFilledOutlined fontSize="small" />
-            {selectedGroup.vehicles.length} xe
-          </div>
+        <div>
+          <h2 className="text-2xl font-semibold text-neutral-900">
+            Xe trong nhóm
+          </h2>
+          <p className="text-sm text-neutral-600">
+            Theo dõi trạng thái & biển số
+          </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {selectedGroup.vehicles.map((vehicle) => (
-            <div
-              key={vehicle.id}
-              className="rounded-2xl border border-neutral-200 bg-white p-4"
-            >
-              <p className="text-lg font-semibold text-neutral-900">
-                {vehicle.model} · {vehicle.year}
-              </p>
-              <p className="text-sm text-neutral-600">
-                Biển số: {vehicle.plateNumber}
-              </p>
-              <p className="text-sm text-neutral-600">
-                Trạng thái: {vehicle.status}
-              </p>
+        {loadingVehicles ? (
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-600">
+            Đang tải thông tin xe...
+          </div>
+        ) : groupVehicles.length > 0 ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+            <div className="flex items-start gap-4">
+              <div className="rounded-2xl bg-accent-blue/10 p-3 text-accent-blue">
+                <DirectionsCarFilledOutlined />
+              </div>
+              <div className="flex-1">
+                <p className="text-xl font-semibold text-neutral-900">
+                  {groupVehicles[0].model} · {groupVehicles[0].year}
+                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-neutral-600">
+                    Biển số: <span className="font-medium">{groupVehicles[0].plateNumber}</span>
+                  </p>
+                  <p className="text-sm text-neutral-600">
+                    Trạng thái: <span className="font-medium">{groupVehicles[0].status}</span>
+                  </p>
+                  {groupVehicles[0].odometer && (
+                    <p className="text-sm text-neutral-600">
+                      Số km: <span className="font-medium">{groupVehicles[0].odometer.toLocaleString('vi-VN')} km</span>
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-          ))}
-          {selectedGroup.vehicles.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-600">
-              Nhóm chưa liên kết xe nào.
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-600">
+            Nhóm chưa liên kết xe nào.
+          </div>
+        )}
       </section>
     </section>
   );

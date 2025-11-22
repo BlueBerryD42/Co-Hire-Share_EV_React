@@ -47,8 +47,20 @@ const MarketplaceGroupDetail = ({
     return null;
   }
 
-  const availableOwnership = group.availableOwnershipPercentage;
+  // Ensure availableOwnership is always a number, handle null/undefined/NaN
+  const availableOwnershipValue = group.availableOwnershipPercentage ?? 0;
+  const availableOwnershipNum = Number(availableOwnershipValue);
+  const availableOwnership = Number.isFinite(availableOwnershipNum) && !Number.isNaN(availableOwnershipNum)
+    ? availableOwnershipNum 
+    : 0;
   const isAvailable = availableOwnership > 0;
+  
+  // Ensure totalOwnershipPercentage is always a number
+  const totalOwnershipValue = group.totalOwnershipPercentage ?? 0;
+  const totalOwnershipNum = Number(totalOwnershipValue);
+  const totalOwnership = Number.isFinite(totalOwnershipNum) && !Number.isNaN(totalOwnershipNum)
+    ? totalOwnershipNum 
+    : 0;
 
   // Mock vehicle images array (in real app, this would come from vehicle data)
   const vehicleImages = group.vehiclePhoto ? [group.vehiclePhoto] : [];
@@ -84,7 +96,7 @@ const MarketplaceGroupDetail = ({
               className="h-full w-full object-cover"
             />
             {isAvailable && (
-              <div className="absolute right-4 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+              <div className="absolute right-6 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
                 {availableOwnership.toFixed(0)}% available
               </div>
             )}
@@ -109,7 +121,7 @@ const MarketplaceGroupDetail = ({
           <div className="relative h-64 w-full bg-neutral-200">
             <Car className="absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 text-neutral-400" />
             {isAvailable && (
-              <div className="absolute right-4 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+              <div className="absolute right-6 top-4 rounded-full bg-accent-green/90 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
                 {availableOwnership.toFixed(0)}% available
               </div>
             )}
@@ -289,7 +301,7 @@ const MarketplaceGroupDetail = ({
                 />
               </div>
               <p className="mt-2 text-xs text-neutral-500">
-                {group.totalOwnershipPercentage.toFixed(1)}% already owned
+                {totalOwnership.toFixed(1)}% already owned
               </p>
             </div>
           </div>
@@ -348,23 +360,23 @@ const MarketplaceGroupDetail = ({
                 Group Statistics
               </h3>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                {group.utilizationRate !== undefined && (
+                {group.utilizationRate !== undefined && group.utilizationRate !== null && (
                   <div>
                     <dt className="text-sm text-neutral-500">
                       Utilization Rate
                     </dt>
                     <dd className="text-lg font-semibold text-neutral-900">
-                      {group.utilizationRate.toFixed(1)}%
+                      {(group.utilizationRate ?? 0).toFixed(1)}%
                     </dd>
                   </div>
                 )}
-                {group.participationRate !== undefined && (
+                {group.participationRate !== undefined && group.participationRate !== null && (
                   <div>
                     <dt className="text-sm text-neutral-500">
                       Participation Rate
                     </dt>
                     <dd className="text-lg font-semibold text-neutral-900">
-                      {group.participationRate.toFixed(1)}%
+                      {(group.participationRate ?? 0).toFixed(1)}%
                     </dd>
                   </div>
                 )}

@@ -42,6 +42,8 @@ import type { UUID } from "@/models/booking";
 import type { ProposalType } from "@/models/proposal";
 import { proposalApi } from "@/services/group/proposals";
 import { documentApi } from "@/services/group/documents";
+import { useGroup } from "@/hooks/useGroups";
+import type { AxiosError } from "axios";
 import type {
   DocumentListItemResponse,
   DocumentSignatureStatusResponse,
@@ -74,6 +76,7 @@ const getProposalTypeLabel = (type: ProposalType): string => {
 const CreateProposal = () => {
   const navigate = useNavigate();
   const { groupId } = useParams<{ groupId: UUID }>();
+  const { data: group } = useGroup(groupId);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -113,8 +116,42 @@ const CreateProposal = () => {
   const [previewError, setPreviewError] = useState(false);
 
   const isValid = useMemo(() => {
-    return form.title.trim().length > 5 && form.description.trim().length > 20;
-  }, [form.title, form.description]);
+    const titleValid = form.title.trim().length >= 5;
+    const descriptionValid = form.description.trim().length >= 20;
+    const startDateValid = form.votingStartDate && new Date(form.votingStartDate).getTime() > 0;
+    const endDateValid = form.votingEndDate && new Date(form.votingEndDate).getTime() > 0;
+    const datesOrderValid = startDateValid && endDateValid && 
+      new Date(form.votingEndDate).getTime() > new Date(form.votingStartDate).getTime();
+    
+    // Check if start date is in the past
+    const startDateNotInPast = startDateValid && 
+      new Date(form.votingStartDate).getTime() >= new Date().getTime();
+    
+    return titleValid && descriptionValid && startDateValid && endDateValid && datesOrderValid && startDateNotInPast;
+  }, [form.title, form.description, form.votingStartDate, form.votingEndDate]);
+  
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (form.title.trim().length < 5) {
+      errors.push("Tiêu đề phải có ít nhất 5 ký tự");
+    }
+    if (form.description.trim().length < 20) {
+      errors.push("Mô tả phải có ít nhất 20 ký tự");
+    }
+    if (!form.votingStartDate || new Date(form.votingStartDate).getTime() <= 0) {
+      errors.push("Vui lòng chọn ngày bắt đầu bỏ phiếu");
+    } else if (new Date(form.votingStartDate).getTime() < new Date().getTime()) {
+      errors.push("Ngày bắt đầu bỏ phiếu không thể là quá khứ");
+    }
+    if (!form.votingEndDate || new Date(form.votingEndDate).getTime() <= 0) {
+      errors.push("Vui lòng chọn ngày kết thúc bỏ phiếu");
+    }
+    if (form.votingStartDate && form.votingEndDate && 
+        new Date(form.votingEndDate).getTime() <= new Date(form.votingStartDate).getTime()) {
+      errors.push("Ngày kết thúc phải sau ngày bắt đầu");
+    }
+    return errors;
+  }, [form.title, form.description, form.votingStartDate, form.votingEndDate]);
 
   // Load documents when component mounts
   useEffect(() => {
@@ -245,12 +282,36 @@ const CreateProposal = () => {
       });
       navigate(`/groups/${groupId}/proposals/${created.id}`);
     } catch (submitError) {
+      console.error("Error creating proposal:", submitError);
+      
+      // Extract error message from API response
+      let errorMessage = "Không thể tạo đề xuất";
+      
+      if (submitError && typeof submitError === 'object' && 'response' in submitError) {
+        const axiosError = submitError as AxiosError<{ message?: string; error?: string }>;
+        const responseData = axiosError.response?.data;
+        
+        if (responseData?.message) {
+          // Use the message from API response
+          errorMessage = responseData.message;
+        } else if (responseData?.error) {
+          errorMessage = responseData.error;
+        } else if (axiosError.response?.status === 400) {
+          errorMessage = "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.";
+        } else if (axiosError.response?.status === 403) {
+          errorMessage = "Bạn không có quyền tạo đề xuất cho nhóm này.";
+        } else if (axiosError.response?.status === 404) {
+          errorMessage = "Không tìm thấy nhóm. Vui lòng thử lại.";
+        } else if (axiosError.message) {
+          errorMessage = axiosError.message;
+        }
+      } else if (submitError instanceof Error) {
+        errorMessage = submitError.message;
+      }
+      
       setSnackbar({
         open: true,
-        message:
-          submitError instanceof Error
-            ? submitError.message
-            : "Không thể tạo đề xuất",
+        message: errorMessage,
         severity: "error",
       });
     } finally {
@@ -261,8 +322,8 @@ const CreateProposal = () => {
   return (
     <section className="space-y-8">
       <header className="space-y-3">
-        <h1 className="text-4xl font-semibold text-neutral-900">
-          Tạo đề xuất mới
+        <h1 className="text-4xl font-semibold text-neutral-900" style={{ color: '#2d2520' }}>
+          Tạo đề xuất mới{group?.name ? ` · ${group.name}` : ''}
         </h1>
         <p className="text-neutral-600">
           Cung cấp thông tin rõ ràng để các thành viên bỏ phiếu minh bạch.
@@ -276,6 +337,8 @@ const CreateProposal = () => {
             value={form.title}
             onChange={(event) => handleChange("title", event.target.value)}
             fullWidth
+            helperText={`${form.title.trim().length}/5 ký tự tối thiểu`}
+            error={form.title.trim().length > 0 && form.title.trim().length < 5}
             sx={{ mb: 3 }}
           />
           <Select
@@ -303,6 +366,8 @@ const CreateProposal = () => {
               handleChange("description", event.target.value)
             }
             fullWidth
+            helperText={`${form.description.trim().length}/20 ký tự tối thiểu`}
+            error={form.description.trim().length > 0 && form.description.trim().length < 20}
             sx={{ mb: 3 }}
           />
           <TextField
@@ -321,6 +386,18 @@ const CreateProposal = () => {
               handleChange("votingStartDate", event.target.value)
             }
             fullWidth
+            inputProps={{
+              min: formatDateTimeLocal(new Date()),
+            }}
+            helperText={
+              form.votingStartDate && new Date(form.votingStartDate).getTime() < new Date().getTime()
+                ? "Ngày bắt đầu không thể là quá khứ"
+                : "Chọn thời điểm bắt đầu bỏ phiếu"
+            }
+            error={
+              form.votingStartDate &&
+              new Date(form.votingStartDate).getTime() < new Date().getTime()
+            }
             sx={{ mb: 3 }}
           />
           <TextField
@@ -331,6 +408,20 @@ const CreateProposal = () => {
               handleChange("votingEndDate", event.target.value)
             }
             fullWidth
+            inputProps={{
+              min: form.votingStartDate || formatDateTimeLocal(new Date()),
+            }}
+            helperText={
+              form.votingEndDate && form.votingStartDate &&
+              new Date(form.votingEndDate).getTime() <= new Date(form.votingStartDate).getTime()
+                ? "Ngày kết thúc phải sau ngày bắt đầu"
+                : "Chọn thời điểm kết thúc bỏ phiếu"
+            }
+            error={
+              form.votingEndDate &&
+              form.votingStartDate &&
+              new Date(form.votingEndDate).getTime() <= new Date(form.votingStartDate).getTime()
+            }
             sx={{ mb: 3 }}
           />
           <div className="mb-6">
@@ -588,12 +679,26 @@ const CreateProposal = () => {
             </CardContent>
           </Card>
 
+          {validationErrors.length > 0 && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2" component="div">
+                <strong>Vui lòng sửa các lỗi sau:</strong>
+                <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </Typography>
+            </Alert>
+          )}
+          
           <Button
             variant="contained"
             fullWidth
             disabled={!isValid || submitting}
             onClick={() => handleSubmit()}
             sx={{ mt: 2 }}
+            title={!isValid ? validationErrors.join(". ") : undefined}
           >
             {submitting ? "Đang gửi..." : "Gửi đề xuất"}
           </Button>

@@ -248,36 +248,46 @@ const GroupHub = () => {
                 <div>
                   <p className="text-lg font-semibold text-neutral-900">{group.groupName}</p>
                   <p className="text-sm text-neutral-500">
-                    {group.activeMembers}/{group.totalMembers} thành viên
+                    {group.currentMembers ?? 0}/{group.totalMembers ?? 0} thành viên
                   </p>
                 </div>
-                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
-                  {group.period}
-                </span>
+                {group.availableOwnershipPercentage > 0 && (
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
+                    {group.availableOwnershipPercentage.toFixed(0)}% có sẵn
+                  </span>
+                )}
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm text-neutral-600">
-                <div>
-                  <dt>Hiệu suất</dt>
-                  <dd className="text-xl font-semibold text-neutral-900">
-                    {group.utilizationRate}%
-                  </dd>
-                </div>
-                <div>
-                  <dt>Lợi nhuận</dt>
-                  <dd className="text-xl font-semibold text-neutral-900">
-                    {group.netProfit.toLocaleString('vi-VN')}₫
-                  </dd>
-                </div>
-                <div>
-                  <dt>Số xe</dt>
-                  <dd className="text-xl font-semibold text-neutral-900">{group.totalVehicles}</dd>
-                </div>
-                <div>
-                  <dt>Tỷ lệ tham gia</dt>
-                  <dd className="text-xl font-semibold text-neutral-900">
-                    {group.participationRate}%
-                  </dd>
-                </div>
+                {group.utilizationRate !== null && group.utilizationRate !== undefined && (
+                  <div>
+                    <dt>Hiệu suất</dt>
+                    <dd className="text-xl font-semibold text-neutral-900">
+                      {group.utilizationRate.toFixed(1)}%
+                    </dd>
+                  </div>
+                )}
+                {group.monthlyEstimatedCost !== null && group.monthlyEstimatedCost !== undefined && (
+                  <div>
+                    <dt>Chi phí/tháng</dt>
+                    <dd className="text-xl font-semibold text-neutral-900">
+                      {group.monthlyEstimatedCost.toLocaleString('vi-VN')}₫
+                    </dd>
+                  </div>
+                )}
+                {group.totalVehicles !== null && group.totalVehicles !== undefined && (
+                  <div>
+                    <dt>Số xe</dt>
+                    <dd className="text-xl font-semibold text-neutral-900">{group.totalVehicles}</dd>
+                  </div>
+                )}
+                {group.participationRate !== null && group.participationRate !== undefined && (
+                  <div>
+                    <dt>Tỷ lệ tham gia</dt>
+                    <dd className="text-xl font-semibold text-neutral-900">
+                      {group.participationRate.toFixed(1)}%
+                    </dd>
+                  </div>
+                )}
               </dl>
               <Link
                 to={`/groups/marketplace?highlight=${group.groupId}`}

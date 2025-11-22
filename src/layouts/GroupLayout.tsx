@@ -16,7 +16,7 @@ const GroupLayout = () => {
   const params = useParams<{ groupId: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { data: groups, loading: groupsLoading } = useGroups()
+  const { data: groups, loading: groupsLoading, reload: reloadGroups } = useGroups()
 
   // Extract groupId from params - check both direct access and from location pathname as fallback
   const urlGroupId = params.groupId || location.pathname.match(/\/groups\/([^/]+)/)?.[1]
@@ -29,6 +29,21 @@ const GroupLayout = () => {
   }, [urlGroupId, groups])
 
   const currentGroup = groups?.find((g) => g.id === activeGroupId)
+
+  // Listen for group creation/update events to refresh the sidebar
+  useEffect(() => {
+    const handleGroupChange = () => {
+      reloadGroups()
+    }
+    
+    window.addEventListener('groupCreated', handleGroupChange)
+    window.addEventListener('groupUpdated', handleGroupChange)
+    
+    return () => {
+      window.removeEventListener('groupCreated', handleGroupChange)
+      window.removeEventListener('groupUpdated', handleGroupChange)
+    }
+  }, [reloadGroups])
 
   // Debug: Log groups when they change
   useEffect(() => {
