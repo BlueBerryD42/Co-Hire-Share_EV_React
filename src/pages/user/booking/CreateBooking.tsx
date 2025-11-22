@@ -51,6 +51,7 @@ const priorityMap: Record<BookingPriority, number> = {
 const slotStepMinutes = 30;
 const minDurationMinutes = 30;
 type FormState = typeof initialForm;
+type BusyRange = { start: number; end: number };
 
 const decodeUserIdFromToken = (token?: string | null) => {
   if (!token) return "";
@@ -95,6 +96,8 @@ const CreateBooking = () => {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [showAiRecommendations, setShowAiRecommendations] = useState(false);
+  const [busyRanges, setBusyRanges] = useState<BusyRange[]>([]);
+  const [busyLoading, setBusyLoading] = useState(false);
 
   useEffect(() => {
     setUserId(derivedUserId);
@@ -332,6 +335,61 @@ const CreateBooking = () => {
     return `${hours}:${minutes}`;
   }, []);
 
+  const refreshBusyRanges = useCallback(async () => {
+    const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
+    if (!resolvedVehicleId) return;
+
+    const from = new Date(`${form.date}T00:00:00`).toISOString();
+    const to = new Date(`${form.endDate}T23:59:59`).toISOString();
+    setBusyLoading(true);
+    try {
+      const bookings = await bookingApi.getVehicleBookings({
+        vehicleId: resolvedVehicleId,
+        from,
+        to,
+      });
+      const ranges =
+        bookings
+          ?.filter(
+            (bk) =>
+              bk.status !== "Cancelled" &&
+              bk.status !== "NoShow" &&
+              bk.startAt &&
+              bk.endAt
+          )
+          .map((bk) => ({
+            start: new Date(bk.startAt).getTime(),
+            end: new Date(bk.endAt).getTime(),
+          }))
+          .filter(
+            (r) =>
+              Number.isFinite(r.start) &&
+              Number.isFinite(r.end) &&
+              r.end > r.start
+          )
+          .sort((a, b) => a.start - b.start) ?? [];
+      setBusyRanges(ranges);
+    } catch {
+      setBusyRanges([]);
+    } finally {
+      setBusyLoading(false);
+    }
+  }, [availableVehicles, form.date, form.endDate, vehicleId]);
+
+  useEffect(() => {
+    void refreshBusyRanges();
+  }, [refreshBusyRanges]);
+
+  const isWindowBlocked = useCallback(
+    (startMs: number, endMs: number) => {
+      if (!busyRanges.length) return false;
+      return busyRanges.some(
+        (range) => startMs < range.end && endMs > range.start
+      );
+    },
+    [busyRanges]
+  );
+
   useEffect(() => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
     if (!resolvedVehicleId) return;
@@ -367,6 +425,7 @@ const CreateBooking = () => {
         const dt = new Date(t);
         // Hide times that are already in the past relative to now.
         if (dt.getTime() < Date.now()) continue;
+        if (isWindowBlocked(t, t + durationMs)) continue;
         const isoValue = dt.toISOString();
         if (!addedTimes.has(isoValue)) {
           options.push({
@@ -383,7 +442,7 @@ const CreateBooking = () => {
     });
 
     return options;
-  }, [slots, durationMinutes]);
+  }, [slots, durationMinutes, isWindowBlocked]);
 
   const currentSlot = useMemo(() => {
     const start = new Date(startIso).getTime();
@@ -406,6 +465,7 @@ const CreateBooking = () => {
       t += stepMs
     ) {
       const dt = new Date(t);
+      if (isWindowBlocked(start, dt.getTime())) continue;
       options.push({
         value: dt.toISOString(),
         label: dt.toLocaleTimeString(undefined, {
@@ -415,18 +475,19 @@ const CreateBooking = () => {
       });
     }
     return options;
-  }, [currentSlot, startIso]);
+  }, [currentSlot, startIso, isWindowBlocked]);
 
   const isSelectionAvailable = useMemo(() => {
     const start = new Date(startIso).getTime();
     const end = new Date(endIso).getTime();
     if (!slots.length) return false;
+    if (isWindowBlocked(start, end)) return false;
     return slots.some(
       (slot) =>
         start >= new Date(slot.startAt).getTime() &&
         end <= new Date(slot.endAt).getTime()
     );
-  }, [slots, startIso, endIso]);
+  }, [slots, startIso, endIso, isWindowBlocked]);
 
   const handleStartSelect = useCallback(
     (iso: string) => {
@@ -444,11 +505,22 @@ const CreateBooking = () => {
         minDurationMinutes * 60000,
         durationMinutes * 60000
       );
+      const blockingRange = busyRanges.find(
+        (range) => range.start > startDate.getTime() && range.start < slotEnd
+      );
+      const availableEndLimit = blockingRange
+        ? Math.min(blockingRange.start, slotEnd)
+        : slotEnd;
       const autoEndMs = Math.min(
         startDate.getTime() + desiredDurationMs,
-        slotEnd
+        availableEndLimit
       );
-      const newEndDate = new Date(autoEndMs);
+      const minEndMs = startDate.getTime() + minDurationMinutes * 60000;
+      const safeEndMs = Math.min(
+        availableEndLimit,
+        Math.max(minEndMs, autoEndMs)
+      );
+      const newEndDate = new Date(safeEndMs);
 
       // Only update date if the selected slot is on a different day than the current form.date
       // This preserves user's date selection when they manually choose a date
@@ -464,7 +536,15 @@ const CreateBooking = () => {
       updateForm("endDate", toDateInput(newEndDate));
       updateForm("end", toTimeInput(newEndDate));
     },
-    [slots, durationMinutes, toDateInput, toTimeInput, updateForm, form.date]
+    [
+      slots,
+      durationMinutes,
+      toDateInput,
+      toTimeInput,
+      updateForm,
+      busyRanges,
+      form.date,
+    ]
   );
 
   const handleEndSelect = useCallback(
@@ -547,6 +627,14 @@ const CreateBooking = () => {
     },
     [toDateInput, toTimeInput]
   );
+
+  useEffect(() => {
+    if (slotsLoading || endOptions.length === 0 || !endIso) return;
+    const hasCurrentEnd = endOptions.some((opt) => opt.value === endIso);
+    if (!hasCurrentEnd && endOptions[0]?.value) {
+      handleEndSelect(endOptions[0].value);
+    }
+  }, [endOptions, endIso, handleEndSelect, slotsLoading]);
 
   const handleSubmit = async () => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
@@ -738,6 +826,13 @@ const CreateBooking = () => {
                 </div>
               </div>
             </div>
+          </div>
+          <div className="text-xs text-[#8b7d6b]">
+            {busyLoading
+              ? "Dang kiem tra cac khung gio da duoc dat..."
+              : busyRanges.length > 0
+              ? `Da an ${busyRanges.length} khung gio da duoc dat truoc.`
+              : null}
           </div>
           {conflictMessage && (
             <p className="text-xs text-rose-600">{conflictMessage}</p>
