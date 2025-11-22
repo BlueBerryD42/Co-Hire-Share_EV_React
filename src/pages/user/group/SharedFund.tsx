@@ -278,6 +278,131 @@ const SharedFund = () => {
     }
   }
 
+  const handleExportPDF = async () => {
+    if (!balance || !transactions || !group) {
+      setSnackbar({
+        open: true,
+        message: 'Chưa có dữ liệu để xuất',
+        severity: 'error',
+      })
+      return
+    }
+
+    try {
+      // Dynamic import to avoid SSR issues
+      const jsPDF = (await import('jspdf')).default
+      const autoTable = (await import('jspdf-autotable')).default
+
+      // Fetch all transactions (not just first 8)
+      const allTransactions = await fundApi.getTransactions(groupId!, { page: 1, pageSize: 1000 })
+
+      const doc = new jsPDF()
+
+      // Helper function to convert Vietnamese text
+      const toNonAccent = (str: string) => {
+        return str
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'D')
+      }
+
+      // Title
+      doc.setFontSize(20)
+      doc.text('SO QUY CHUNG', 105, 20, { align: 'center' })
+
+      doc.setFontSize(12)
+      doc.text(`Nhom: ${toNonAccent(group.name)}`, 20, 35)
+      doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 20, 42)
+
+      // Summary section
+      doc.setFontSize(14)
+      doc.text('TONG QUAN', 20, 55)
+
+      doc.setFontSize(10)
+      const summaryData = [
+        ['So du kha dung', currency.format(balance.availableBalance)],
+        ['Quy du phong', currency.format(balance.reserveBalance)],
+        ['Tong da nap', currency.format(balance.statistics.totalDeposits)],
+        ['Tong da rut', currency.format(balance.statistics.totalWithdrawals)],
+        ['Cap nhat cuoi', new Date(balance.lastUpdated).toLocaleString('vi-VN')],
+      ]
+
+      autoTable(doc, {
+        startY: 60,
+        head: [['Thong tin', 'Gia tri']],
+        body: summaryData,
+        theme: 'grid',
+        headStyles: { fillColor: [122, 154, 175] },
+        margin: { left: 20, right: 20 },
+      })
+
+      // Member contributions
+      doc.setFontSize(14)
+      const contributionsStartY = (doc as any).lastAutoTable.finalY + 15
+      doc.text('DONG GOP THEO THANH VIEN', 20, contributionsStartY)
+
+      const contributionsData = contributions.map(c => [
+        toNonAccent(c.name),
+        currency.format(c.amount),
+        `${c.ratio}%`,
+      ])
+
+      autoTable(doc, {
+        startY: contributionsStartY + 5,
+        head: [['Thanh vien', 'So tien', 'Ty le']],
+        body: contributionsData,
+        theme: 'striped',
+        headStyles: { fillColor: [122, 154, 175] },
+        margin: { left: 20, right: 20 },
+      })
+
+      // Transactions
+      doc.setFontSize(14)
+      const txStartY = (doc as any).lastAutoTable.finalY + 15
+      doc.text('LICH SU GIAO DICH', 20, txStartY)
+
+      const transactionsData = allTransactions.transactions.map(tx => [
+        new Date(tx.transactionDate).toLocaleDateString('vi-VN'),
+        tx.type === 'Deposit' ? 'Nap' : 'Rut',
+        toNonAccent(tx.initiatorName),
+        tx.status === 'Completed' ? 'Hoan thanh' :
+        tx.status === 'Pending' ? 'Cho duyet' :
+        tx.status === 'Rejected' ? 'Tu choi' : 'Da duyet',
+        currency.format(tx.amount),
+      ])
+
+      autoTable(doc, {
+        startY: txStartY + 5,
+        head: [['Ngay', 'Loai', 'Nguoi thuc hien', 'Trang thai', 'So tien']],
+        body: transactionsData,
+        theme: 'striped',
+        headStyles: { fillColor: [122, 154, 175] },
+        margin: { left: 20, right: 20 },
+        columnStyles: {
+          4: { halign: 'right' },
+        },
+      })
+
+      // Save PDF
+      const fileName = `So_Quy_${group.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+      doc.save(fileName)
+
+      setSnackbar({
+        open: true,
+        message: 'Đã xuất sổ quỹ thành công',
+        severity: 'success',
+      })
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      setSnackbar({
+        open: true,
+        message: 'Không thể xuất PDF. Vui lòng thử lại.',
+        severity: 'error',
+      })
+    }
+  }
+
   const currency = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
@@ -351,13 +476,18 @@ const SharedFund = () => {
             <p className="text-sm text-neutral-600">Gửi tới admin để phê duyệt</p>
           </div>
         </button>
-        <div className="card flex items-center gap-3 border-dashed text-neutral-600">
-          <Download className="text-neutral-500" />
+        <button
+          type="button"
+          onClick={handleExportPDF}
+          className="card flex items-center gap-3 border-dashed text-left hover:border-success"
+          disabled={!balance || !transactions}
+        >
+          <Download className="text-success" />
           <div>
             <p className="text-lg font-semibold text-neutral-900">Xuất sổ quỹ</p>
-            <p className="text-sm">Tải file CSV/PDF (đang phát triển)</p>
+            <p className="text-sm text-neutral-600">Tải file PDF</p>
           </div>
-        </div>
+        </button>
       </section>
 
       <section className="card space-y-4">
