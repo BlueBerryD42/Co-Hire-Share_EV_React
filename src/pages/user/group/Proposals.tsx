@@ -52,7 +52,7 @@ const Proposals = () => {
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-semibold text-neutral-900">
+            <h1 className="text-4xl font-semibold text-neutral-900" style={{ color: '#2d2520' }}>
               Đề xuất & bỏ phiếu · {group?.name ?? 'Đang tải'}
             </h1>
             <p className="text-neutral-600">
@@ -79,12 +79,22 @@ const Proposals = () => {
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-2xl border px-4 py-2 text-left transition ${
                 isActive
-                  ? 'border-accent-blue bg-white text-neutral-900 shadow-sm'
-                  : 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:border-neutral-300'
+                  ? 'border-accent-blue bg-white shadow-sm'
+                  : 'border-neutral-200 bg-neutral-100 hover:border-neutral-300'
               }`}
             >
-              <p className="text-sm font-semibold">{tab.label}</p>
-              <p className="text-xs">{tab.helper}</p>
+              <p 
+                className={`text-sm font-semibold ${isActive ? '!text-neutral-900' : '!text-neutral-600'}`}
+                style={{ color: isActive ? '#2d2520' : '#8f7d70' }}
+              >
+                {tab.label}
+              </p>
+              <p 
+                className={`text-xs ${isActive ? '!text-neutral-900' : '!text-neutral-600'}`}
+                style={{ color: isActive ? '#2d2520' : '#8f7d70' }}
+              >
+                {tab.helper}
+              </p>
             </button>
           )
         })}
@@ -113,7 +123,8 @@ const Proposals = () => {
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((proposal) => {
           const status = statusStyles[proposal.status]
-          const progress = Math.min(100, Math.max(0, proposal.votingProgress))
+          // votingProgress is a decimal (0.01 = 1%, 1.0 = 100%), multiply by 100 to get percentage
+          const progress = Math.min(100, Math.max(0, Number(proposal.votingProgress) * 100))
           return (
             <Link
               key={proposal.id}
@@ -121,9 +132,16 @@ const Proposals = () => {
               className="flex flex-col gap-3 rounded-3xl border border-neutral-200 bg-white p-5 transition hover:-translate-y-1 hover:border-accent-blue hover:shadow-lg"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs text-neutral-500">
-                  Kết thúc {new Date(proposal.votingEndDate).toLocaleDateString('vi-VN')}
-                </p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-neutral-500">
+                    Kết thúc {new Date(proposal.votingEndDate).toLocaleDateString('vi-VN')}
+                  </p>
+                  {group?.name && (
+                    <p className="text-xs font-medium text-neutral-700">
+                      Nhóm: {group.name}
+                    </p>
+                  )}
+                </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.classes}`}>
                   {status.label}
                 </span>
@@ -133,7 +151,7 @@ const Proposals = () => {
               <div>
                 <div className="flex items-center justify-between text-xs text-neutral-500">
                   <span>Bỏ phiếu</span>
-                  <span>{progress}%</span>
+                  <span>{Math.round(progress)}%</span>
                 </div>
                 <div className="mt-1 h-2 rounded-full bg-neutral-200">
                   <div

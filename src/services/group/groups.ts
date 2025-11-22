@@ -136,7 +136,8 @@ export const groupApi = {
   },
 
   async createGroup(payload: CreateGroupDto) {
-    const { data } = await http.post<GroupDto>('/', payload)
+    // Remove trailing slash to avoid routing issues
+    const { data } = await http.post<GroupDto>('', payload)
     return normalizeGroup(data)
   },
 

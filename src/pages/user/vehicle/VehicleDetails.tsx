@@ -602,7 +602,7 @@ const OverviewTab = ({ vehicle, healthScore }) => (
               } else if (healthScore >= 20) {
                 // 20-39: Poor condition - urgent attention needed
                 return [
-                  '⚠️ Xe trong tình trạng kém, cần bảo trì khẩn cấp ngay!',
+                  'Xe trong tình trạng kém, cần bảo trì khẩn cấp ngay!',
                   'KHÔNG nên sử dụng xe cho các chuyến đi dài.',
                   'Đưa xe đến trung tâm bảo dưỡng chuyên nghiệp trong vòng 3 ngày.',
                   'Kiểm tra toàn bộ hệ thống động cơ, phanh và treo.',

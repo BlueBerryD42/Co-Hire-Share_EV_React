@@ -88,13 +88,14 @@ const EmptyState = ({
   return (
     <div className="flex flex-col items-center justify-center rounded-3xl border border-neutral-200 bg-neutral-100 p-12 text-center">
       <div className="mb-6 flex items-center justify-center">{displayIllustration}</div>
-      <h3 className="mb-3 text-2xl font-semibold text-neutral-700">{displayHeadline}</h3>
-      <p className="mb-6 max-w-md text-base text-neutral-600">{displayDescription}</p>
+      <h3 className="mb-3 text-2xl font-semibold" style={{ color: '#6b5a4d' }}>{displayHeadline}</h3>
+      <p className="mb-6 max-w-md text-base" style={{ color: '#8f7d70' }}>{displayDescription}</p>
       {actionLabel && onAction && (
         <button
           type="button"
           onClick={onAction}
-          className="rounded-xl bg-accent-blue px-6 py-3 text-sm font-semibold text-white transition hover:bg-opacity-90"
+          className="rounded-xl px-6 py-3 text-sm font-semibold transition hover:opacity-90"
+          style={{ backgroundColor: '#7a9aaf', color: '#ffffff' }}
         >
           {actionLabel}
         </button>

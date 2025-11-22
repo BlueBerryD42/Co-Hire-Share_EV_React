@@ -22,6 +22,7 @@ import {
 } from '@/models/document'
 
 const http = createApiClient('/api/document')
+const templateHttp = createApiClient('/api/document/template')
 
 export const documentApi = {
   // Upload document
@@ -226,6 +227,36 @@ export const documentApi = {
         ipAddress: string
       }>
     >(`/${documentId}/audit-trail`)
+    return data
+  },
+
+  // Template-related methods
+  async generateFromTemplate(
+    templateId: UUID,
+    groupId: UUID,
+    variableValues: Record<string, string>,
+    customFileName?: string,
+    description?: string
+  ): Promise<{
+    documentId: UUID
+    fileName: string
+    fileSize: number
+    downloadUrl: string
+    createdAt: string
+  }> {
+    const { data } = await templateHttp.post<{
+      documentId: UUID
+      fileName: string
+      fileSize: number
+      downloadUrl: string
+      createdAt: string
+    }>(`/${templateId}/generate`, {
+      templateId,
+      groupId,
+      variableValues,
+      customFileName,
+      description,
+    })
     return data
   },
 }
