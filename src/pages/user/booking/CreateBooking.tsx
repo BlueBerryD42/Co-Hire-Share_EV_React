@@ -520,7 +520,7 @@ const CreateBooking = () => {
         availableEndLimit,
         Math.max(minEndMs, autoEndMs)
       );
-      const newEndDate = new Date(autoEndMs);
+      const newEndDate = new Date(safeEndMs);
 
       // Only update date if the selected slot is on a different day than the current form.date
       // This preserves user's date selection when they manually choose a date
