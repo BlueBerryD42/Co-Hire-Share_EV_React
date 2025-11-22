@@ -750,6 +750,26 @@ const StatsTab = ({ vehicleId }: { vehicleId: string }) => {
     return sum + hours
   }, 0)
 
+  const getStatusText = (status: number | string) => {
+    const statusMap: Record<number | string, string> = {
+      0: 'Chờ xử lý',
+      1: 'Chờ phê duyệt',
+      2: 'Đã xác nhận',
+      3: 'Đang sử dụng',
+      4: 'Hoàn thành',
+      5: 'Đã hủy',
+      6: 'Không đến',
+      Pending: 'Chờ xử lý',
+      PendingApproval: 'Chờ phê duyệt',
+      Confirmed: 'Đã xác nhận',
+      InProgress: 'Đang sử dụng',
+      Completed: 'Hoàn thành',
+      Cancelled: 'Đã hủy',
+      NoShow: 'Không đến',
+    }
+    return statusMap[status] || 'Không rõ'
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -787,6 +807,56 @@ const StatsTab = ({ vehicleId }: { vehicleId: string }) => {
           </div>
         ) : (
           <p className="text-neutral-600">Chưa có dữ liệu thống kê trong 30 ngày qua</p>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-xl font-semibold text-neutral-800 mb-4">
+          Lịch đặt (30 ngày qua)
+        </h3>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 rounded bg-neutral-100 animate-pulse" />
+            ))}
+          </div>
+        ) : error ? (
+          <p className="text-error">{error}</p>
+        ) : bookings.length === 0 ? (
+          <p className="text-neutral-600">Không có chuyến đặt trong khoảng thời gian này.</p>
+        ) : (
+          <div className="space-y-3">
+            {bookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="flex items-start justify-between rounded-lg border border-neutral-200 p-4"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
+                    <Calendar className="w-4 h-4 text-neutral-500" />
+                    <span className="font-medium">
+                      {format(new Date(booking.startAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                    </span>
+                    <span className="text-neutral-500">→</span>
+                    <span className="font-medium">
+                      {format(new Date(booking.endAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                    </span>
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    Trạng thái: <span className="font-medium text-neutral-800">{getStatusText(booking.status)}</span>
+                  </div>
+                  {booking.distanceKm ? (
+                    <div className="text-sm text-neutral-600">
+                      Quãng đường: <span className="font-medium">{booking.distanceKm} km</span>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="text-right text-sm text-neutral-500">
+                  #{booking.id?.slice(0, 8)}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
     </div>

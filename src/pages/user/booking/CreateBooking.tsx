@@ -51,6 +51,7 @@ const priorityMap: Record<BookingPriority, number> = {
 const slotStepMinutes = 30;
 const minDurationMinutes = 30;
 type FormState = typeof initialForm;
+type BusyRange = { start: number; end: number };
 
 const decodeUserIdFromToken = (token?: string | null) => {
   if (!token) return "";
@@ -95,6 +96,8 @@ const CreateBooking = () => {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [showAiRecommendations, setShowAiRecommendations] = useState(false);
+  const [busyRanges, setBusyRanges] = useState<BusyRange[]>([]);
+  const [busyLoading, setBusyLoading] = useState(false);
 
   useEffect(() => {
     setUserId(derivedUserId);
@@ -332,6 +335,61 @@ const CreateBooking = () => {
     return `${hours}:${minutes}`;
   }, []);
 
+  const refreshBusyRanges = useCallback(async () => {
+    const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
+    if (!resolvedVehicleId) return;
+
+    const from = new Date(`${form.date}T00:00:00`).toISOString();
+    const to = new Date(`${form.endDate}T23:59:59`).toISOString();
+    setBusyLoading(true);
+    try {
+      const bookings = await bookingApi.getVehicleBookings({
+        vehicleId: resolvedVehicleId,
+        from,
+        to,
+      });
+      const ranges =
+        bookings
+          ?.filter(
+            (bk) =>
+              bk.status !== "Cancelled" &&
+              bk.status !== "NoShow" &&
+              bk.startAt &&
+              bk.endAt
+          )
+          .map((bk) => ({
+            start: new Date(bk.startAt).getTime(),
+            end: new Date(bk.endAt).getTime(),
+          }))
+          .filter(
+            (r) =>
+              Number.isFinite(r.start) &&
+              Number.isFinite(r.end) &&
+              r.end > r.start
+          )
+          .sort((a, b) => a.start - b.start) ?? [];
+      setBusyRanges(ranges);
+    } catch {
+      setBusyRanges([]);
+    } finally {
+      setBusyLoading(false);
+    }
+  }, [availableVehicles, form.date, form.endDate, vehicleId]);
+
+  useEffect(() => {
+    void refreshBusyRanges();
+  }, [refreshBusyRanges]);
+
+  const isWindowBlocked = useCallback(
+    (startMs: number, endMs: number) => {
+      if (!busyRanges.length) return false;
+      return busyRanges.some(
+        (range) => startMs < range.end && endMs > range.start
+      );
+    },
+    [busyRanges]
+  );
+
   useEffect(() => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
     if (!resolvedVehicleId) return;
@@ -367,6 +425,7 @@ const CreateBooking = () => {
         const dt = new Date(t);
         // Hide times that are already in the past relative to now.
         if (dt.getTime() < Date.now()) continue;
+        if (isWindowBlocked(t, t + durationMs)) continue;
         const isoValue = dt.toISOString();
         if (!addedTimes.has(isoValue)) {
           options.push({
@@ -383,7 +442,7 @@ const CreateBooking = () => {
     });
 
     return options;
-  }, [slots, durationMinutes]);
+  }, [slots, durationMinutes, isWindowBlocked]);
 
   const currentSlot = useMemo(() => {
     const start = new Date(startIso).getTime();
@@ -406,6 +465,7 @@ const CreateBooking = () => {
       t += stepMs
     ) {
       const dt = new Date(t);
+      if (isWindowBlocked(start, dt.getTime())) continue;
       options.push({
         value: dt.toISOString(),
         label: dt.toLocaleTimeString(undefined, {
@@ -415,18 +475,19 @@ const CreateBooking = () => {
       });
     }
     return options;
-  }, [currentSlot, startIso]);
+  }, [currentSlot, startIso, isWindowBlocked]);
 
   const isSelectionAvailable = useMemo(() => {
     const start = new Date(startIso).getTime();
     const end = new Date(endIso).getTime();
     if (!slots.length) return false;
+    if (isWindowBlocked(start, end)) return false;
     return slots.some(
       (slot) =>
         start >= new Date(slot.startAt).getTime() &&
         end <= new Date(slot.endAt).getTime()
     );
-  }, [slots, startIso, endIso]);
+  }, [slots, startIso, endIso, isWindowBlocked]);
 
   const handleStartSelect = useCallback(
     (iso: string) => {
@@ -444,17 +505,46 @@ const CreateBooking = () => {
         minDurationMinutes * 60000,
         durationMinutes * 60000
       );
+      const blockingRange = busyRanges.find(
+        (range) => range.start > startDate.getTime() && range.start < slotEnd
+      );
+      const availableEndLimit = blockingRange
+        ? Math.min(blockingRange.start, slotEnd)
+        : slotEnd;
       const autoEndMs = Math.min(
         startDate.getTime() + desiredDurationMs,
-        slotEnd
+        availableEndLimit
       );
-      const newEndDate = new Date(autoEndMs);
-      updateForm("date", toDateInput(startDate));
+      const minEndMs = startDate.getTime() + minDurationMinutes * 60000;
+      const safeEndMs = Math.min(
+        availableEndLimit,
+        Math.max(minEndMs, autoEndMs)
+      );
+      const newEndDate = new Date(safeEndMs);
+
+      // Only update date if the selected slot is on a different day than the current form.date
+      // This preserves user's date selection when they manually choose a date
+      const slotDateStr = toDateInput(startDate);
+      const currentDateStr = form.date;
+
+      // Update date only if slot is on different day, or if current date is invalid/empty
+      if (slotDateStr !== currentDateStr) {
+        updateForm("date", slotDateStr);
+      }
+
       updateForm("start", toTimeInput(startDate));
       updateForm("endDate", toDateInput(newEndDate));
       updateForm("end", toTimeInput(newEndDate));
     },
-    [slots, durationMinutes, toDateInput, toTimeInput, updateForm]
+    [
+      slots,
+      durationMinutes,
+      toDateInput,
+      toTimeInput,
+      updateForm,
+      busyRanges,
+      form.date,
+    ]
   );
 
   const handleEndSelect = useCallback(
@@ -473,26 +563,61 @@ const CreateBooking = () => {
       (opt) => opt.value === startIso
     );
 
+    // Only auto-select if current start is not in options AND the first option is on the same day as form.date
     if (!isCurrentStartAnOption && startOptions[0]?.value) {
-      handleStartSelect(startOptions[0].value);
+      const firstOptionDate = new Date(startOptions[0].value);
+      const selectedDate = new Date(`${form.date}T00:00:00`);
+
+      // Only auto-select if the first option is on the same day as the selected date
+      // This prevents resetting to a different day when user selects a future date
+      if (
+        firstOptionDate.getFullYear() === selectedDate.getFullYear() &&
+        firstOptionDate.getMonth() === selectedDate.getMonth() &&
+        firstOptionDate.getDate() === selectedDate.getDate()
+      ) {
+        handleStartSelect(startOptions[0].value);
+      }
     }
-  }, [startOptions, startIso, slotsLoading, handleStartSelect]);
+  }, [startOptions, startIso, slotsLoading, handleStartSelect, form.date]);
 
   const handleAiSuggestionSelect = useCallback(
     (suggestion: BookingSuggestionItem) => {
-      const startDate = new Date(suggestion.start);
-      const endDate = new Date(suggestion.end);
+      // Parse ISO string and convert to local time if needed
+      // This ensures the displayed time matches what AI recommended
+      const parseIsoToLocal = (isoString: string) => {
+        // Parse the ISO string - this handles UTC (Z) and timezone offsets correctly
+        const date = new Date(isoString);
 
-      // Update form with selected suggestion
-      updateForm("date", toDateInput(startDate));
-      updateForm("start", toTimeInput(startDate));
-      updateForm("endDate", toDateInput(endDate));
-      updateForm("end", toTimeInput(endDate));
+        // Extract local date and time from the parsed date
+        // This ensures we get the correct local time representation
+        return {
+          date: toDateInput(date),
+          time: toTimeInput(date),
+        };
+      };
+
+      const startParsed = parseIsoToLocal(suggestion.start);
+      const endParsed = parseIsoToLocal(suggestion.end);
+
+      // Update form with selected suggestion - use setForm directly to ensure state updates
+      setForm((prev) => ({
+        ...prev,
+        date: startParsed.date,
+        start: startParsed.time,
+        endDate: endParsed.date,
+        end: endParsed.time,
+      }));
 
       // Calculate duration in hours for display
+      const startDate = new Date(suggestion.start);
+      const endDate = new Date(suggestion.end);
       const durationHours =
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-      updateForm("distance", Math.round(durationHours * 60)); // Rough estimate: 60km per hour
+
+      setForm((prev) => ({
+        ...prev,
+        distance: Math.round(durationHours * 60), // Rough estimate: 60km per hour
+      }));
 
       setServerMessage(
         `AI suggestion applied: ${startDate.toLocaleString(
@@ -500,8 +625,16 @@ const CreateBooking = () => {
         )} - ${endDate.toLocaleString("vi-VN")}`
       );
     },
-    [toDateInput, toTimeInput, updateForm]
+    [toDateInput, toTimeInput]
   );
+
+  useEffect(() => {
+    if (slotsLoading || endOptions.length === 0 || !endIso) return;
+    const hasCurrentEnd = endOptions.some((opt) => opt.value === endIso);
+    if (!hasCurrentEnd && endOptions[0]?.value) {
+      handleEndSelect(endOptions[0].value);
+    }
+  }, [endOptions, endIso, handleEndSelect, slotsLoading]);
 
   const handleSubmit = async () => {
     const resolvedVehicleId = vehicleId || availableVehicles[0]?.id;
@@ -620,8 +753,9 @@ const CreateBooking = () => {
               )}
               {availableVehicles.length === 0 && !vehiclesError && (
                 <p className="text-xs text-[#8b7d6b]">
-                  Không có xe nào khả dụng để đặt lịch. Xe có thể đang bảo trì, chờ phê duyệt,
-                  hoặc thuộc nhóm chưa hoạt động. Vui lòng chọn nhóm khác hoặc đợi xe sẵn sàng.
+                  Không có xe nào khả dụng để đặt lịch. Xe có thể đang bảo trì,
+                  chờ phê duyệt, hoặc thuộc nhóm chưa hoạt động. Vui lòng chọn
+                  nhóm khác hoặc đợi xe sẵn sàng.
                 </p>
               )}
             </label>
@@ -692,6 +826,13 @@ const CreateBooking = () => {
                 </div>
               </div>
             </div>
+          </div>
+          <div className="text-xs text-[#8b7d6b]">
+            {busyLoading
+              ? "Dang kiem tra cac khung gio da duoc dat..."
+              : busyRanges.length > 0
+              ? `Da an ${busyRanges.length} khung gio da duoc dat truoc.`
+              : null}
           </div>
           {conflictMessage && (
             <p className="text-xs text-rose-600">{conflictMessage}</p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { aiApi } from "@/utils/api";
 import type {
   SuggestBookingRequest,
@@ -43,6 +43,38 @@ const AiBookingRecommendations = ({
     priority: "flexibility" as "flexibility" | "prime-time",
   });
 
+  const timeOptions = useMemo(() => {
+    const options: { label: string; value: string }[] = [];
+    const now = new Date();
+    const todayDateString = now.toISOString().slice(0, 10);
+    const minAllowedTime = new Date(now.getTime() + 30 * 60 * 1000); // Current time + 30 minutes
+
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const timeValue = `${String(h).padStart(2, "0")}:${String(m).padStart(
+          2,
+          "0"
+        )}`;
+
+        // If preferredDate is today, apply the 30-min future rule
+        if (formData.preferredDate === todayDateString) {
+          const checkDate = new Date();
+          checkDate.setFullYear(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          ); // Ensure same date as 'now' for comparison
+          checkDate.setHours(h, m, 0, 0);
+          if (checkDate.getTime() < minAllowedTime.getTime()) {
+            continue; // Skip times that are in the past or within 30 mins
+          }
+        }
+        options.push({ label: timeValue, value: timeValue });
+      }
+    }
+    return options;
+  }, [formData.preferredDate]);
+
   // Note: We intentionally don't auto-fetch on open to let user set preferences first
   // User can click "Get AI Suggestions" button when ready
 
@@ -56,16 +88,40 @@ const AiBookingRecommendations = ({
     setError(null);
     setSuggestions([]);
 
-    try {
-      // Combine date and time into ISO string
-      let preferredDateTime: ISODate | undefined;
-      if (formData.preferredDate) {
-        const dateTime = formData.preferredTime
-          ? `${formData.preferredDate}T${formData.preferredTime}:00`
-          : `${formData.preferredDate}T12:00:00`;
-        preferredDateTime = new Date(dateTime).toISOString();
+    // Combine date and time into ISO string
+    let preferredDateTime: ISODate | undefined;
+    if (formData.preferredDate) {
+      // Only perform validation if a time is actually selected
+      if (formData.preferredTime) {
+        const selectedDateTime = `${formData.preferredDate}T${formData.preferredTime}:00`;
+        const parsedDateTime = new Date(selectedDateTime);
+        const minAllowedTime = new Date(Date.now() + 30 * 60 * 1000);
+        const minutes = parsedDateTime.getMinutes();
+
+        if (minutes !== 0 && minutes !== 30) {
+          setError(
+            "Vui lòng chọn thời gian theo khoảng 30 phút (ví dụ: 12:00, 12:30)."
+          );
+          setLoading(false);
+          return;
+        }
+
+        if (parsedDateTime.getTime() < minAllowedTime.getTime()) {
+          setError(
+            "Thời gian ưu tiên phải sau thời gian hiện tại ít nhất 30 phút. Vui lòng chọn thời gian khác."
+          );
+          setLoading(false);
+          return;
+        }
       }
 
+      const finalDateTime = formData.preferredTime
+        ? `${formData.preferredDate}T${formData.preferredTime}:00`
+        : `${formData.preferredDate}T12:00:00`;
+      preferredDateTime = new Date(finalDateTime).toISOString();
+    }
+
+    try {
       // Convert duration from hours to minutes
       const durationMinutes = parseFloat(formData.duration) * 60;
 
@@ -284,16 +340,28 @@ const AiBookingRecommendations = ({
                   placeholder="Select date"
                   error=""
                 />
-                <Input
-                  label="Preferred Time"
-                  type="time"
-                  value={formData.preferredTime}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFormData({ ...formData, preferredTime: e.target.value })
-                  }
-                  placeholder="Select time"
-                  error=""
-                />
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Preferred Time
+                  </label>
+                  <select
+                    value={formData.preferredTime}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preferredTime: e.target.value,
+                      })
+                    }
+                    className="w-full bg-neutral-50 border-2 border-neutral-200 rounded-md px-4 py-3 text-neutral-700 focus:outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20"
+                  >
+                    <option value="">Select time</option>
+                    {timeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <Input
                   label="Duration (hours)"
                   type="number"
@@ -553,7 +621,7 @@ const AiBookingRecommendations = ({
                       {/* Actions */}
                       <div className="flex items-center justify-between pt-2 border-t border-neutral-200">
                         <Button
-                          variant="accent"
+                          variant="primary"
                           size="sm"
                           onClick={() => handleSelectSuggestion(suggestion)}
                           className="flex-1"
